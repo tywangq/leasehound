@@ -22,7 +22,7 @@ from dotenv import load_dotenv
 from litellm import completion
 from openai import OpenAI
 from pydantic import BaseModel, Field
-from tenacity import retry, wait_exponential
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 load_dotenv(override=True)
 
@@ -32,7 +32,15 @@ GENERATION_MODEL = os.getenv("LEASEHOUND_GENERATION_MODEL", "openai/gpt-4.1-mini
 EMBEDDING_MODEL = os.getenv("LEASEHOUND_EMBEDDING_MODEL", "text-embedding-3-large")
 DB_PATH = str(Path(__file__).parent.parent / "vector_db")
 
-wait = wait_exponential(multiplier=1, min=10, max=240)
+# One retry policy for every LLM/API call. Bounded — without a stop, a
+# persistent failure (revoked key, exhausted quota) retries forever and the
+# UI event waiting on it hangs. reraise hands callers the real error instead
+# of tenacity's RetryError wrapper.
+llm_retry = retry(
+    wait=wait_exponential(multiplier=1, min=10, max=240),
+    stop=stop_after_attempt(5),
+    reraise=True,
+)
 openai = OpenAI()
 
 # The Chroma client is created lazily: ingest worker processes import this
@@ -73,7 +81,7 @@ class Sufficiency(BaseModel):
     sufficient: bool = Field(description="Whether the excerpts can fully answer the question")
 
 
-@retry(wait=wait)
+@llm_retry
 def rewrite_query(question: str, history: list | None = None, angle: str = "specific") -> str:
     instruction = {
         "specific": "Rewrite as a short, specific search query most likely to surface "
@@ -126,7 +134,7 @@ def merge_chunks(*chunk_lists: list[Result], rrf_k: int = 60) -> list[Result]:
     return [first_seen[key] for key in ordered]
 
 
-@retry(wait=wait)
+@llm_retry
 def grade_context(question: str, chunks: list[Result]) -> bool:
     """CRAG-style self-grading: do the retrieved chunks actually cover the question?"""
     excerpts = "\n\n".join(chunk.page_content[:500] for chunk in chunks[:8])
@@ -141,7 +149,7 @@ def grade_context(question: str, chunks: list[Result]) -> bool:
     return Sufficiency.model_validate_json(response.choices[0].message.content).sufficient
 
 
-@retry(wait=wait)
+@llm_retry
 def rerank(question: str, chunks: list[Result]) -> list[Result]:
     system_prompt = (
         "You are a document re-ranker. Rank the provided chunks by relevance to the "

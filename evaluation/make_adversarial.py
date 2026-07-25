@@ -19,10 +19,9 @@ from pathlib import Path
 
 from litellm import completion
 from pydantic import BaseModel, Field
-from tenacity import retry
 from tqdm import tqdm
 
-from leasehound.retrieval import GENERATION_MODEL, wait
+from leasehound.retrieval import GENERATION_MODEL, llm_retry
 
 TESTS_PATH = Path(__file__).parent / "tests.jsonl"
 OUT_PATH = Path(__file__).parent / "tests_adversarial.jsonl"
@@ -38,7 +37,7 @@ class Rewrite(BaseModel):
     )
 
 
-@retry(wait=wait)
+@llm_retry
 def rewrite(question: str) -> str:
     message = (
         "Rewrite this renter's question as someone who has never read a law and "

@@ -9,7 +9,6 @@ from typing import Literal
 
 from litellm import completion
 from pydantic import BaseModel, Field
-from tenacity import retry
 
 from leasehound.retrieval import (
     GENERATION_MODEL,
@@ -17,7 +16,7 @@ from leasehound.retrieval import (
     PipelineConfig,
     Result,
     fetch_context,
-    wait,
+    llm_retry,
 )
 
 
@@ -46,7 +45,7 @@ you can't scan from words alone.
 """
 
 
-@retry(wait=wait)
+@llm_retry
 def needs_retrieval(question: str, history: list | None = None) -> bool:
     """Router: skip the whole retrieval pipeline for messages that aren't legal questions."""
     message = (
@@ -101,7 +100,7 @@ def stream_text(response) -> Iterator[str]:
             yield delta
 
 
-@retry(wait=wait)
+@llm_retry
 def answer_question(
     question: str, history: list | None = None, config: PipelineConfig | None = None
 ) -> tuple[Iterator[str], list[Result]]:

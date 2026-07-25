@@ -19,7 +19,7 @@ Two corpus layers, two query modes:
 | Content | State statutes + official guidance | The lease you upload |
 | Processing | Offline ingestion, evaluated with an ablation suite | Split into clauses on the fly (deterministic, no LLM) |
 
-- **Scan mode** — walks your lease clause by clause, retrieves the governing statute for each, and produces a structured red-flag report with citations. Clause judgments are independent API calls, so they run concurrently — a 15-clause lease scans in ~10 seconds instead of ~90. A second, negative-space pass checks a hand-curated, statute-cited checklist of required protections and reports what the lease *fails to include* (the LLM only judges presence — it never invents requirements). A document sanity check refuses non-leases before any clause is judged
+- **Scan mode** — walks your lease clause by clause, retrieves the governing statute for each, and produces a structured red-flag report with citations. Each clause queries the statutes directly, skipping the query-rewriting stages: those bridge renter vocabulary to statute vocabulary (see the adversarial experiment below), and a lease clause already speaks statute. Clause judgments are independent API calls, so they run concurrently — a 15-clause lease scans in ~10 seconds instead of ~90. A second, negative-space pass checks a hand-curated, statute-cited checklist of required protections and reports what the lease *fails to include* (the LLM only judges presence — it never invents requirements). A document sanity check refuses non-leases before any clause is judged
 - **Ask mode** — RAG Q&A over the statute corpus ("Can my landlord charge a late fee on day 3?"); once you've scanned a lease, the report joins the chat context so answers are about *your* lease. A session-scoped vector collection for full lease-text retrieval is planned.
 
 Retrieval pipeline: LLM-driven semantic chunking & augmentation (Pydantic structured outputs, parallel ingestion with validation + retry) → query router (greetings and small talk skip retrieval entirely) → dual-query retrieval (original + rewritten) merged with reciprocal rank fusion → self-grading retrieval (CRAG-style) → LLM reranking → grounded generation with source citations.
@@ -78,7 +78,7 @@ A lease is sensitive: names, address, rent. LeaseHound keeps handling minimal �
 
 ```bash
 pip install -e ".[dev]"
-pytest          # unit tests: clause splitting, RRF merge, report rendering, cancellation, privacy cleanup
+pytest          # unit tests: clause splitting, RRF merge, report rendering, cancellation, cited-sources footer, privacy cleanup
 ruff check leasehound evaluation scripts tests
 ```
 

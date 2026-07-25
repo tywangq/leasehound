@@ -12,11 +12,10 @@ from pathlib import Path
 
 from litellm import completion
 from pydantic import BaseModel, Field
-from tenacity import retry
 from tqdm import tqdm
 
 from leasehound.ingest import fetch_documents
-from leasehound.retrieval import UTILITY_MODEL, wait
+from leasehound.retrieval import UTILITY_MODEL, llm_retry
 
 TESTS_PATH = Path(__file__).parent / "tests.jsonl"
 
@@ -29,7 +28,7 @@ class Verdict(BaseModel):
     reason: str = Field(description="One short sentence")
 
 
-@retry(wait=wait)
+@llm_retry
 def verify(question: str, section_text: str) -> Verdict:
     messages = [
         {

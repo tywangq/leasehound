@@ -17,7 +17,6 @@ from pathlib import Path
 from chromadb import PersistentClient
 from litellm import completion
 from pydantic import BaseModel, Field
-from tenacity import retry
 from tqdm import tqdm
 
 from leasehound.retrieval import (
@@ -25,8 +24,8 @@ from leasehound.retrieval import (
     EMBEDDING_MODEL,
     UTILITY_MODEL,
     Result,
+    llm_retry,
     openai,
-    wait,
 )
 
 EMBED_BATCH_SIZE = 100
@@ -136,7 +135,7 @@ MIN_CHARS_FOR_MULTI = 2000  # docs longer than this must not come back as a sing
 VALIDATION_ATTEMPTS = 3
 
 
-@retry(wait=wait)
+@llm_retry
 def call_chunker(document: dict) -> list[Chunk]:
     messages = [{"role": "user", "content": make_prompt(document)}]
     response = completion(model=UTILITY_MODEL, messages=messages, response_format=Chunks)

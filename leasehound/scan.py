@@ -20,7 +20,6 @@ from typing import Literal
 
 from litellm import completion
 from pydantic import BaseModel, Field
-from tenacity import retry
 from tqdm import tqdm
 
 from leasehound.retrieval import (
@@ -28,7 +27,7 @@ from leasehound.retrieval import (
     PipelineConfig,
     Result,
     fetch_unranked,
-    wait,
+    llm_retry,
 )
 from leasehound.upload import load_clauses
 
@@ -74,7 +73,7 @@ Classify the clause. Rules:
 """
 
 
-@retry(wait=wait)
+@llm_retry
 def judge_clause(clause: str, chunks: list[Result]) -> ClauseVerdict:
     messages = [{"role": "user", "content": make_judge_prompt(clause, chunks)}]
     # temperature=0: verdicts are classifications — the same lease should get
@@ -165,7 +164,7 @@ Respond with one status per checklist item, in order.
 """
 
 
-@retry(wait=wait)
+@llm_retry
 def check_protections(clauses: list[str]) -> list[dict]:
     messages = [{"role": "user", "content": make_protections_prompt("\n\n".join(clauses))}]
     response = completion(
@@ -199,7 +198,7 @@ class DocumentCheck(BaseModel):
     )
 
 
-@retry(wait=wait)
+@llm_retry
 def looks_like_lease(clauses: list[str]) -> bool:
     """Sanity check before burning a full scan on a document that isn't a lease."""
     message = "Classify the following document.\n\n" + "\n\n".join(clauses)[:6000]

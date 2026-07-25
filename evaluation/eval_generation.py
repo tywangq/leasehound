@@ -31,12 +31,16 @@ from typing import Literal
 
 from litellm import completion
 from pydantic import BaseModel, Field
-from tenacity import retry
 from tqdm import tqdm
 
 from leasehound.answer import make_messages
 from leasehound.ingest import fetch_documents
-from leasehound.retrieval import GENERATION_MODEL, PipelineConfig, fetch_context, wait
+from leasehound.retrieval import (
+    GENERATION_MODEL,
+    PipelineConfig,
+    fetch_context,
+    llm_retry,
+)
 from leasehound.scan import base_section
 
 TESTS_PATH = Path(__file__).parent / "tests.jsonl"
@@ -79,7 +83,7 @@ Grade the answer. Judge legal substance, not style or completeness of citations.
 """
 
 
-@retry(wait=wait)
+@llm_retry
 def judge_answer(question: str, reference: str, extracts: str, answer: str) -> AnswerJudgment:
     response = completion(
         model=GENERATION_MODEL,
@@ -89,7 +93,7 @@ def judge_answer(question: str, reference: str, extracts: str, answer: str) -> A
     return AnswerJudgment.model_validate_json(response.choices[0].message.content)
 
 
-@retry(wait=wait)
+@llm_retry
 def generate_answer(question: str, config: PipelineConfig) -> tuple[str, list]:
     chunks = fetch_context(question, config)
     response = completion(model=GENERATION_MODEL, messages=make_messages(question, [], chunks))
