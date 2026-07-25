@@ -11,3 +11,8 @@
 {"name": "dual-rerank-n100", "collection": "wa_reference", "dual_query": true, "grader": false, "rerank": true, "n": 82, "mrr": 0.7981, "ndcg": 0.8212, "hit@5": 0.878, "hit@10": 0.8902}
 {"name": "full-n100", "collection": "wa_reference", "dual_query": true, "grader": true, "rerank": true, "n": 82, "mrr": 0.8081, "ndcg": 0.8346, "hit@5": 0.9146, "hit@10": 0.9146}
 {"name": "naive-crag-n82", "collection": "wa_reference_naive", "dual_query": false, "grader": true, "rerank": false, "n": 82, "mrr": 0.807, "ndcg": 0.8412, "hit@5": 0.8902, "hit@10": 0.9512}
+{"name": "naive-adv", "collection": "wa_reference_naive", "dual_query": false, "grader": false, "rerank": false, "n": 82, "mrr": 0.7374, "ndcg": 0.7739, "hit@5": 0.8293, "hit@10": 0.8902}
+{"name": "plain-adv", "collection": "wa_reference_plain", "dual_query": false, "grader": false, "rerank": false, "n": 82, "mrr": 0.6897, "ndcg": 0.7357, "hit@5": 0.8171, "hit@10": 0.878}
+{"name": "augmented-adv", "collection": "wa_reference", "dual_query": false, "grader": false, "rerank": false, "n": 82, "mrr": 0.7076, "ndcg": 0.7583, "hit@5": 0.8659, "hit@10": 0.9146}
+{"name": "naive-crag-adv", "collection": "wa_reference_naive", "dual_query": false, "grader": true, "rerank": false, "n": 82, "mrr": 0.7307, "ndcg": 0.7712, "hit@5": 0.8049, "hit@10": 0.9024}
+{"name": "full-adv", "collection": "wa_reference", "dual_query": true, "grader": true, "rerank": true, "n": 82, "mrr": 0.7482, "ndcg": 0.7861, "hit@5": 0.8659, "hit@10": 0.9024}

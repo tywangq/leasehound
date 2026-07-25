@@ -116,7 +116,22 @@ Each test question is a colloquial tenant question generated from — and then v
 3. **The ablation caught a silent no-op.** With append-style merging and no reranker downstream, dual-query retrieval could never change top-k — by construction. Fixed with reciprocal rank fusion: ten lines of deterministic code, zero extra LLM calls.
 4. **CRAG self-grading remains the clearest individual win** at both test-set sizes (+.010 MRR and +.037 hit@5 over the rerank row at n=82; +.033 MRR at n=43): re-querying with statutory vocabulary rescues exactly the questions the other stages miss, and lifts the full pipeline back to the baseline's MRR with the best hit@5.
 5. **Honest caveat:** at n=82 one flipped question ≈ .012 MRR, so the full pipeline and the naive baseline are statistically tied on MRR. The augmented pipeline's case rests on the layers above retrieval — scan-mode precision (below) and generation quality — not on this table.
-6. **The table demanded a simplification experiment, so we ran it:** naive chunks + CRAG alone (two stages, one conditional LLM call) matches the six-stage full pipeline within noise on every metric — and keeps the naive collection's best-in-table hit@10. The full pipeline's remaining case was its hit@5 edge (two questions) and the layers above — and the generation-layer eval below took most of that case away.
+6. **The table demanded a simplification experiment, so we ran it:** naive chunks + CRAG alone (two stages, one conditional LLM call) matches the six-stage full pipeline within noise on every metric — and keeps the naive collection's best-in-table hit@10. On this test set, the full pipeline's case was reduced to its hit@5 edge.
+7. **Then the rewording experiment overturned the simplification.** The questions above inherit statute vocabulary by construction — they were generated while looking at the section text. Rewriting all 82 in a renter's voice with zero legal vocabulary (below) dropped every configuration, but not equally: augmentation's value reappeared exactly where its theory predicts, and the full pipeline became the most robust system while the two-stage shortcut fell behind. The "two stages suffice" reading was an artifact of test-set vocabulary leakage.
+
+### Adversarial rephrasing — the same 82 questions, renter voice
+
+`make_adversarial.py` rewrites every test question as someone who has never read a law ("proper notice" → "do they have to tell me ahead of time?"), keeping the ground truth fixed — an A/B experiment isolating the lexical gap between how renters talk and how statutes are written:
+
+| configuration | MRR standard | MRR reworded | Δ | hit@5 reworded |
+| --- | --- | --- | --- | --- |
+| naive fixed-size chunks | .806 | .737 | −.069 | .829 |
+| LLM semantic chunking | .784 | .690 | −.094 | .817 |
+| + plain-language augmentation | .771 | .708 | −.063 | **.866** |
+| naive + CRAG (two-stage) | .807 | .731 | −.076 | .805 |
+| full pipeline | .808 | **.748** | **−.060** | **.866** |
+
+Three things the original set could not show: the vocabulary gap is real (every configuration drops); **plain-language augmentation now beats plain chunking by +.018 MRR** (it was −.013 on the leaky set) — its renter-vocabulary summaries buffer exactly this shift; and the **full pipeline is now the leader on every metric with the smallest degradation**, while the two-stage system falls five questions behind on hit@5. At the generation layer the reworded set also breaks the ceiling: full pipeline 80/82 consistent · 81/82 grounded vs 79/82 · 79/82 for two-stage. No single gap is huge, but every metric now points the same way — **ask mode keeps the full pipeline**.
 
 ### Scan-layer evaluation — red-flag precision & recall, 6 labeled leases
 
@@ -155,8 +170,7 @@ This closes the question the ablation opened: the augmented six-stage pipeline s
 
 ## Roadmap
 
-- A harder, adversarial question set — the current one sits at the generation layer's ceiling, so it can't rank the tied configurations
-- Decide whether ask mode should switch to the two-stage config all three eval layers now point to
+- False-premise and unanswerable question sets — the remaining adversarial categories (testing premise correction and honest refusal, not just retrieval)
 - OCR for scanned/photo leases (Tesseract) — today a no-text-layer PDF is detected and refused with an explanation
 - Session-scoped vector collection for full lease-text retrieval in ask mode
 - Fairness grade for the whole lease — derived mechanically from verdict counts, never model-invented

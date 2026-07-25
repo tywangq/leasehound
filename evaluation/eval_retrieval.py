@@ -22,13 +22,13 @@ TESTS_PATH = Path(__file__).parent / "tests.jsonl"
 RESULTS_PATH = Path(__file__).parent / "results.jsonl"
 
 
-def load_tests() -> list[dict]:
-    with open(TESTS_PATH, encoding="utf-8") as f:
+def load_tests(tests_file: str = "tests.jsonl") -> list[dict]:
+    with open(Path(__file__).parent / tests_file, encoding="utf-8") as f:
         return [json.loads(line) for line in f]
 
 
-def evaluate(config: PipelineConfig, name: str) -> dict:
-    tests = load_tests()
+def evaluate(config: PipelineConfig, name: str, tests_file: str = "tests.jsonl") -> dict:
+    tests = load_tests(tests_file)
     reciprocal_ranks, hits5, hits10, ndcgs = [], 0, 0, []
 
     for case in tqdm(tests, desc=name):
@@ -69,6 +69,7 @@ def main() -> None:
     parser.add_argument("--no-dual", dest="dual", action="store_false")
     parser.add_argument("--no-grader", dest="grader", action="store_false")
     parser.add_argument("--no-rerank", dest="rerank", action="store_false")
+    parser.add_argument("--tests", default="tests.jsonl", help="Test set file in evaluation/")
     args = parser.parse_args()
 
     config = PipelineConfig(
@@ -77,7 +78,7 @@ def main() -> None:
         grader=args.grader,
         rerank=args.rerank,
     )
-    summary = evaluate(config, args.name)
+    summary = evaluate(config, args.name, args.tests)
     print(json.dumps(summary, indent=2))
 
 

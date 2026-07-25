@@ -120,11 +120,12 @@ def main() -> None:
     parser.add_argument("--no-grader", dest="grader", action="store_false")
     parser.add_argument("--no-rerank", dest="rerank", action="store_false")
     parser.add_argument("--limit", type=int, help="Only run the first N questions (smoke test)")
+    parser.add_argument("--tests", default="tests.jsonl", help="Test set file in evaluation/")
     args = parser.parse_args()
     config = PipelineConfig(collection=args.collection, dual_query=args.dual,
                             grader=args.grader, rerank=args.rerank)
 
-    with open(TESTS_PATH, encoding="utf-8") as f:
+    with open(Path(__file__).parent / args.tests, encoding="utf-8") as f:
         cases = [json.loads(line) for line in f]
     if args.limit:
         cases = cases[: args.limit]
