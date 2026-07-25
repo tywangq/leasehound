@@ -20,7 +20,14 @@ from pydantic import BaseModel, Field
 from tenacity import retry
 from tqdm import tqdm
 
-from leasehound.retrieval import DB_PATH, EMBEDDING_MODEL, UTILITY_MODEL, Result, openai, wait
+from leasehound.retrieval import (
+    DB_PATH,
+    EMBEDDING_MODEL,
+    UTILITY_MODEL,
+    Result,
+    openai,
+    wait,
+)
 
 EMBED_BATCH_SIZE = 100
 AVERAGE_CHUNK_SIZE = 400  # legal sections are dense; chunks lean larger than prose
@@ -48,14 +55,7 @@ class Chunk(BaseModel):
     )
 
     def as_result(self, document, plain: bool = False):
-        metadata = {
-            "source": document["source"],
-            "type": document["type"],
-            "state": document["state"],
-            "section": document["section"],
-            "title": document["title"],
-            "url": document["url"],
-        }
+        metadata = document_metadata(document)
         content = (
             self.original_text
             if plain
@@ -66,6 +66,10 @@ class Chunk(BaseModel):
 
 class Chunks(BaseModel):
     chunks: list[Chunk]
+
+
+def document_metadata(document: dict) -> dict:
+    return {key: document[key] for key in ("source", "type", "state", "section", "title", "url")}
 
 
 def fetch_documents(state: str) -> list[dict]:

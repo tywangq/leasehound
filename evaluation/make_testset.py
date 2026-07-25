@@ -15,11 +15,11 @@ from pathlib import Path
 
 from litellm import completion
 from pydantic import BaseModel, Field
-from tenacity import retry, wait_exponential
+from tenacity import retry
 from tqdm import tqdm
 
 from leasehound.ingest import fetch_documents
-from leasehound.retrieval import UTILITY_MODEL
+from leasehound.retrieval import UTILITY_MODEL, wait
 
 TESTS_PATH = Path(__file__).parent / "tests.jsonl"
 
@@ -29,8 +29,6 @@ MUST_INCLUDE = [
     "RCW 59.18.060",  # landlord duties (repairs)
     "RCW 59.18.280",  # deposit refund
 ]
-
-wait = wait_exponential(multiplier=1, min=10, max=240)
 
 
 class TestQuestions(BaseModel):

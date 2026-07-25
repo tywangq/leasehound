@@ -23,6 +23,7 @@ import gradio as gr
 from leasehound.answer import answer_question
 from leasehound.scan import (
     check_protections,
+    count_verdicts,
     looks_like_lease,
     render_report,
     scan_clauses,
@@ -240,7 +241,7 @@ def scan_flow(path, key, history, report, scanned, context_base, question=""):
     yield _out(history)
     protections = check_protections(clauses)
     new_report = render_report(findings, name, "wa", protections)
-    counts = {v: sum(1 for f in findings if f["verdict"] == v) for v in ("red", "yellow", "green")}
+    counts = count_verdicts(findings)
     missing = sum(1 for p in protections if p["status"] == "missing")
     history[-1]["content"] = (
         f"🐕 Sniff complete: 🚩 {counts['red']} red · ⚠️ {counts['yellow']} caution · "

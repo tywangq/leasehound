@@ -20,6 +20,7 @@ from leasehound.retrieval import (
     wait,
 )
 
+
 class Route(BaseModel):
     category: Literal["legal_question", "scan_request", "small_talk"] = Field(
         description="legal_question: asks about rental law, tenant rights, a lease "

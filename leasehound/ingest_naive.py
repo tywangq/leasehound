@@ -10,7 +10,7 @@ Usage:
 
 import argparse
 
-from leasehound.ingest import create_embeddings, fetch_documents
+from leasehound.ingest import create_embeddings, document_metadata, fetch_documents
 from leasehound.retrieval import Result
 
 CHUNK_SIZE = 1000
@@ -32,14 +32,7 @@ def naive_split(text: str) -> list[str]:
 def create_chunks(documents: list[dict]) -> list[Result]:
     chunks = []
     for document in documents:
-        metadata = {
-            "source": document["source"],
-            "type": document["type"],
-            "state": document["state"],
-            "section": document["section"],
-            "title": document["title"],
-            "url": document["url"],
-        }
+        metadata = document_metadata(document)
         for piece in naive_split(document["text"]):
             chunks.append(Result(page_content=piece, metadata=metadata))
     return chunks

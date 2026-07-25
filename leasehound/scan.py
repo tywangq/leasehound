@@ -284,10 +284,14 @@ def scan_lease(path: str | Path, state: str = "wa") -> tuple[list[dict], list[di
 BADGE = {"red": "🚩", "yellow": "⚠️", "green": "✅"}
 
 
+def count_verdicts(findings: list[dict]) -> dict:
+    return {v: sum(1 for f in findings if f["verdict"] == v) for v in ("red", "yellow", "green")}
+
+
 def render_report(
     findings: list[dict], source: str, state: str, protections: list[dict] | None = None
 ) -> str:
-    counts = {v: sum(1 for f in findings if f["verdict"] == v) for v in ("red", "yellow", "green")}
+    counts = count_verdicts(findings)
     missing = [p for p in (protections or []) if p["status"] == "missing"]
     header = [
         f"{BADGE['red']} {counts['red']} red flags",
@@ -313,8 +317,11 @@ def render_report(
         lines.append(f"## {BADGE[verdict]} {verdict.capitalize()}")
         lines.append("")
         for f in matching:
-            preview = " ".join(f["clause"].split())[:120]
-            lines.append(f"### Clause {f['index']}: {preview}…")
+            preview = " ".join(f["clause"].split())
+            if len(preview) > 120:
+                # Cut at a word boundary — a mid-number cut turns "$75" into "$7".
+                preview = preview[:120].rsplit(" ", 1)[0] + " …"
+            lines.append(f"### Clause {f['index']}: {preview}")
             lines.append("")
             lines.append(f["explanation"])
             for section in f["citations"]:
@@ -348,7 +355,7 @@ def main() -> None:
     findings, protections = scan_lease(args.file, args.state)
     report = render_report(findings, args.file, args.state, protections)
     Path(args.out).write_text(report, encoding="utf-8")
-    counts = {v: sum(1 for f in findings if f["verdict"] == v) for v in ("red", "yellow", "green")}
+    counts = count_verdicts(findings)
     missing = sum(1 for p in protections if p["status"] == "missing")
     print(f"\n🚩 {counts['red']} red · ⚠️ {counts['yellow']} yellow · ✅ {counts['green']} green"
           f" · 🔍 {missing} missing protections")
