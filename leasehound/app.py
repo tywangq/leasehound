@@ -16,6 +16,7 @@ Usage:
 
 import re
 import tempfile
+import traceback
 from pathlib import Path
 
 import gradio as gr
@@ -95,6 +96,10 @@ NOTHING_EXTRACTED = (
 NOT_A_LEASE = (
     "🐕 The hound gave this document a good sniff, but it doesn't smell like a "
     "residential lease — and leases are all it scans. Attach a lease, or try the sample."
+)
+HOUND_TRIPPED = (
+    "🐕 The hound tripped over an error and lost the scent — nothing was changed. "
+    "Try again, or try a different file."
 )
 # The example chip shows the file name; once clicked, the file rides along as an
 # attachment, so the message itself drops the "(sample_lease.md)" suffix.
@@ -259,9 +264,28 @@ def scan_flow(path, key, history, report, scanned, context_base, question=""):
 
 
 def respond(message, history, report, scanned):
+    """Guard around the real handler: an uncaught exception inside a generator
+    event dies silently — the traceback goes to the server log and the user
+    sees nothing happen at all (how a missing PDF dependency shipped). Turn any
+    failure into a hound apology and restore the pre-turn panel state."""
+    history = list(history)
+    try:
+        yield from _respond(message, history, report, scanned)
+    except Exception:
+        traceback.print_exc()
+        history.append({"role": "assistant", "content": HOUND_TRIPPED})
+        name = SAMPLE_LEASE.name if scanned == "sample" else Path(scanned).name
+        yield _out(history, box=gr.update(interactive=True),
+                   report=report, state=report,
+                   context=report_context(name) if report else LAW_ONLY_CONTEXT,
+                   source=scanned, stop=gr.update(visible=False),
+                   col=gr.update(visible=bool(report)),
+                   actions=gr.update(visible=bool(report)))
+
+
+def _respond(message, history, report, scanned):
     text = (message.get("text") or "").strip()
     files = message.get("files") or []
-    history = list(history)
     if not text and not files:
         yield _out(box=gr.update(value=None))
         return

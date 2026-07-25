@@ -45,3 +45,9 @@ def test_tail_paragraph_is_kept_even_when_short():
     # The fallback flushes its final buffer regardless of size, so a lease's
     # last paragraph is never silently dropped.
     assert split_clauses("Signed by both parties.") == ["Signed by both parties."]
+
+
+def test_pdf_dependency_is_installed():
+    # read_document imports pypdf lazily, so a missing install only explodes on
+    # the first real PDF upload — which is exactly how it shipped broken once.
+    import pypdf  # noqa: F401
