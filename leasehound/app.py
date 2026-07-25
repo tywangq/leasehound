@@ -96,6 +96,10 @@ CSS = """
 }
 .chat-col .multimodal-textbox .input-container {align-items: center !important;}
 .chat-col .multimodal-textbox textarea {align-content: center;}
+/* Attached-file chip: gradio's 48px thumbnail dwarfs the 30px attach/send
+   icons beside it. Direct-child only, so the delete ✕ keeps its own size. */
+.chat-col .multimodal-textbox .thumbnail-item {width: 30px !important; height: 30px !important;}
+.chat-col .multimodal-textbox .thumbnail-item > :is(svg, img) {width: 16px !important; height: 16px !important;}
 #example-scan button, #example-prompts button {text-align: left !important; justify-content: flex-start !important;}
 /* The scan example renders its example_labels string in a bare div (14px by
    default); match the question examples' markdown <p> size. */
@@ -408,6 +412,34 @@ COPY_JS = f"""
 }}
 """
 
+# Examples send on click — one click, one message, like example chips in chat
+# apps; they're complete questions, there's nothing to edit first. Gradio's
+# Examples component only fills the box (run_on_click can't pass the state
+# inputs respond needs), so a page-level listener waits for the fill to land
+# and clicks send. The scan example also attaches a file — wait for its chip,
+# or the submit would race the attachment and send text alone.
+EXAMPLES_JS = """
+() => {
+    document.addEventListener('click', (event) => {
+        const chip = event.target.closest('#example-scan button, #example-prompts button');
+        if (!chip) return;
+        const needsFile = !!chip.closest('#example-scan');
+        let tries = 0;
+        const timer = setInterval(() => {
+            const box = document.querySelector('.chat-col .multimodal-textbox');
+            const filled = box.querySelector('textarea').value.trim()
+                && (!needsFile || box.querySelector('.thumbnail-item'));
+            if (filled) {
+                clearInterval(timer);
+                box.querySelector('.submit-button').click();
+            } else if (++tries > 60) {
+                clearInterval(timer);
+            }
+        }, 50);
+    });
+}
+"""
+
 # Starts the two-columns-to-one slide immediately on click; on_trash sleeps
 # past the transition before removing the report column from the DOM. The
 # class comes off on a timer (the column is long gone by then) so a future
@@ -431,6 +463,7 @@ with gr.Blocks(
         font=[gr.themes.GoogleFont("Inter"), "ui-sans-serif", "system-ui", "sans-serif"],
     ),
     css=CSS,
+    js=EXAMPLES_JS,
     title="LeaseHound — lease red-flag scanner",
 ) as demo:
     gr.HTML(HERO)
