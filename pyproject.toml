@@ -1,0 +1,17 @@
+[project]
+name = "leasehound"
+version = "0.1.0"
+description = "Tenant-side lease red-flag scanner and Q&A, grounded in state statutes"
+license = {file = "LICENSE"}
+requires-python = ">=3.11"
+dependencies = [
+    "chromadb>=0.5",
+    "gradio>=5.0",
+    "litellm>=1.40",
+    "openai>=1.30",
+    "pydantic>=2.7",
+    "pypdf>=4.0",
+    "python-dotenv>=1.0",
+    "tenacity>=8.3",
+    "tqdm>=4.66",
+]
