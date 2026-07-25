@@ -16,6 +16,7 @@ Usage:
 
 import re
 import tempfile
+import time
 import traceback
 from pathlib import Path
 
@@ -50,13 +51,6 @@ CSS = """
 .hero .tagline {font-size: 1.25em; margin: 6px 0 4px;}
 .step-sub {font-size: 0.9em; opacity: 0.75;}
 .main-row {justify-content: center; align-items: stretch;}
-/* Solo mode (no report column in the DOM): one centered chat column. With the
-   report column present, both columns fall back to their equal flex scales.
-   Transitions on the chat column plus a grow-in keyframe on the report column
-   make the solo ↔ split switch a slide instead of a snap. */
-.chat-col {transition: flex-basis 0.45s ease, flex-grow 0.45s ease;}
-.main-row:not(:has(.report-col)) .chat-col {flex-grow: 0 !important; flex-basis: 760px !important; max-width: 760px;}
-.main-row:has(.report-col) .chat-col {flex-basis: 0px !important;}
 /* Verdict headers (🚩 Red / ⚠️ Yellow / ✅ Clear): body-sized bold, not big headings. */
 .report-panel h1 {font-size: 1.15em; margin: 4px 0 10px;}
 .report-panel h2 {font-size: 1em; font-weight: 700; margin: 12px 0 6px;}
@@ -70,17 +64,32 @@ CSS = """
 #report-actions button {width: auto; min-width: 30px; flex-grow: 0; padding: 4px 8px;}
 #report-actions button img {width: 13px; height: 13px; margin: 0;
                             max-width: none; flex-shrink: 0;}
-/* Side-by-side mode: the report column stretches to the chat column's height
-   and the report scrolls inside it, so both columns end flush. */
+/* Desktop layout. Both columns get explicit widths (flex-grow stays 0) so the
+   solo ↔ split switch is a deterministic slide: animating flex-grow instead
+   makes widths depend on the grow *ratio*, which overshoots — the chat column
+   balloons to full row width the instant its sibling leaves the DOM, then
+   shrinks back. flex-basis is not !important so the entry keyframe can drive
+   it (CSS animations lose to !important declarations). */
 @media (min-width: 901px) {
+  .chat-col {transition: flex-basis 0.45s ease;}
+  .main-row:not(:has(.report-col)) .chat-col {flex-grow: 0 !important; flex-basis: 760px; max-width: 760px;}
+  .main-row:has(.report-col) .chat-col {flex-grow: 0 !important; flex-basis: calc(50% - (var(--layout-gap, 8px) / 2));}
+  /* Side-by-side, the report column stretches to the chat column's height and
+     the report scrolls inside it, so both columns end flush. */
   .report-col {display: flex !important; flex-direction: column;
+               flex-grow: 0 !important;
+               flex-basis: calc(50% - (var(--layout-gap, 8px) / 2));
                min-width: 0 !important; overflow: hidden;
-               animation: report-in 0.5s ease;}
-  @keyframes report-in {
-    from {flex-grow: 0.001; opacity: 0;}
-    to {flex-grow: 1; opacity: 1;}
-  }
+               transition: flex-basis 0.45s ease, opacity 0.45s ease;
+               animation: report-in 0.45s ease;}
+  @keyframes report-in {from {flex-basis: 0px; opacity: 0;}}
   .report-panel {flex: 1 1 0; min-height: 0; overflow-y: auto; padding: 0 4px;}
+  /* Trash: TRASH_JS adds .closing so both columns slide to their solo
+     positions *before* the server removes the report column from the DOM
+     (on_trash sleeps past the transition). Must come after the :has rules —
+     same specificity, so source order decides. */
+  .main-row.closing .chat-col {flex-basis: 760px;}
+  .main-row.closing .report-col {flex-basis: 0px; opacity: 0;}
 }
 @media (max-width: 900px) {
   .report-panel {max-height: 65vh; overflow-y: auto; padding: 0 4px;}
@@ -367,20 +376,46 @@ def on_trash():
     message would merge into the previous assistant bubble and pollute the
     answering context; a toast would be this app's only toast.)
     """
+    # TRASH_JS is sliding both columns to their solo positions right now; wait
+    # it out so the DOM removal lands after the columns have stopped moving.
+    time.sleep(0.5)
     return ("", "", LAW_ONLY_CONTEXT, "", gr.update(visible=False),
             gr.update(visible=False))
 
 
-# Copy is client-side only (clipboard + a brief ✓ flash on the button) — no
-# server round-trip. The js handler must return a list (Gradio maps it to outputs).
-COPY_JS = """
-(report) => {
+# Copy is client-side only — no server round-trip. Feedback: the copy icon
+# itself becomes a checkmark in place for a moment (swapping the img src to a
+# data URI; a check.svg on disk wouldn't be on Gradio's allowed-files list).
+# The js handler must return a list (Gradio maps it to outputs).
+CHECK_ICON = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" '
+    'stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+    '<polyline points="20 6 9 17 4 12"/></svg>'
+)
+COPY_JS = f"""
+(report) => {{
     navigator.clipboard.writeText(report);
-    const button = document.querySelector('#report-actions button');
-    const check = document.createElement('span');
-    check.textContent = '✓';
-    button.appendChild(check);
-    setTimeout(() => check.remove(), 1200);
+    const img = document.querySelector('#report-actions button img');
+    if (img) {{
+        if (!img.dataset.copyIcon) img.dataset.copyIcon = img.src;
+        img.src = 'data:image/svg+xml;utf8,' + encodeURIComponent({CHECK_ICON!r});
+        setTimeout(() => {{ img.src = img.dataset.copyIcon; }}, 1200);
+    }}
+    return [];
+}}
+"""
+
+# Starts the two-columns-to-one slide immediately on click; on_trash sleeps
+# past the transition before removing the report column from the DOM. The
+# class comes off on a timer (the column is long gone by then) so a future
+# report isn't born collapsed.
+TRASH_JS = """
+() => {
+    const row = document.querySelector('.main-row');
+    if (row) {
+        row.classList.add('closing');
+        setTimeout(() => row.classList.remove('closing'), 700);
+    }
     return [];
 }
 """
@@ -453,6 +488,7 @@ with gr.Blocks(
         outputs=[report_output, report_state, context_line,
                  scanned_source, report_col, report_actions],
         show_progress="hidden",
+        js=TRASH_JS,
     )
     # Input is the Markdown component, not report_state: a js-only handler runs
     # entirely client-side, and gr.State values only exist on the server.
