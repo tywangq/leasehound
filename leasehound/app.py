@@ -65,8 +65,11 @@ CSS = """
 .report-col {position: relative;}
 #report-actions {position: absolute; top: 6px; right: 6px; z-index: 10;
                  width: auto; min-width: 0; gap: 6px; flex-wrap: nowrap;}
-#report-actions button {width: auto; min-width: 0; flex-grow: 0; padding: 4px 8px;}
-#report-actions button img {width: 13px; height: 13px; margin: 0;}
+/* Icon-only buttons: gradio gives button imgs max-width:100%, which resolves
+   against the empty label's collapsed content box and squashes the icon to 0. */
+#report-actions button {width: auto; min-width: 30px; flex-grow: 0; padding: 4px 8px;}
+#report-actions button img {width: 13px; height: 13px; margin: 0;
+                            max-width: none; flex-shrink: 0;}
 /* Side-by-side mode: the report column stretches to the chat column's height
    and the report scrolls inside it, so both columns end flush. */
 @media (min-width: 901px) {
