@@ -89,7 +89,7 @@ CI (GitHub Actions) runs both on every push. Tests cover the deterministic core 
 - ✅ `corpus/wa/statutes/` — RCW Chapter 59.18, all 98 sections (public domain, includes 2025 amendments), fetched and normalized by `scripts/fetch_corpus.py`
 - ⬜ `corpus/wa/guides/` — WA Attorney General landlord-tenant guidance (planned)
 - ⬜ Seattle municipal layer (planned)
-- States are first-class metadata: each state is an independent collection; CA are planned follow-ups.
+- States are first-class metadata: each state is an independent collection; CA is the planned follow-up.
 
 ## Evaluation
 
@@ -131,7 +131,7 @@ The scanner is measured against hand-labeled synthetic leases (`evaluation/lease
 python -m evaluation.eval_scan
 ```
 
-Caveats, honestly: this is one run over six leases, verdict wording aside `temperature=0` is not perfectly deterministic, and the fire-safety checklist item is a known borderline judgment (a smoke-detector maintenance clause sometimes reads as fire-safety information). Tracking that variance is what this eval is for.
+Caveats, honestly: this is one run over six leases; even at `temperature=0` the API is not perfectly deterministic (explanation wording drifts between runs, and borderline judgments can flip); and the fire-safety checklist item is a known borderline case — a smoke-detector maintenance clause sometimes reads as fire-safety information. Tracking that variance is what this eval is for.
 
 ## Roadmap
 
