@@ -134,6 +134,14 @@ def report_context(name: str) -> str:
     return f"🧠 The hound knows **Washington tenant law** + the **scan report of `{name}`**."
 
 
+# No --- divider: markdown gives an <hr> generous margins on top of the
+# paragraph gap, which reads as a hole between the answer and its sources.
+FOOTER_MARK = "\n\n**Statutes cited in this answer:**"
+# A model-written imitation of the footer (any trailing "Statutes cited …"
+# block, however formatted) — stripped before the real footer is appended.
+MODEL_FOOTER = re.compile(r"\n+(?:-{3,}\n+)?\**Statutes cited in this answer:?\**[\s\S]*\Z")
+
+
 def sources_footer(answer: str, chunks) -> str:
     """List only the statutes the answer actually cites, not everything retrieved.
 
@@ -152,7 +160,20 @@ def sources_footer(answer: str, chunks) -> str:
             seen.add(section)
             url = url_by_section[section]
             lines.append(f"- [{section}]({url})" if url else f"- {section}")
-    return "\n\n---\n**Statutes cited in this answer:**\n" + "\n".join(lines) if lines else ""
+    return FOOTER_MARK + "\n" + "\n".join(lines) if lines else ""
+
+
+def strip_footer(message: dict) -> dict:
+    """Drop the sources footer from an assistant message before it re-enters the LLM.
+
+    The footer is display chrome. Fed back as conversation history, the model
+    learns the pattern and writes its own copy at the end of the next answer —
+    which then gets the real footer appended below it, doubling the block.
+    """
+    content = message.get("content")
+    if message.get("role") == "assistant" and isinstance(content, str) and FOOTER_MARK in content:
+        return {**message, "content": content.split(FOOTER_MARK)[0].rstrip()}
+    return message
 
 
 def cleanup_upload(path: Path) -> None:
@@ -193,7 +214,9 @@ def answer_flow(question, history, report, context_base):
     """Append the hound's answer to an already-appended user message."""
     history.append({"role": "assistant", "content": "🐕 Thinking…"})
     yield _out(history)
-    context_history = list(context_base)[-10:]  # trim BEFORE prepending, so the report survives
+    # Trim BEFORE prepending, so the report survives; strip footers so the
+    # model doesn't mimic them (see strip_footer).
+    context_history = [strip_footer(m) for m in list(context_base)[-10:]]
     if report:
         context_history = [
             {
@@ -211,6 +234,7 @@ def answer_flow(question, history, report, context_base):
         answer += delta
         history[-1]["content"] = answer
         yield _out(history)
+    answer = MODEL_FOOTER.sub("", answer).rstrip()
     history[-1]["content"] = answer + sources_footer(answer, chunks)
     yield _out(history)
 
