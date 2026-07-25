@@ -1,0 +1,6 @@
+{"name": "baseline", "collection": "wa_reference_naive", "dual_query": false, "grader": false, "rerank": false, "n": 43, "mrr": 0.8172, "ndcg": 0.8617, "hit@5": 0.9535, "hit@10": 1.0}
+{"name": "llm_chunking", "collection": "wa_reference_plain", "dual_query": false, "grader": false, "rerank": false, "n": 43, "mrr": 0.7752, "ndcg": 0.8134, "hit@5": 0.8837, "hit@10": 0.9302}
+{"name": "augmentation", "collection": "wa_reference", "dual_query": false, "grader": false, "rerank": false, "n": 43, "mrr": 0.7985, "ndcg": 0.842, "hit@5": 0.9302, "hit@10": 0.9767}
+{"name": "dual_query", "collection": "wa_reference", "dual_query": true, "grader": false, "rerank": false, "n": 43, "mrr": 0.7967, "ndcg": 0.8397, "hit@5": 0.907, "hit@10": 0.9767}
+{"name": "rerank", "collection": "wa_reference", "dual_query": true, "grader": false, "rerank": true, "n": 43, "mrr": 0.7941, "ndcg": 0.8332, "hit@5": 0.907, "hit@10": 0.9535}
+{"name": "full_crag", "collection": "wa_reference", "dual_query": true, "grader": true, "rerank": true, "n": 43, "mrr": 0.8275, "ndcg": 0.8688, "hit@5": 0.9302, "hit@10": 1.0}
