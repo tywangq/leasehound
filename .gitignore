@@ -6,3 +6,4 @@ vector_db/
 preprocessed_db/
 uploads/
 .DS_Store
+*.egg-info/
