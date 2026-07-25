@@ -24,6 +24,7 @@ import gradio as gr
 
 from leasehound.answer import answer_question
 from leasehound.scan import (
+    MAX_CLAUSES,
     check_protections,
     count_verdicts,
     looks_like_lease,
@@ -124,6 +125,10 @@ NOTHING_EXTRACTED = (
 NOT_A_LEASE = (
     "🐕 The hound gave this document a good sniff, but it doesn't smell like a "
     "residential lease — and leases are all it scans. Attach a lease, or try the sample."
+)
+TOO_MANY_CLAUSES = (
+    "🐕 This document splits into {count} clauses — no residential lease is that long, "
+    "so the hound stops at {limit}. If it really is a lease, try attaching just the lease body."
 )
 HOUND_TRIPPED = (
     "🐕 The hound tripped over an error and lost the scent — nothing was changed. "
@@ -273,6 +278,11 @@ def scan_flow(path, key, history, report, scanned, context_base, question=""):
     cleanup_upload(path)
     if not clauses:
         history.append({"role": "assistant", "content": NOTHING_EXTRACTED})
+        yield _out(history, stop=gr.update(visible=False))
+        return
+    if len(clauses) > MAX_CLAUSES:
+        message = TOO_MANY_CLAUSES.format(count=len(clauses), limit=MAX_CLAUSES)
+        history.append({"role": "assistant", "content": message})
         yield _out(history, stop=gr.update(visible=False))
         return
     if not looks_like_lease(clauses):
@@ -529,6 +539,10 @@ with gr.Blocks(
     # Input is the Markdown component, not report_state: a js-only handler runs
     # entirely client-side, and gr.State values only exist on the server.
     copy_button.click(None, inputs=[report_output], js=COPY_JS)
+
+# Public-hosting guardrails: a bounded waiting room instead of an unbounded
+# queue, and a few concurrent turns so one long scan doesn't serialize everyone.
+demo.queue(max_size=16, default_concurrency_limit=4)
 
 if __name__ == "__main__":
     demo.launch(server_name="127.0.0.1", server_port=7860, inbrowser=False)

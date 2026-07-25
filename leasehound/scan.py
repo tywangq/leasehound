@@ -33,6 +33,11 @@ from leasehound.upload import load_clauses
 
 STATUTES_PER_CLAUSE = 6
 MAX_PARALLEL_SCANS = 8  # bounded so a long lease doesn't trip API rate limits
+# Every clause costs an embedding + a judge call, so scan cost scales with
+# document length. No residential lease splits into anything near this many
+# clauses — past the cap it's a book, not a lease, and on a public demo an
+# uncapped scan is an open tab on the API key.
+MAX_CLAUSES = 60
 
 
 class ClauseVerdict(BaseModel):
@@ -266,6 +271,11 @@ def scan_lease(path: str | Path, state: str = "wa") -> tuple[list[dict], list[di
         raise SystemExit(
             f"No text could be extracted from {path} — "
             "a scanned/photo PDF has no text layer; try a text-based .pdf, .md, or .txt."
+        )
+    if len(clauses) > MAX_CLAUSES:
+        raise SystemExit(
+            f"{path} splits into {len(clauses)} clauses — over the {MAX_CLAUSES}-clause cap. "
+            "No residential lease is that long; try just the lease body."
         )
     if not looks_like_lease(clauses):
         raise SystemExit(

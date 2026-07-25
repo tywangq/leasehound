@@ -3,6 +3,8 @@
 import time
 from unittest.mock import patch
 
+import pytest
+
 import leasehound.scan as scan
 from leasehound.scan import base_section, count_verdicts, render_report
 
@@ -64,6 +66,21 @@ def test_missing_protections_section_lists_only_missing():
     assert "🔍 1 missing protections" in report
     assert "Mold information" in report
     assert "Deposit terms" not in report.split("Missing protections")[1]
+
+
+def test_scan_refuses_oversized_documents_before_any_llm_call():
+    # The cap bounds what one upload can spend: past it the document gets
+    # refused before even the is-this-a-lease check.
+    def no_llm(clauses):
+        raise AssertionError("the cap must refuse before any LLM call")
+
+    clauses = [f"{i}. CLAUSE. Ordinary terms." for i in range(scan.MAX_CLAUSES + 1)]
+    with (
+        patch.object(scan, "load_clauses", lambda path: clauses),
+        patch.object(scan, "looks_like_lease", no_llm),
+    ):
+        with pytest.raises(SystemExit, match=f"{scan.MAX_CLAUSES}-clause cap"):
+            scan.scan_lease("giant.pdf")
 
 
 def test_closing_scan_generator_cancels_queued_clauses():
