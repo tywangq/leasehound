@@ -107,6 +107,7 @@ Each test question is a colloquial tenant question generated from — and then v
 | + dual-query retrieval (RRF merge) | .780 | .810 | .866 | .902 |
 | + LLM rerank | .798 | .821 | .878 | .890 |
 | + CRAG self-grading (full pipeline) | **.808** | .835 | **.915** | .915 |
+| naive chunks + CRAG only (two-stage) | .807 | **.841** | .890 | **.951** |
 
 ### What the ablation taught us
 
@@ -115,6 +116,7 @@ Each test question is a colloquial tenant question generated from — and then v
 3. **The ablation caught a silent no-op.** With append-style merging and no reranker downstream, dual-query retrieval could never change top-k — by construction. Fixed with reciprocal rank fusion: ten lines of deterministic code, zero extra LLM calls.
 4. **CRAG self-grading remains the clearest individual win** at both test-set sizes (+.010 MRR and +.037 hit@5 over the rerank row at n=82; +.033 MRR at n=43): re-querying with statutory vocabulary rescues exactly the questions the other stages miss, and lifts the full pipeline back to the baseline's MRR with the best hit@5.
 5. **Honest caveat:** at n=82 one flipped question ≈ .012 MRR, so the full pipeline and the naive baseline are statistically tied on MRR. The augmented pipeline's case rests on the layers above retrieval — scan-mode precision (below) and generation quality — not on this table.
+6. **The table demanded a simplification experiment, so we ran it:** naive chunks + CRAG alone (two stages, one conditional LLM call) matches the six-stage full pipeline within noise on every metric — and keeps the naive collection's best-in-table hit@10. If section-level retrieval were the whole product, the two-stage system would be the rational choice; the full pipeline's remaining case is its hit@5 edge (two questions) and the layers above.
 
 ### Scan-layer evaluation — red-flag precision & recall, 6 labeled leases
 

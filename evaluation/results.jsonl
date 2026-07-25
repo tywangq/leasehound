@@ -10,3 +10,4 @@
 {"name": "dual-n100", "collection": "wa_reference", "dual_query": true, "grader": false, "rerank": false, "n": 82, "mrr": 0.78, "ndcg": 0.8101, "hit@5": 0.8659, "hit@10": 0.9024}
 {"name": "dual-rerank-n100", "collection": "wa_reference", "dual_query": true, "grader": false, "rerank": true, "n": 82, "mrr": 0.7981, "ndcg": 0.8212, "hit@5": 0.878, "hit@10": 0.8902}
 {"name": "full-n100", "collection": "wa_reference", "dual_query": true, "grader": true, "rerank": true, "n": 82, "mrr": 0.8081, "ndcg": 0.8346, "hit@5": 0.9146, "hit@10": 0.9146}
+{"name": "naive-crag-n82", "collection": "wa_reference_naive", "dual_query": false, "grader": true, "rerank": false, "n": 82, "mrr": 0.807, "ndcg": 0.8412, "hit@5": 0.8902, "hit@10": 0.9512}
