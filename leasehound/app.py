@@ -34,6 +34,7 @@ from leasehound.upload import load_clauses
 
 REPO_ROOT = Path(__file__).parent.parent
 SAMPLE_LEASE = REPO_ROOT / "examples" / "sample_lease.md"
+ICONS = Path(__file__).parent / "assets"
 
 HERO = """
 <div class="hero">
@@ -50,8 +51,12 @@ CSS = """
 .step-sub {font-size: 0.9em; opacity: 0.75;}
 .main-row {justify-content: center; align-items: stretch;}
 /* Solo mode (no report column in the DOM): one centered chat column. With the
-   report column present, both columns fall back to their equal flex scales. */
+   report column present, both columns fall back to their equal flex scales.
+   Transitions on the chat column plus a grow-in keyframe on the report column
+   make the solo ↔ split switch a slide instead of a snap. */
+.chat-col {transition: flex-basis 0.45s ease, flex-grow 0.45s ease;}
 .main-row:not(:has(.report-col)) .chat-col {flex-grow: 0 !important; flex-basis: 760px !important; max-width: 760px;}
+.main-row:has(.report-col) .chat-col {flex-basis: 0px !important;}
 /* Verdict headers (🚩 Red / ⚠️ Yellow / ✅ Clear): body-sized bold, not big headings. */
 .report-panel h1 {font-size: 1.15em; margin: 4px 0 10px;}
 .report-panel h2 {font-size: 1em; font-weight: 700; margin: 12px 0 6px;}
@@ -60,11 +65,18 @@ CSS = """
 .report-col {position: relative;}
 #report-actions {position: absolute; top: 6px; right: 6px; z-index: 10;
                  width: auto; min-width: 0; gap: 6px; flex-wrap: nowrap;}
-#report-actions button {width: auto; min-width: 0; flex-grow: 0; padding: 1px 10px;}
+#report-actions button {width: auto; min-width: 0; flex-grow: 0; padding: 4px 8px;}
+#report-actions button img {width: 13px; height: 13px; margin: 0;}
 /* Side-by-side mode: the report column stretches to the chat column's height
    and the report scrolls inside it, so both columns end flush. */
 @media (min-width: 901px) {
-  .report-col {display: flex !important; flex-direction: column;}
+  .report-col {display: flex !important; flex-direction: column;
+               min-width: 0 !important; overflow: hidden;
+               animation: report-in 0.5s ease;}
+  @keyframes report-in {
+    from {flex-grow: 0.001; opacity: 0;}
+    to {flex-grow: 1; opacity: 1;}
+  }
   .report-panel {flex: 1 1 0; min-height: 0; overflow-y: auto; padding: 0 4px;}
 }
 @media (max-width: 900px) {
@@ -332,14 +344,16 @@ def on_trash():
             gr.update(visible=False))
 
 
-# Copy is client-side only (clipboard + a ✅ flash on the button) — no server
-# round-trip. The js handler must return a list (Gradio maps it to outputs).
+# Copy is client-side only (clipboard + a brief ✓ flash on the button) — no
+# server round-trip. The js handler must return a list (Gradio maps it to outputs).
 COPY_JS = """
 (report) => {
     navigator.clipboard.writeText(report);
     const button = document.querySelector('#report-actions button');
-    button.textContent = '✅';
-    setTimeout(() => { button.textContent = '📋'; }, 1200);
+    const check = document.createElement('span');
+    check.textContent = '✓';
+    button.appendChild(check);
+    setTimeout(() => check.remove(), 1200);
     return [];
 }
 """
@@ -389,9 +403,9 @@ with gr.Blocks(
             # all three actions share the same position and appear together,
             # only once a finished report is up.
             with gr.Row(visible=False, elem_id="report-actions") as report_actions:
-                copy_button = gr.Button("📋", size="sm")
-                download_button = gr.DownloadButton("⬇", size="sm")
-                trash_button = gr.Button("🗑", size="sm")
+                copy_button = gr.Button("", icon=str(ICONS / "copy.svg"), size="sm")
+                download_button = gr.DownloadButton("", icon=str(ICONS / "download.svg"), size="sm")
+                trash_button = gr.Button("", icon=str(ICONS / "trash.svg"), size="sm")
             report_output = gr.Markdown("", elem_classes="report-panel")
 
     outs = [chatbot, message_box, report_output, report_state,
