@@ -145,10 +145,13 @@ def report_context(name: str) -> str:
 
 # No --- divider: markdown gives an <hr> generous margins on top of the
 # paragraph gap, which reads as a hole between the answer and its sources.
-FOOTER_MARK = "\n\n**Statutes cited in this answer:**"
+# "Statutes cited:" — right under the answer, "in this answer" says nothing.
+FOOTER_MARK = "\n\n**Statutes cited:**"
 # A model-written imitation of the footer (any trailing "Statutes cited …"
-# block, however formatted) — stripped before the real footer is appended.
-MODEL_FOOTER = re.compile(r"\n+(?:-{3,}\n+)?\**Statutes cited in this answer:?\**[\s\S]*\Z")
+# block, however formatted or worded) — stripped before the real one is appended.
+MODEL_FOOTER = re.compile(
+    r"\n+(?:-{3,}\n+)?\**Statutes cited(?: in this answer)?:?\**[\s\S]*\Z"
+)
 
 
 def sources_footer(answer: str, chunks) -> str:

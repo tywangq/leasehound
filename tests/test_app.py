@@ -53,10 +53,12 @@ def test_strip_footer_leaves_other_messages_alone():
 def test_model_written_footer_is_stripped_from_the_answer_tail():
     # Belt and suspenders: even if the model writes its own sources list
     # (this happened — mimicry before strip_footer existed), it gets dropped
-    # so the mechanical footer isn't a duplicate.
+    # so the mechanical footer isn't a duplicate. Both wordings, since the
+    # model may have learned either from an older conversation.
     body = "Two days' notice is required (RCW 59.18.150(6))."
-    imitation = body + "\n\nStatutes cited in this answer:\n\n* [RCW 59.18.150(6)](https://law/x)"
-    assert MODEL_FOOTER.sub("", imitation).rstrip() == body
+    for header in ("Statutes cited in this answer:", "Statutes cited:"):
+        imitation = body + f"\n\n{header}\n\n* [RCW 59.18.150(6)](https://law/x)"
+        assert MODEL_FOOTER.sub("", imitation).rstrip() == body
 
 
 def test_cleanup_removes_upload_but_never_the_sample(tmp_path, monkeypatch):
