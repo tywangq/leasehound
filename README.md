@@ -38,7 +38,7 @@ graph TD
     UPLOAD["upload.py<br>split lease into clauses"] --> SCAN
     SCAN --> RETRIEVAL["retrieval.py<br>shared retrieval layer"]
     ANSWER --> RETRIEVAL
-    EVAL["evaluation/<br>testset · retrieval ablation · scan eval"] --> RETRIEVAL
+    EVAL["evaluation/<br>testset + three-layer eval suite"] --> RETRIEVAL
     EVAL --> SCAN
     RETRIEVAL --> DB
 ```
@@ -93,7 +93,7 @@ CI (GitHub Actions) runs both on every push. Tests cover the deterministic core 
 
 ## Evaluation
 
-Two layers are measured: retrieval quality against a verified question set, and scan quality against hand-labeled leases. Generation-layer evaluation (LLM-as-judge) is next.
+Three layers are measured: retrieval quality against a verified question set, scan quality against hand-labeled leases, and final answer quality via a reference-grounded LLM judge.
 
 ### Retrieval ablation — section-level, n=82
 
@@ -116,7 +116,7 @@ Each test question is a colloquial tenant question generated from — and then v
 3. **The ablation caught a silent no-op.** With append-style merging and no reranker downstream, dual-query retrieval could never change top-k — by construction. Fixed with reciprocal rank fusion: ten lines of deterministic code, zero extra LLM calls.
 4. **CRAG self-grading remains the clearest individual win** at both test-set sizes (+.010 MRR and +.037 hit@5 over the rerank row at n=82; +.033 MRR at n=43): re-querying with statutory vocabulary rescues exactly the questions the other stages miss, and lifts the full pipeline back to the baseline's MRR with the best hit@5.
 5. **Honest caveat:** at n=82 one flipped question ≈ .012 MRR, so the full pipeline and the naive baseline are statistically tied on MRR. The augmented pipeline's case rests on the layers above retrieval — scan-mode precision (below) and generation quality — not on this table.
-6. **The table demanded a simplification experiment, so we ran it:** naive chunks + CRAG alone (two stages, one conditional LLM call) matches the six-stage full pipeline within noise on every metric — and keeps the naive collection's best-in-table hit@10. If section-level retrieval were the whole product, the two-stage system would be the rational choice; the full pipeline's remaining case is its hit@5 edge (two questions) and the layers above.
+6. **The table demanded a simplification experiment, so we ran it:** naive chunks + CRAG alone (two stages, one conditional LLM call) matches the six-stage full pipeline within noise on every metric — and keeps the naive collection's best-in-table hit@10. The full pipeline's remaining case was its hit@5 edge (two questions) and the layers above — and the generation-layer eval below took most of that case away.
 
 ### Scan-layer evaluation — red-flag precision & recall, 6 labeled leases
 
@@ -135,9 +135,28 @@ python -m evaluation.eval_scan
 
 Caveats, honestly: this is one run over six leases; even at `temperature=0` the API is not perfectly deterministic (explanation wording drifts between runs, and borderline judgments can flip); and the fire-safety checklist item is a known borderline case — a smoke-detector maintenance clause sometimes reads as fire-safety information. Tracking that variance is what this eval is for.
 
+### Generation-layer evaluation — is the final answer right? n=82 × 2 configs
+
+Every test question was generated from a known statute section, so that section's text is an authoritative reference an LLM judge (`temperature=0`) can grade against: is the answer's legal substance consistent with the statute, and does it assert any rule found in neither the retrieved extracts nor the reference? Citation accuracy is checked mechanically, no LLM. Run on the two configurations the retrieval ablation left tied:
+
+| metric | full pipeline | naive + CRAG (two-stage) |
+| --- | --- | --- |
+| consistent with the statute | 82/82 | 81/82 |
+| grounded (no unsupported claims) | 81/82 | 81/82 |
+| cites the ground-truth section | 75/82 | 76/82 |
+| declined or contradicted despite good retrieval | 0 | 1 |
+
+```bash
+python -m evaluation.eval_generation --name full-n82
+python -m evaluation.eval_generation --name naive-crag-n82 --collection wa_reference_naive --no-dual --no-rerank
+```
+
+This closes the question the ablation opened: the augmented six-stage pipeline shows **no measurable win at the generation layer either** — every gap in the table is a single question. Caveats: both configurations sit at this test set's ceiling (98–100%), so the eval bounds the difference rather than ranking the systems — separating them needs harder, adversarial questions; the judge shares a model family with the generator (mitigated by grading against reference text, not taste); one run.
+
 ## Roadmap
 
-- Generation-layer evaluation (LLM-as-judge) on top of the retrieval ablation
+- A harder, adversarial question set — the current one sits at the generation layer's ceiling, so it can't rank the tied configurations
+- Decide whether ask mode should switch to the two-stage config all three eval layers now point to
 - OCR for scanned/photo leases (Tesseract) — today a no-text-layer PDF is detected and refused with an explanation
 - Session-scoped vector collection for full lease-text retrieval in ask mode
 - Fairness grade for the whole lease — derived mechanically from verdict counts, never model-invented
