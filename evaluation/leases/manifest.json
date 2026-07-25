@@ -1,0 +1,64 @@
+{
+  "_comment": "Ground truth per lease. 'red' maps the clause number AS PRINTED IN THE LEASE to the acceptable citation base sections (any match counts). Clauses not listed must not come back red. 'missing_protections' names checklist items genuinely absent from the lease.",
+  "leases": [
+    {
+      "file": "lease_clean.md",
+      "description": "Fully compliant lease — false-positive probe",
+      "red": {},
+      "missing_protections": []
+    },
+    {
+      "file": "lease_02_subtle.md",
+      "description": "Two subtle violations: late fee from day 2, 12-hour entry notice",
+      "red": {
+        "3": ["RCW 59.18.170", "RCW 59.18.230"],
+        "7": ["RCW 59.18.150"]
+      },
+      "missing_protections": ["Deposit location disclosure", "Fire safety information"]
+    },
+    {
+      "file": "lease_03_gag.md",
+      "description": "Gag clauses: rent NDA, class-action ban, Zelle-only payment",
+      "red": {
+        "3": ["RCW 59.18.230"],
+        "7": ["RCW 59.18.230"],
+        "8": ["RCW 59.18.063", "RCW 59.18.230"]
+      },
+      "missing_protections": []
+    },
+    {
+      "file": "lease_04_heavy.md",
+      "description": "Five violations: day-1 late fee, attorney fees, exculpation, rights waiver, no-notice entry",
+      "red": {
+        "3": ["RCW 59.18.170", "RCW 59.18.230"],
+        "5": ["RCW 59.18.230", "RCW 59.18.250", "RCW 59.18.290", "RCW 59.18.510"],
+        "6": ["RCW 59.18.230", "RCW 59.18.060"],
+        "7": ["RCW 59.18.230"],
+        "8": ["RCW 59.18.150"]
+      },
+      "missing_protections": ["Deposit location disclosure"]
+    },
+    {
+      "file": "lease_05_minimal.md",
+      "description": "One soft violation (remedies waiver); no deposit collected, so deposit items are not applicable",
+      "red": {
+        "4": ["RCW 59.18.230"]
+      },
+      "missing_protections": ["Mold information"]
+    },
+    {
+      "file": "../../examples/sample_lease.md",
+      "description": "The original acceptance-test lease with seven planted violations",
+      "red": {
+        "3": ["RCW 59.18.170", "RCW 59.18.230"],
+        "5": ["RCW 59.18.230", "RCW 59.18.250", "RCW 59.18.290", "RCW 59.18.510"],
+        "7": ["RCW 59.18.150"],
+        "9": ["RCW 59.18.230"],
+        "11": ["RCW 59.18.230"],
+        "13": ["RCW 59.18.063", "RCW 59.18.230"],
+        "14": ["RCW 59.18.230", "RCW 59.18.060"]
+      },
+      "missing_protections": ["Fire safety information", "Mold information"]
+    }
+  ]
+}
