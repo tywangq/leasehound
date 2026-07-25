@@ -4,3 +4,9 @@
 {"name": "dual_query", "collection": "wa_reference", "dual_query": true, "grader": false, "rerank": false, "n": 43, "mrr": 0.7967, "ndcg": 0.8397, "hit@5": 0.907, "hit@10": 0.9767}
 {"name": "rerank", "collection": "wa_reference", "dual_query": true, "grader": false, "rerank": true, "n": 43, "mrr": 0.7941, "ndcg": 0.8332, "hit@5": 0.907, "hit@10": 0.9535}
 {"name": "full_crag", "collection": "wa_reference", "dual_query": true, "grader": true, "rerank": true, "n": 43, "mrr": 0.8275, "ndcg": 0.8688, "hit@5": 0.9302, "hit@10": 1.0}
+{"name": "naive-n100", "collection": "wa_reference_naive", "dual_query": false, "grader": false, "rerank": false, "n": 82, "mrr": 0.8058, "ndcg": 0.84, "hit@5": 0.878, "hit@10": 0.9512}
+{"name": "plain-n100", "collection": "wa_reference_plain", "dual_query": false, "grader": false, "rerank": false, "n": 82, "mrr": 0.784, "ndcg": 0.8217, "hit@5": 0.878, "hit@10": 0.939}
+{"name": "augmented-n100", "collection": "wa_reference", "dual_query": false, "grader": false, "rerank": false, "n": 82, "mrr": 0.7709, "ndcg": 0.806, "hit@5": 0.878, "hit@10": 0.9146}
+{"name": "dual-n100", "collection": "wa_reference", "dual_query": true, "grader": false, "rerank": false, "n": 82, "mrr": 0.78, "ndcg": 0.8101, "hit@5": 0.8659, "hit@10": 0.9024}
+{"name": "dual-rerank-n100", "collection": "wa_reference", "dual_query": true, "grader": false, "rerank": true, "n": 82, "mrr": 0.7981, "ndcg": 0.8212, "hit@5": 0.878, "hit@10": 0.8902}
+{"name": "full-n100", "collection": "wa_reference", "dual_query": true, "grader": true, "rerank": true, "n": 82, "mrr": 0.8081, "ndcg": 0.8346, "hit@5": 0.9146, "hit@10": 0.9146}

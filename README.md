@@ -38,7 +38,8 @@ graph TD
     UPLOAD["upload.py<br>split lease into clauses"] --> SCAN
     SCAN --> RETRIEVAL["retrieval.py<br>shared retrieval layer"]
     ANSWER --> RETRIEVAL
-    EVAL["evaluation/<br>testset + ablation suite"] --> RETRIEVAL
+    EVAL["evaluation/<br>testset · retrieval ablation · scan eval"] --> RETRIEVAL
+    EVAL --> SCAN
     RETRIEVAL --> DB
 ```
 
@@ -73,6 +74,16 @@ A lease is sensitive: names, address, rent. LeaseHound keeps handling minimal �
 - Local PII redaction before the API call (regex + local NER — it can't be done by the same cloud LLM you're redacting *from*) is a considered follow-up.
 - Prefer fully local inference? All LLM calls route through litellm: set `LEASEHOUND_UTILITY_MODEL` / `LEASEHOUND_GENERATION_MODEL` to e.g. `ollama/llama3.1` (expect weaker verdicts from small local models; embeddings still require an OpenAI key).
 
+## Development
+
+```bash
+pip install -e ".[dev]"
+pytest          # unit tests: clause splitting, RRF merge, report rendering, cancellation, privacy cleanup
+ruff check leasehound evaluation scripts tests
+```
+
+CI (GitHub Actions) runs both on every push. Tests cover the deterministic core only — no API calls, no vector DB.
+
 ## Corpus status
 
 - ✅ `corpus/wa/statutes/` — RCW Chapter 59.18, all 98 sections (public domain, includes 2025 amendments), fetched and normalized by `scripts/fetch_corpus.py`
@@ -82,26 +93,45 @@ A lease is sensitive: names, address, rent. LeaseHound keeps handling minimal �
 
 ## Evaluation
 
-Retrieval quality is measured on a 43-question test set of colloquial tenant questions, each generated from — and then verified against — a known statute section, so the ground truth holds by construction (an LLM verification pass dropped 7 contaminated questions). Generation-layer evaluation (LLM-as-judge) is next.
+Two layers are measured: retrieval quality against a verified question set, and scan quality against hand-labeled leases. Generation-layer evaluation (LLM-as-judge) is next.
 
-### Ablation — section-level retrieval, n=43
+### Retrieval ablation — section-level, n=82
+
+Each test question is a colloquial tenant question generated from — and then verified against — a known statute section, so the ground truth holds by construction (100 generated; an LLM verification pass dropped 18 contaminated questions).
 
 | pipeline configuration | MRR | nDCG | hit@5 | hit@10 |
 | --- | --- | --- | --- | --- |
-| naive fixed-size chunks (baseline) | .817 | .862 | .953 | **1.000** |
-| LLM semantic chunking | .775 | .813 | .884 | .930 |
-| + plain-language augmentation | .799 | .842 | .930 | .977 |
-| + dual-query retrieval (RRF merge) | .797 | .840 | .907 | .977 |
-| + LLM rerank | .794 | .833 | .907 | .953 |
-| + CRAG self-grading (full pipeline) | **.827** | **.869** | .930 | **1.000** |
+| naive fixed-size chunks (baseline) | .806 | .840 | .878 | **.951** |
+| LLM semantic chunking | .784 | .822 | .878 | .939 |
+| + plain-language augmentation | .771 | .806 | .878 | .915 |
+| + dual-query retrieval (RRF merge) | .780 | .810 | .866 | .902 |
+| + LLM rerank | .798 | .821 | .878 | .890 |
+| + CRAG self-grading (full pipeline) | **.808** | .835 | **.915** | .915 |
 
 ### What the ablation taught us
 
-1. **Naive chunking is a brutally strong baseline** for section-level retrieval: statute sections are already coherent topical units, and long fixed-size chunks carry more section-distinctive vocabulary than fine-grained semantic chunks. Fancy ≠ better; measure before you pay.
-2. **Plain-language augmentation earns its keep** (+.024 MRR over plain LLM chunks): renter-vocabulary summaries bridge colloquial queries to statutory language — though they don't fully recover the chunking loss on this metric.
+1. **Naive chunking is a brutally strong baseline** for section-level retrieval: statute sections are already coherent topical units, and long fixed-size chunks carry more section-distinctive vocabulary than fine-grained semantic chunks. Confirmed at both n=43 and n=82. Fancy ≠ better; measure before you pay.
+2. **Doubling the test set flipped a conclusion.** At n=43, plain-language augmentation looked like +.024 MRR over plain semantic chunks; at n=82 it reads −.013. Both gaps are a couple of flipped questions, so the honest reading is *no measurable retrieval win* — the earlier positive was small-sample noise. Expanding the test set exists precisely to catch this.
 3. **The ablation caught a silent no-op.** With append-style merging and no reranker downstream, dual-query retrieval could never change top-k — by construction. Fixed with reciprocal rank fusion: ten lines of deterministic code, zero extra LLM calls.
-4. **CRAG self-grading is the one stage with a clear individual win** (+.033 MRR over the rerank row, restoring hit@10 to 1.000): re-querying with statutory vocabulary rescues exactly the questions the other stages miss.
-5. **Honest caveat:** at n=43, one flipped question ≈ .023 MRR, so most gaps are within noise — the full pipeline and the naive baseline are statistically tied here. The augmented chunks' real payoff (generation quality, provision-level precision for scan mode) is measured at the next layer, not this one.
+4. **CRAG self-grading remains the clearest individual win** at both test-set sizes (+.010 MRR and +.037 hit@5 over the rerank row at n=82; +.033 MRR at n=43): re-querying with statutory vocabulary rescues exactly the questions the other stages miss, and lifts the full pipeline back to the baseline's MRR with the best hit@5.
+5. **Honest caveat:** at n=82 one flipped question ≈ .012 MRR, so the full pipeline and the naive baseline are statistically tied on MRR. The augmented pipeline's case rests on the layers above retrieval — scan-mode precision (below) and generation quality — not on this table.
+
+### Scan-layer evaluation — red-flag precision & recall, 6 labeled leases
+
+The scanner is measured against hand-labeled synthetic leases (`evaluation/leases/` + `manifest.json`): five leases written for this eval — re-worded violations (a day-2 late fee, 12-hour entry notice, gag clauses, a softly-phrased rights waiver), a fully compliant lease as a false-positive probe, and a no-deposit lease exercising the `not_applicable` path — plus the original acceptance-test lease.
+
+| metric | result |
+| --- | --- |
+| planted violations flagged red (strict recall) | **18/18** |
+| false reds on ordinary clauses | **0** (precision 1.000) |
+| red flags citing an acceptable section | 18/18 |
+| missing-protections exact set match | 6/6 leases |
+
+```bash
+python -m evaluation.eval_scan
+```
+
+Caveats, honestly: this is one run over six leases, verdict wording aside `temperature=0` is not perfectly deterministic, and the fire-safety checklist item is a known borderline judgment (a smoke-detector maintenance clause sometimes reads as fire-safety information). Tracking that variance is what this eval is for.
 
 ## Roadmap
 
