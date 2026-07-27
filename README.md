@@ -2,6 +2,8 @@
 
 **Upload your lease. LeaseHound sniffs out the clauses that shouldn't be there.** A two-layer RAG system that answers tenant-law questions and scans rental agreements for prohibited provisions — grounded in Washington State's Residential Landlord-Tenant Act (RCW 59.18).
 
+![The LeaseHound UI: a cited answer about a late-fee clause on the left, the pinned red-flag scan report on the right](docs/screenshot.png)
+
 > ⚖️ LeaseHound is an educational tool, not legal advice.
 
 ## Why this exists
