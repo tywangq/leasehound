@@ -10,7 +10,7 @@
 
 Residential leases routinely contain clauses that are void and unenforceable under state law — Washington's RCW 59.18.230 alone prohibits ten kinds of provisions (rights waivers, landlord attorney-fee clauses, exculpation clauses, late fees inside the 5-day grace period, mandatory NDAs on rent terms, …), and a landlord who knowingly includes them is exposed to statutory damages of up to 2× monthly rent. Most tenants sign without knowing any of this.
 
-**Why not just paste your lease into ChatGPT?** The lease fits in a context window; the law shouldn't come from parametric memory. Statutes change (RCW 59.18.230 was amended in 2025), models mix up states and invent citation numbers, and a chat answer can't be verified. LeaseHound retrieves the current statute text and cites the exact section — every claim has a clickable source.
+**Why not just paste your lease into ChatGPT?** The lease fits in a context window; the law shouldn't come from parametric memory. Statutes change (RCW 59.18.230 was amended in 2025), models mix up states and invent citation numbers, and a chat answer can't be verified. LeaseHound retrieves the current statute text and cites the exact section — every claim has a clickable source. This claim is measured, not asserted: zero-shot, the same model catches 14/18 planted violations and cites the governing statute for 3 of them; the pipeline takes the same model to 18/18 with every citation correct (see the [zero-shot baseline](#zero-shot-baseline--the-same-leases-without-the-pipeline)).
 
 ## Architecture
 
@@ -100,7 +100,7 @@ CI (GitHub Actions) runs both on every push. Tests cover the deterministic core 
 
 ## Evaluation
 
-Three layers are measured: retrieval quality against a verified question set, scan quality against hand-labeled leases, and final answer quality via a reference-grounded LLM judge.
+Three layers are measured — retrieval quality against a verified question set, scan quality against hand-labeled leases, and final answer quality via a reference-grounded LLM judge — plus a zero-shot baseline that measures what the pipeline adds over pasting the lease into the model.
 
 ### Retrieval ablation — section-level, n=82
 
@@ -156,6 +156,30 @@ python -m evaluation.eval_scan
 ```
 
 Caveats, honestly: this is one run over six leases; even at `temperature=0` the API is not perfectly deterministic (explanation wording drifts between runs, and borderline judgments can flip); and the fire-safety checklist item is a known borderline case — a smoke-detector maintenance clause sometimes reads as fire-safety information. Tracking that variance is what this eval is for.
+
+### Zero-shot baseline — the same leases, without the pipeline
+
+The opening claim ("why not just paste it into ChatGPT?") deserves a measurement, not an assertion. `eval_baseline.py` pastes each of the six labeled leases into the model whole — zero-shot: no retrieved statute text, no curated checklist, no clause splitting, just a careful prompt with the same red/yellow rubric — and scores the output against the same manifest:
+
+| metric | pipeline (gpt-4.1-mini) | zero-shot gpt-4.1-mini | zero-shot gpt-4.1 |
+| --- | --- | --- | --- |
+| planted violations flagged red | **18/18** | 14/18 | 14/18 |
+| flagged red or yellow | 18/18 | 18/18 | 18/18 |
+| false reds on ordinary clauses | **0** | 1 | 0 |
+| red flags citing a correct section | **18/18** | 3/14 | 14/14 |
+| missing-protections exact set match | **6/6** | 0/6 | 3/6 |
+
+```bash
+python -m evaluation.eval_baseline                         # same model as the pipeline
+python -m evaluation.eval_baseline --model openai/gpt-4.1  # a model tier up
+```
+
+1. **Zero-shot smells everything but won't commit.** Both baselines reach 18/18 lenient recall — every planted violation gets at least a yellow — but each hedges four genuine violations down to "potentially problematic". Grounding in the actual statute text is what turns suspicion into a defensible red.
+2. **Same-model citations are plausible-but-wrong.** Eleven of gpt-4.1-mini's fourteen correct red flags cite a real RCW section that doesn't govern the clause — the day-one late fee pinned on RCW 59.18.140, the rights waiver on the retaliation section (.240). That's worse than invented numbers: these look checkable. Retrieval fixes this mechanically, because the judge may only cite from the extracts in front of it.
+3. **The negative-space check doesn't survive zero-shot.** Without the curated checklist the model free-associates missing disclosures — six claims against the fully compliant lease — while never spotting the genuinely missing mold and fire-safety information (0/6 exact; gpt-4.1 manages 3/6). A model can't reliably notice what's absent without a list of what must be present.
+4. **A model tier up doesn't buy the pipeline back.** gpt-4.1 fixes citations (14/14) but still under-flags (14/18) and still misses half the checklist — while the pipeline gets 18/18 red, 18/18 cited, 6/6 protections out of the *cheaper* model. The architecture, not the model, is doing the work here.
+
+Scoring is deliberately generous to the baseline: missing-protection claims that match no checklist item (federal disclosures, inventions) are recorded but not penalized, and raw model output is saved in `baseline_results.json` for audit. Caveats: one run per row, and the mini row moved by one clause between two runs — the same temperature-0 drift the scan-layer eval documents.
 
 ### Generation-layer evaluation — is the final answer right? n=82 × 2 configs
 

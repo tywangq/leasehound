@@ -1,0 +1,843 @@
+{
+  "openai/gpt-4.1-mini": {
+    "summary": {
+      "leases": 6,
+      "planted_violations": 18,
+      "strict_recall": 0.7778,
+      "lenient_recall": 1.0,
+      "precision": 0.9333,
+      "citation_accuracy": 0.2143,
+      "false_reds": 1,
+      "protections_exact_leases": "0/6"
+    },
+    "leases": [
+      {
+        "file": "lease_clean.md",
+        "planted": [],
+        "flagged_red": [],
+        "flagged_yellow": [],
+        "missed": [],
+        "false_reds": [],
+        "citation_hits": 0,
+        "protections_expected": [],
+        "protections_reported": [
+          "Deposit withholding terms"
+        ],
+        "protections_unmatched": [
+          "Disclosure of landlord's name and address for service of notices (RCW 59.18.060)",
+          "Disclosure of tenant's rights regarding repairs and remedies (RCW 59.18.070)",
+          "Notice of tenant's right to request a written receipt for rent payments (RCW 59.18.140)",
+          "Disclosure of the tenant's right to withhold rent or repair and deduct under certain conditions (RCW 59.18.100)"
+        ],
+        "protections_exact": false,
+        "raw_flags": [],
+        "raw_missing": [
+          "Disclosure of landlord's name and address for service of notices (RCW 59.18.060)",
+          "Disclosure of tenant's rights regarding repairs and remedies (RCW 59.18.070)",
+          "Notice of tenant's right to request a written receipt for rent payments (RCW 59.18.140)",
+          "Disclosure of the procedure for returning the security deposit and itemized deductions (RCW 59.18.280)",
+          "Disclosure of the tenant's right to withhold rent or repair and deduct under certain conditions (RCW 59.18.100)"
+        ]
+      },
+      {
+        "file": "lease_02_subtle.md",
+        "planted": [
+          3,
+          7
+        ],
+        "flagged_red": [
+          3
+        ],
+        "flagged_yellow": [
+          7
+        ],
+        "missed": [],
+        "false_reds": [],
+        "citation_hits": 1,
+        "protections_expected": [
+          "Deposit location disclosure",
+          "Fire safety information"
+        ],
+        "protections_reported": [],
+        "protections_unmatched": [
+          "Disclosure of tenant's right to request a copy of the move-in inspection report (RCW 59.18.260)",
+          "Statement of tenant's right to withhold rent or repair and deduct under certain conditions (RCW 59.18.100)",
+          "Disclosure of the landlord's duty to maintain the premises in a fit and habitable condition (RCW 59.18.060)"
+        ],
+        "protections_exact": false,
+        "raw_flags": [
+          {
+            "clause_number": 3,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.230"
+            ],
+            "explanation": "Washington law limits late fees to a reasonable amount and prohibits daily accumulating late fees. Charging $60 plus $5 for each additional day likely exceeds what is allowed and may be unenforceable."
+          },
+          {
+            "clause_number": 7,
+            "verdict": "yellow",
+            "citations": [
+              "RCW 59.18.150"
+            ],
+            "explanation": "Landlord must provide at least 24 hours' notice before entry except in emergencies. Twelve hours' notice may be insufficient, and 'any hour Landlord deems reasonable' is vague and potentially problematic."
+          },
+          {
+            "clause_number": 10,
+            "verdict": "yellow",
+            "citations": [
+              "RCW 59.18.200"
+            ],
+            "explanation": "Tenant's 20-day notice to terminate a month-to-month tenancy is shorter than the 20-day notice required by law, but the law requires 20 days before the end of the rental period, so this may be acceptable but should be carefully reviewed."
+          }
+        ],
+        "raw_missing": [
+          "Disclosure of tenant's right to request a copy of the move-in inspection report (RCW 59.18.260)",
+          "Statement of tenant's right to withhold rent or repair and deduct under certain conditions (RCW 59.18.100)",
+          "Disclosure of the landlord's duty to maintain the premises in a fit and habitable condition (RCW 59.18.060)"
+        ]
+      },
+      {
+        "file": "lease_03_gag.md",
+        "planted": [
+          3,
+          7,
+          8
+        ],
+        "flagged_red": [
+          3
+        ],
+        "flagged_yellow": [
+          7,
+          8
+        ],
+        "missed": [],
+        "false_reds": [],
+        "citation_hits": 0,
+        "protections_expected": [],
+        "protections_reported": [
+          "Deposit location disclosure"
+        ],
+        "protections_unmatched": [
+          "Disclosure of landlord's full contact information including mailing address for service of notices",
+          "Notice of tenant's right to receive a copy of the signed lease",
+          "Disclosure of any known lead-based paint hazards if the property was built before 1978"
+        ],
+        "protections_exact": false,
+        "raw_flags": [
+          {
+            "clause_number": 3,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.130",
+              "RCW 59.18.140"
+            ],
+            "explanation": "Washington law prohibits lease clauses that restrict tenants from discussing rental terms with others, as this limits tenant rights and transparency."
+          },
+          {
+            "clause_number": 7,
+            "verdict": "yellow",
+            "citations": [
+              "RCW 59.18.240"
+            ],
+            "explanation": "While tenants can bring individual claims, waiving the right to participate in class or representative actions may be unenforceable or subject to legal challenge depending on circumstances."
+          },
+          {
+            "clause_number": 8,
+            "verdict": "yellow",
+            "citations": [
+              "RCW 59.18.140"
+            ],
+            "explanation": "Requiring a single payment method and refusing others may be problematic if it unreasonably restricts tenant payment options or access to payment methods."
+          }
+        ],
+        "raw_missing": [
+          "Disclosure of landlord's full contact information including mailing address for service of notices",
+          "Notice of tenant's right to receive a copy of the signed lease",
+          "Information on how security deposits are handled including interest if applicable",
+          "Disclosure of any known lead-based paint hazards if the property was built before 1978"
+        ]
+      },
+      {
+        "file": "lease_04_heavy.md",
+        "planted": [
+          3,
+          5,
+          6,
+          7,
+          8
+        ],
+        "flagged_red": [
+          3,
+          5,
+          6,
+          7,
+          8
+        ],
+        "flagged_yellow": [],
+        "missed": [],
+        "false_reds": [
+          12
+        ],
+        "citation_hits": 1,
+        "protections_expected": [
+          "Deposit location disclosure"
+        ],
+        "protections_reported": [
+          "Move-in condition checklist"
+        ],
+        "protections_unmatched": [
+          "Disclosure of landlord's name and address for service of notices if different from the lease address",
+          "Disclosure of the conditions under which the landlord may retain the security deposit and the procedure for its return",
+          "Notice of the tenant's right to repair and deduct or withhold rent under certain conditions",
+          "Information about the tenant's right to a habitable dwelling and landlord's repair obligations"
+        ],
+        "protections_exact": false,
+        "raw_flags": [
+          {
+            "clause_number": 3,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.140"
+            ],
+            "explanation": "Washington law limits late fees to a reasonable amount and prohibits daily late fees that accumulate indefinitely. Charging $15 per day late fee is likely excessive and unenforceable."
+          },
+          {
+            "clause_number": 5,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.240"
+            ],
+            "explanation": "A clause requiring the tenant to pay all of the landlord's legal costs regardless of outcome is prohibited. Legal fees can only be recovered if the tenant loses the case and the court orders it."
+          },
+          {
+            "clause_number": 6,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.130"
+            ],
+            "explanation": "Landlords cannot waive liability for injuries or damages caused by their negligence. A release clause like this is unenforceable."
+          },
+          {
+            "clause_number": 7,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.130"
+            ],
+            "explanation": "Tenants cannot waive their rights under the Residential Landlord-Tenant Act. Such a waiver is void and unenforceable."
+          },
+          {
+            "clause_number": 8,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.150"
+            ],
+            "explanation": "Landlord must provide at least two days' notice before entry except in emergencies. Entry without advance notice is prohibited."
+          },
+          {
+            "clause_number": 12,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.200"
+            ],
+            "explanation": "Tenant must give at least 20 days' written notice before the end of a rental period, but the notice must be to end the tenancy, not just any rental period. The clause is ambiguous and may be unenforceable as written."
+          }
+        ],
+        "raw_missing": [
+          "Disclosure of landlord's name and address for service of notices if different from the lease address",
+          "Information about the tenant's right to a written move-in checklist",
+          "Disclosure of the conditions under which the landlord may retain the security deposit and the procedure for its return",
+          "Notice of the tenant's right to repair and deduct or withhold rent under certain conditions",
+          "Information about the tenant's right to a habitable dwelling and landlord's repair obligations"
+        ]
+      },
+      {
+        "file": "lease_05_minimal.md",
+        "planted": [
+          4
+        ],
+        "flagged_red": [
+          4
+        ],
+        "flagged_yellow": [],
+        "missed": [],
+        "false_reds": [],
+        "citation_hits": 0,
+        "protections_expected": [
+          "Mold information"
+        ],
+        "protections_reported": [],
+        "protections_unmatched": [
+          "Disclosure of landlord's name and address for service of notices (RCW 59.18.060)",
+          "Disclosure of any known lead-based paint hazards if the dwelling was built before 1978 (RCW 64.44)",
+          "Provision of a written receipt for any rent or deposit payments (RCW 59.18.140)"
+        ],
+        "protections_exact": false,
+        "raw_flags": [
+          {
+            "clause_number": 4,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.060"
+            ],
+            "explanation": "Clause 4 attempts to waive the tenant's rights and remedies under the Residential Landlord-Tenant Act, which is prohibited by RCW 59.18.060. Such waivers are unenforceable."
+          },
+          {
+            "clause_number": 5,
+            "verdict": "yellow",
+            "citations": [
+              "RCW 59.18.150"
+            ],
+            "explanation": "Clause 5 requires at least two days' notice before landlord entry, but Washington law requires at least 24 hours' notice. The clause is potentially problematic if the notice period is interpreted as longer or shorter than required."
+          },
+          {
+            "clause_number": 9,
+            "verdict": "yellow",
+            "citations": [
+              "RCW 59.18.200"
+            ],
+            "explanation": "Clause 9 requires the tenant to give at least 20 days' notice to terminate, but Washington law requires at least 20 days' notice before the end of the rental period. The clause is potentially problematic if the rental period is not monthly or if the notice timing is unclear."
+          }
+        ],
+        "raw_missing": [
+          "Disclosure of landlord's name and address for service of notices (RCW 59.18.060)",
+          "Disclosure of any known lead-based paint hazards if the dwelling was built before 1978 (RCW 64.44)",
+          "Provision of a written receipt for any rent or deposit payments (RCW 59.18.140)"
+        ]
+      },
+      {
+        "file": "../../examples/sample_lease.md",
+        "planted": [
+          3,
+          5,
+          7,
+          9,
+          11,
+          13,
+          14
+        ],
+        "flagged_red": [
+          3,
+          5,
+          7,
+          9,
+          11,
+          14
+        ],
+        "flagged_yellow": [
+          13
+        ],
+        "missed": [],
+        "false_reds": [],
+        "citation_hits": 1,
+        "protections_expected": [
+          "Fire safety information",
+          "Mold information"
+        ],
+        "protections_reported": [
+          "Move-in condition checklist"
+        ],
+        "protections_unmatched": [
+          "Disclosure of landlord's name and address for service of process (RCW 59.18.060)",
+          "Disclosure of tenant's right to withhold rent for certain repairs (RCW 59.18.100)",
+          "Information about smoke detector maintenance responsibilities consistent with RCW 59.18.060(7)"
+        ],
+        "protections_exact": false,
+        "raw_flags": [
+          {
+            "clause_number": 3,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.140"
+            ],
+            "explanation": "Washington law limits late fees to a reasonable amount and prohibits daily late fees that accumulate indefinitely. Charging $75 plus $10 per day is likely excessive and unenforceable."
+          },
+          {
+            "clause_number": 5,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.240"
+            ],
+            "explanation": "A lease clause requiring the tenant to pay all of the landlord's attorney fees regardless of outcome is prohibited under Washington law."
+          },
+          {
+            "clause_number": 7,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.150"
+            ],
+            "explanation": "Landlord must provide at least two days' notice before entry except in emergencies; entry 'at any time and without prior notice' is not allowed."
+          },
+          {
+            "clause_number": 9,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.255"
+            ],
+            "explanation": "Clauses that restrict tenants from disclosing lease terms, such as rent amount or concessions, are prohibited under Washington law."
+          },
+          {
+            "clause_number": 11,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.255"
+            ],
+            "explanation": "Waiving all rights under the Residential Landlord-Tenant Act and prohibiting participation in class actions is unenforceable."
+          },
+          {
+            "clause_number": 13,
+            "verdict": "yellow",
+            "citations": [
+              "RCW 59.18.140"
+            ],
+            "explanation": "Requiring rent payment exclusively by electronic transfer may be problematic if it unreasonably restricts tenant payment options; Washington law requires reasonable payment methods."
+          },
+          {
+            "clause_number": 14,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.260"
+            ],
+            "explanation": "A clause that completely exempts landlord from liability for injury or damage is unenforceable under Washington law."
+          }
+        ],
+        "raw_missing": [
+          "Disclosure of landlord's name and address for service of process (RCW 59.18.060)",
+          "Provision of a move-in checklist to document condition of premises (RCW 59.18.260)",
+          "Disclosure of tenant's right to withhold rent for certain repairs (RCW 59.18.100)",
+          "Information about smoke detector maintenance responsibilities consistent with RCW 59.18.060(7)"
+        ]
+      }
+    ]
+  },
+  "openai/gpt-4.1": {
+    "summary": {
+      "leases": 6,
+      "planted_violations": 18,
+      "strict_recall": 0.7778,
+      "lenient_recall": 1.0,
+      "precision": 1.0,
+      "citation_accuracy": 1.0,
+      "false_reds": 0,
+      "protections_exact_leases": "3/6"
+    },
+    "leases": [
+      {
+        "file": "lease_clean.md",
+        "planted": [],
+        "flagged_red": [],
+        "flagged_yellow": [],
+        "missed": [],
+        "false_reds": [],
+        "citation_hits": 0,
+        "protections_expected": [],
+        "protections_reported": [
+          "Mold information",
+          "Move-in condition checklist"
+        ],
+        "protections_unmatched": [
+          "The lease does not include the required disclosure of the name and address of the landlord or the person authorized to receive notices and demands (RCW 59.18.060).",
+          "The lease does not include a summary of information about the Landlord-Tenant Act or where tenants can obtain it (RCW 59.18.060).",
+          "The lease does not mention the tenant's right to request a receipt for any payments made in cash (RCW 59.18.063)."
+        ],
+        "protections_exact": false,
+        "raw_flags": [
+          {
+            "clause_number": 3,
+            "verdict": "yellow",
+            "citations": [
+              "RCW 59.18.170",
+              "RCW 59.18.283"
+            ],
+            "explanation": "Late fees are allowed, but they must be reasonable and not punitive. A flat $40 late fee is likely permissible, but if it is excessive compared to the rent or not reasonably related to costs, it could be challenged."
+          },
+          {
+            "clause_number": 4,
+            "verdict": "yellow",
+            "citations": [
+              "RCW 59.18.280"
+            ],
+            "explanation": "The clause is generally compliant, but the lease should specify that the landlord must provide a full and specific statement of the basis for retaining any of the deposit within 21 days after the tenant vacates. The clause does not mention the 21-day deadline."
+          },
+          {
+            "clause_number": 11,
+            "verdict": "yellow",
+            "citations": [
+              "RCW 59.18.200"
+            ],
+            "explanation": "The clause allows the tenant to terminate with 20 days' notice, which is correct. However, it does not mention that certain protected tenants (e.g., victims of domestic violence) may terminate with less notice under specific circumstances."
+          }
+        ],
+        "raw_missing": [
+          "The lease does not include the required disclosure of the name and address of the landlord or the person authorized to receive notices and demands (RCW 59.18.060).",
+          "The lease does not include a summary of information about the Landlord-Tenant Act or where tenants can obtain it (RCW 59.18.060).",
+          "The lease does not mention the tenant's right to request a receipt for any payments made in cash (RCW 59.18.063).",
+          "The lease does not include a disclosure about any known mold contamination, only general mold information (RCW 59.18.060(13)).",
+          "The lease does not include a statement about the tenant's right to request a walk-through inspection before move-out (RCW 59.18.130(11))."
+        ]
+      },
+      {
+        "file": "lease_02_subtle.md",
+        "planted": [
+          3,
+          7
+        ],
+        "flagged_red": [
+          3
+        ],
+        "flagged_yellow": [
+          7
+        ],
+        "missed": [],
+        "false_reds": [],
+        "citation_hits": 1,
+        "protections_expected": [
+          "Deposit location disclosure",
+          "Fire safety information"
+        ],
+        "protections_reported": [
+          "Fire safety information"
+        ],
+        "protections_unmatched": [
+          "The lease does not include the required disclosure about the screening criteria and information regarding the landlord\u2019s eviction history policy (RCW 59.18.257).",
+          "The lease does not state whether the property is located within a special flood hazard area (RCW 59.18.030(30)).",
+          "There is no disclosure regarding the name and address of the landlord or agent for service of process (RCW 59.18.060(15)).",
+          "The lease does not mention the tenant's right to request a receipt for any payments made in cash (RCW 59.18.063)."
+        ],
+        "protections_exact": false,
+        "raw_flags": [
+          {
+            "clause_number": 3,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.170",
+              "RCW 59.18.283"
+            ],
+            "explanation": "The late fee of $60 plus $5 per day is likely excessive. Washington law caps late fees at $75 total per month for residential tenancies."
+          },
+          {
+            "clause_number": 7,
+            "verdict": "yellow",
+            "citations": [
+              "RCW 59.18.150"
+            ],
+            "explanation": "Landlord entry requires at least two days' (48 hours) written notice except in emergencies. This clause allows only 12 hours' notice, which is insufficient under the law."
+          }
+        ],
+        "raw_missing": [
+          "The lease does not include the required disclosure about the screening criteria and information regarding the landlord\u2019s eviction history policy (RCW 59.18.257).",
+          "There is no mention of the required fire safety and protection information disclosure (RCW 59.18.060(12)).",
+          "The lease does not state whether the property is located within a special flood hazard area (RCW 59.18.030(30)).",
+          "There is no disclosure regarding the name and address of the landlord or agent for service of process (RCW 59.18.060(15)).",
+          "The lease does not mention the tenant's right to request a receipt for any payments made in cash (RCW 59.18.063)."
+        ]
+      },
+      {
+        "file": "lease_03_gag.md",
+        "planted": [
+          3,
+          7,
+          8
+        ],
+        "flagged_red": [
+          3,
+          7
+        ],
+        "flagged_yellow": [
+          8
+        ],
+        "missed": [],
+        "false_reds": [],
+        "citation_hits": 2,
+        "protections_expected": [],
+        "protections_reported": [],
+        "protections_unmatched": [
+          "The lease does not include the required disclosure about the screening criteria and process (RCW 59.18.257).",
+          "The lease does not include the required information about the landlord\u2019s name and address for service of process and notices (RCW 59.18.060, RCW 59.18.260).",
+          "The lease does not include the required notice about tenant rights regarding domestic violence protections (RCW 59.18.580).",
+          "The lease does not include the required notice about the city or county\u2019s rental registration or inspection program, if applicable (RCW 59.18.125).",
+          "The lease does not include the required lead-based paint disclosure for pre-1978 housing, if applicable (federal law, 42 U.S.C. 4852d)."
+        ],
+        "protections_exact": true,
+        "raw_flags": [
+          {
+            "clause_number": 3,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.230(1)"
+            ],
+            "explanation": "A clause prohibiting the tenant from discussing rental terms with others is void and unenforceable because it waives or limits rights granted under the Residential Landlord-Tenant Act."
+          },
+          {
+            "clause_number": 7,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.230(1)"
+            ],
+            "explanation": "A clause waiving the tenant's right to participate in class actions is void and unenforceable under Washington law, which prohibits lease terms that waive rights or remedies under the Act."
+          },
+          {
+            "clause_number": 8,
+            "verdict": "yellow",
+            "citations": [
+              "RCW 59.18.063"
+            ],
+            "explanation": "Requiring payment only by Zelle may be problematic if it effectively prevents tenants from paying rent, as landlords must accept a form of payment that is accessible to tenants. This could be fact-dependent."
+          }
+        ],
+        "raw_missing": [
+          "The lease does not include the required disclosure about the screening criteria and process (RCW 59.18.257).",
+          "The lease does not include the required information about the landlord\u2019s name and address for service of process and notices (RCW 59.18.060, RCW 59.18.260).",
+          "The lease does not include the required notice about tenant rights regarding domestic violence protections (RCW 59.18.580).",
+          "The lease does not include the required notice about the city or county\u2019s rental registration or inspection program, if applicable (RCW 59.18.125).",
+          "The lease does not include the required lead-based paint disclosure for pre-1978 housing, if applicable (federal law, 42 U.S.C. 4852d)."
+        ]
+      },
+      {
+        "file": "lease_04_heavy.md",
+        "planted": [
+          3,
+          5,
+          6,
+          7,
+          8
+        ],
+        "flagged_red": [
+          3,
+          5,
+          6,
+          7,
+          8
+        ],
+        "flagged_yellow": [],
+        "missed": [],
+        "false_reds": [],
+        "citation_hits": 5,
+        "protections_expected": [
+          "Deposit location disclosure"
+        ],
+        "protections_reported": [
+          "Deposit location disclosure"
+        ],
+        "protections_unmatched": [
+          "The lease does not include the required disclosure of the name and address of the landlord or property manager for service of notices (RCW 59.18.060, RCW 59.18.260).",
+          "The lease does not include information about tenant screening criteria and whether a consumer report will be obtained (RCW 59.18.257).",
+          "The lease does not include a summary of the landlord-tenant act or information on how to access it (RCW 59.18.063).",
+          "The lease does not include information about the city or county\u2019s rental registration or inspection program, if applicable (RCW 59.18.060)."
+        ],
+        "protections_exact": true,
+        "raw_flags": [
+          {
+            "clause_number": 3,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.170"
+            ],
+            "explanation": "Late fees must be reasonable and may not exceed $75 total per month. This clause imposes a $95 immediate fee plus $15 per day, which could far exceed the legal limit."
+          },
+          {
+            "clause_number": 5,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.230(1)"
+            ],
+            "explanation": "A lease cannot require the tenant to pay the landlord's attorney fees and costs regardless of outcome. Attorney fees may only be awarded to the prevailing party by a court."
+          },
+          {
+            "clause_number": 6,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.230(1)"
+            ],
+            "explanation": "A lease cannot waive or limit the landlord's liability for injuries or damages caused by their own negligence or failure to comply with the law."
+          },
+          {
+            "clause_number": 7,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.230(1)"
+            ],
+            "explanation": "A lease cannot waive any rights, remedies, or protections provided to tenants under the Residential Landlord-Tenant Act."
+          },
+          {
+            "clause_number": 8,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.150"
+            ],
+            "explanation": "Landlord must provide at least 2 days' written notice before entry for inspection, repairs, or showing the property, except in emergencies. This clause allows entry without notice."
+          },
+          {
+            "clause_number": 4,
+            "verdict": "yellow",
+            "citations": [
+              "RCW 59.18.260",
+              "RCW 59.18.280"
+            ],
+            "explanation": "The lease references a move-in checklist but does not specify that the checklist must be completed and signed by both parties at move-in, as required by law."
+          }
+        ],
+        "raw_missing": [
+          "The lease does not include the required disclosure of the name and address of the landlord or property manager for service of notices (RCW 59.18.060, RCW 59.18.260).",
+          "The lease does not specify the bank or escrow company where the security deposit is held (RCW 59.18.270).",
+          "The lease does not include information about tenant screening criteria and whether a consumer report will be obtained (RCW 59.18.257).",
+          "The lease does not include a summary of the landlord-tenant act or information on how to access it (RCW 59.18.063).",
+          "The lease does not include information about the city or county\u2019s rental registration or inspection program, if applicable (RCW 59.18.060)."
+        ]
+      },
+      {
+        "file": "lease_05_minimal.md",
+        "planted": [
+          4
+        ],
+        "flagged_red": [
+          4
+        ],
+        "flagged_yellow": [],
+        "missed": [],
+        "false_reds": [],
+        "citation_hits": 1,
+        "protections_expected": [
+          "Mold information"
+        ],
+        "protections_reported": [
+          "Mold information"
+        ],
+        "protections_unmatched": [
+          "The lease does not include the required landlord/agent name and address disclosure (RCW 59.18.060, RCW 59.18.063).",
+          "The lease does not include the required information about the Washington State Landlord-Tenant Act (RCW 59.18.060)."
+        ],
+        "protections_exact": true,
+        "raw_flags": [
+          {
+            "clause_number": 4,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.230(1)"
+            ],
+            "explanation": "A lease cannot waive or modify the rights, remedies, or enforcement procedures provided to tenants under the Residential Landlord-Tenant Act. Any clause attempting to do so is void and unenforceable."
+          },
+          {
+            "clause_number": 9,
+            "verdict": "yellow",
+            "citations": [
+              "RCW 59.18.200",
+              "RCW 59.18.650"
+            ],
+            "explanation": "While tenants may terminate with 20 days' notice, landlords in Washington generally cannot terminate a month-to-month tenancy without cause. The lease should clarify that landlord termination must comply with the 'just cause' requirements under state law."
+          }
+        ],
+        "raw_missing": [
+          "The lease does not include the required landlord/agent name and address disclosure (RCW 59.18.060, RCW 59.18.063).",
+          "The lease does not include the required information about the Washington State Landlord-Tenant Act (RCW 59.18.060).",
+          "The lease does not include a disclosure about mold as required by RCW 59.18.060(13)."
+        ]
+      },
+      {
+        "file": "../../examples/sample_lease.md",
+        "planted": [
+          3,
+          5,
+          7,
+          9,
+          11,
+          13,
+          14
+        ],
+        "flagged_red": [
+          3,
+          5,
+          7,
+          11,
+          14
+        ],
+        "flagged_yellow": [
+          9,
+          13
+        ],
+        "missed": [],
+        "false_reds": [],
+        "citation_hits": 5,
+        "protections_expected": [
+          "Fire safety information",
+          "Mold information"
+        ],
+        "protections_reported": [
+          "Fire safety information",
+          "Mold information",
+          "Move-in condition checklist"
+        ],
+        "protections_unmatched": [
+          "No required disclosure of the name and address of the landlord or property manager for service of notices (RCW 59.18.060).",
+          "No summary of tenant rights and responsibilities as required to be provided to tenants (RCW 59.18.257)."
+        ],
+        "protections_exact": false,
+        "raw_flags": [
+          {
+            "clause_number": 3,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.170(2)"
+            ],
+            "explanation": "Late fees must be reasonable and may not exceed $75 total per month. This clause imposes a $75 fee plus $10 per day, which could exceed the legal maximum."
+          },
+          {
+            "clause_number": 5,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.230(1)"
+            ],
+            "explanation": "A clause requiring the tenant to pay all of the landlord's attorney fees regardless of outcome is prohibited. Attorney fees may only be awarded by the court to the prevailing party."
+          },
+          {
+            "clause_number": 7,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.150"
+            ],
+            "explanation": "Landlord must provide at least 2 days' notice before entry (except in emergencies or if tenant consents). Entry 'at any time and without prior notice' is not allowed."
+          },
+          {
+            "clause_number": 9,
+            "verdict": "yellow",
+            "citations": [
+              "RCW 59.18.230(1)"
+            ],
+            "explanation": "A confidentiality clause restricting a tenant from discussing lease terms may be unenforceable if it interferes with tenant rights or reporting violations."
+          },
+          {
+            "clause_number": 11,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.230(1)"
+            ],
+            "explanation": "A waiver of all rights under the Residential Landlord-Tenant Act is void and unenforceable."
+          },
+          {
+            "clause_number": 13,
+            "verdict": "yellow",
+            "citations": [
+              "RCW 59.18.063"
+            ],
+            "explanation": "Landlords must allow tenants to pay rent by means other than electronic transfer if the tenant does not have the ability to pay electronically."
+          },
+          {
+            "clause_number": 14,
+            "verdict": "red",
+            "citations": [
+              "RCW 59.18.230(1)"
+            ],
+            "explanation": "A clause releasing the landlord from all liability for injury or damage is prohibited and unenforceable."
+          }
+        ],
+        "raw_missing": [
+          "No required disclosure of the name and address of the landlord or property manager for service of notices (RCW 59.18.060).",
+          "No information about the location and terms of the security deposit account, or required written checklist at move-in (RCW 59.18.260, RCW 59.18.280).",
+          "No disclosure regarding fire safety and protection information, including smoke detector maintenance responsibilities (RCW 59.18.060(13)).",
+          "No information about mold, lead-based paint (if building built before 1978), or flooding disclosures (RCW 59.18.060(11), RCW 59.18.060(12), RCW 59.18.060(9)).",
+          "No summary of tenant rights and responsibilities as required to be provided to tenants (RCW 59.18.257)."
+        ]
+      }
+    ]
+  }
+}
