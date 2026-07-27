@@ -548,4 +548,6 @@ with gr.Blocks(
 demo.queue(max_size=16, default_concurrency_limit=4)
 
 if __name__ == "__main__":
-    demo.launch(server_name="127.0.0.1", server_port=7860, inbrowser=False)
+    # No explicit host/port: gradio falls back to GRADIO_SERVER_NAME /
+    # GRADIO_SERVER_PORT (set by the container), else 127.0.0.1:7860 locally.
+    demo.launch(inbrowser=False)

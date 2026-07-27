@@ -1,0 +1,21 @@
+# Upload set for `gcloud run deploy --source`. Written explicitly because the
+# default falls back to .gitignore — which excludes vector_db/, and the image
+# must contain it.
+.git
+.venv
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+.github/
+corpus/
+docs/
+evaluation/
+scripts/
+tests/
+logs/
+uploads/
+preprocessed_db/
+.DS_Store

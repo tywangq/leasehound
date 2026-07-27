@@ -2,6 +2,8 @@
 
 **Upload your lease. LeaseHound sniffs out the clauses that shouldn't be there.** A two-layer RAG system that answers tenant-law questions and scans rental agreements for prohibited provisions — grounded in Washington State's Residential Landlord-Tenant Act (RCW 59.18).
 
+**🐕 [Live demo](https://leasehound-671004460975.us-west1.run.app)** — one click scans the sample lease. Hosted on Cloud Run's free tier (scale-to-zero), so the first load after idle takes a few seconds.
+
 ![LeaseHound in motion: the sample lease is scanned clause by clause, the red-flag report pins to the side panel, and a follow-up question gets a cited answer](docs/demo.gif)
 
 > ⚖️ LeaseHound is an educational tool, not legal advice.
@@ -63,6 +65,8 @@ python -m leasehound.ingest        # chunk + embed → vector_db/ (one-time, a f
 python -m leasehound.scan examples/sample_lease.md   # CLI
 python -m leasehound.app                             # web UI at localhost:7860
 ```
+
+No setup at all: the **[hosted demo](https://leasehound-671004460975.us-west1.run.app)** runs the same code on Cloud Run — the repo's `Dockerfile` bakes the vector DB into the image, so the container is stateless and scales to zero between visitors.
 
 The web UI is a single chat with an artifact-style side panel: attach a lease (or one-click the sample) to scan it, or just type to ask questions — scan progress streams into the chat clause by clause, and the finished red-flag report pins to the panel so it stays visible while you ask follow-ups — answered token-by-token with the report in context and statute citations.
 
