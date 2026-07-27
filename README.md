@@ -2,7 +2,7 @@
 
 **Upload your lease. LeaseHound sniffs out the clauses that shouldn't be there.** A two-layer RAG system that answers tenant-law questions and scans rental agreements for prohibited provisions — grounded in Washington State's Residential Landlord-Tenant Act (RCW 59.18).
 
-![The LeaseHound UI: a cited answer about a late-fee clause on the left, the pinned red-flag scan report on the right](docs/screenshot.png)
+![LeaseHound in motion: the sample lease is scanned clause by clause, the red-flag report pins to the side panel, and a follow-up question gets a cited answer](docs/demo.gif)
 
 > ⚖️ LeaseHound is an educational tool, not legal advice.
 
@@ -64,6 +64,8 @@ python -m leasehound.app                             # web UI at localhost:7860
 ```
 
 The web UI is a single chat with an artifact-style side panel: attach a lease (or one-click the sample) to scan it, or just type to ask questions — scan progress streams into the chat clause by clause, and the finished red-flag report pins to the panel so it stays visible while you ask follow-ups — answered token-by-token with the report in context and statute citations.
+
+![The finished state, readable: a question about the late-fee clause, its cited answer, and the pinned scan report](docs/screenshot.png)
 
 `examples/sample_lease.md` is a synthetic lease with **seven deliberately planted violations** (late fees inside the grace period, landlord attorney-fee clause, no-notice entry, rent NDA, rights waiver, electronic-payment-only, exculpation) — it doubles as the scanner's acceptance test. Current result: **7/7 planted violations flagged red with statute citations, zero false reds** among the ordinary clauses; the security-deposit clause comes back yellow (fact-dependent), which is the intended behavior. See `examples/README.md` for the expected-flags table and `examples/scan_report.md` for the full output.
 
