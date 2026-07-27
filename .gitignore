@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 .venv/
 vector_db/
+logs/
 preprocessed_db/
 uploads/
 .DS_Store

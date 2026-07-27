@@ -38,6 +38,7 @@ graph TD
     APP["app.py<br>Gradio UI"] --> SCAN["scan.py<br>clause-by-clause judge"]
     APP --> ANSWER["answer.py<br>grounded Q&A"]
     UPLOAD["upload.py<br>split lease into clauses"] --> SCAN
+    SCAN --> METRICS["metrics.py<br>per-scan cost & latency log"]
     SCAN --> RETRIEVAL["retrieval.py<br>shared retrieval layer"]
     ANSWER --> RETRIEVAL
     EVAL["evaluation/<br>testset + three-layer eval suite"] --> RETRIEVAL
@@ -67,13 +68,15 @@ The web UI is a single chat with an artifact-style side panel: attach a lease (o
 
 ![The finished state, readable: a question about the late-fee clause, its cited answer, and the pinned scan report](docs/screenshot.png)
 
+Every scan is metered: one JSON line per scan (API calls, token usage, estimated cost, latency, verdict counts — the file name, never lease text) appends to `logs/scan_metrics.jsonl`, and `python -m leasehound.metrics` summarizes the log. The 15-clause sample lease above: 17 LLM calls + 15 embeddings, ≈ $0.015, ~9 s.
+
 `examples/sample_lease.md` is a synthetic lease with **seven deliberately planted violations** (late fees inside the grace period, landlord attorney-fee clause, no-notice entry, rent NDA, rights waiver, electronic-payment-only, exculpation) — it doubles as the scanner's acceptance test. Current result: **7/7 planted violations flagged red with statute citations, zero false reds** among the ordinary clauses; the security-deposit clause comes back yellow (fact-dependent), which is the intended behavior. See `examples/README.md` for the expected-flags table and `examples/scan_report.md` for the full output.
 
 ## Privacy
 
 A lease is sensitive: names, address, rent. LeaseHound keeps handling minimal —
 
-- Uploads are parsed in memory; the uploaded temp file is deleted immediately after parsing, and lease text never enters the vector store.
+- Uploads are parsed in memory; the uploaded temp file is deleted immediately after parsing, and lease text never enters the vector store. The per-scan metrics log records counts, cost, and the file name — never lease text.
 - Clause text is sent to the OpenAI API for embedding and analysis. OpenAI does not train on API data (retained ~30 days for abuse monitoring), but treat it as a third-party disclosure: don't upload a document you couldn't share — or use the sample lease.
 - Local PII redaction before the API call (regex + local NER — it can't be done by the same cloud LLM you're redacting *from*) is a considered follow-up.
 - Prefer fully local inference? All LLM calls route through litellm: set `LEASEHOUND_UTILITY_MODEL` / `LEASEHOUND_GENERATION_MODEL` to e.g. `ollama/llama3.1` (expect weaker verdicts from small local models; embeddings still require an OpenAI key).
@@ -82,7 +85,7 @@ A lease is sensitive: names, address, rent. LeaseHound keeps handling minimal �
 
 ```bash
 pip install -e ".[dev]"
-pytest          # unit tests: clause splitting, RRF merge, report rendering, cancellation, the scan cap, cited-sources footer, privacy cleanup
+pytest          # unit tests: clause splitting, RRF merge, report rendering, cancellation, the scan cap, per-scan metrics, cited-sources footer, privacy cleanup
 ruff check leasehound evaluation scripts tests
 ```
 

@@ -23,6 +23,7 @@ from pathlib import Path
 import gradio as gr
 
 from leasehound.answer import answer_question
+from leasehound.metrics import ScanMeter, log_scan
 from leasehound.scan import (
     MAX_CLAUSES,
     check_protections,
@@ -285,7 +286,8 @@ def scan_flow(path, key, history, report, scanned, context_base, question=""):
         history.append({"role": "assistant", "content": message})
         yield _out(history, stop=gr.update(visible=False))
         return
-    if not looks_like_lease(clauses):
+    meter = ScanMeter()  # the sanity check below is the scan's first API call
+    if not looks_like_lease(clauses, meter):
         history.append({"role": "assistant", "content": NOT_A_LEASE})
         yield _out(history, stop=gr.update(visible=False))
         return
@@ -301,7 +303,7 @@ def scan_flow(path, key, history, report, scanned, context_base, question=""):
                stop=gr.update(visible=True), col=gr.update(visible=True),
                actions=gr.update(visible=False))
     findings = []
-    for finding in scan_clauses(clauses, config):
+    for finding in scan_clauses(clauses, config, meter):
         findings.append(finding)
         history[-1]["content"] = progress_line(len(findings), total)
         yield _out(history)
@@ -309,10 +311,11 @@ def scan_flow(path, key, history, report, scanned, context_base, question=""):
 
     history[-1]["content"] = "🐕 One more pass — checking the protections the law requires…"
     yield _out(history)
-    protections = check_protections(clauses)
+    protections = check_protections(clauses, meter)
     new_report = render_report(findings, name, "wa", protections)
     counts = count_verdicts(findings)
     missing = sum(1 for p in protections if p["status"] == "missing")
+    log_scan(meter, name, total, verdicts=counts, missing=missing)
     history[-1]["content"] = (
         f"🐕 Sniff complete: 🚩 {counts['red']} red · ⚠️ {counts['yellow']} caution · "
         f"✅ {counts['green']} clear · 🔍 {missing} missing protections. "

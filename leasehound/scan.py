@@ -22,6 +22,7 @@ from litellm import completion
 from pydantic import BaseModel, Field
 from tqdm import tqdm
 
+from leasehound.metrics import ScanMeter, cost_line, log_scan
 from leasehound.retrieval import (
     GENERATION_MODEL,
     PipelineConfig,
@@ -79,7 +80,7 @@ Classify the clause. Rules:
 
 
 @llm_retry
-def judge_clause(clause: str, chunks: list[Result]) -> ClauseVerdict:
+def judge_clause(clause: str, chunks: list[Result], meter: ScanMeter | None = None) -> ClauseVerdict:
     messages = [{"role": "user", "content": make_judge_prompt(clause, chunks)}]
     # temperature=0: verdicts are classifications — the same lease should get
     # the same report every scan, and the 7/7 acceptance test should be stable.
@@ -87,6 +88,8 @@ def judge_clause(clause: str, chunks: list[Result]) -> ClauseVerdict:
         model=GENERATION_MODEL, messages=messages,
         response_format=ClauseVerdict, temperature=0,
     )
+    if meter is not None:
+        meter.add_completion(response)
     return ClauseVerdict.model_validate_json(response.choices[0].message.content)
 
 
@@ -170,12 +173,14 @@ Respond with one status per checklist item, in order.
 
 
 @llm_retry
-def check_protections(clauses: list[str]) -> list[dict]:
+def check_protections(clauses: list[str], meter: ScanMeter | None = None) -> list[dict]:
     messages = [{"role": "user", "content": make_protections_prompt("\n\n".join(clauses))}]
     response = completion(
         model=GENERATION_MODEL, messages=messages,
         response_format=ProtectionReport, temperature=0,
     )
+    if meter is not None:
+        meter.add_completion(response)
     checks = ProtectionReport.model_validate_json(response.choices[0].message.content).checks
     results = []
     for check in checks:
@@ -204,13 +209,15 @@ class DocumentCheck(BaseModel):
 
 
 @llm_retry
-def looks_like_lease(clauses: list[str]) -> bool:
+def looks_like_lease(clauses: list[str], meter: ScanMeter | None = None) -> bool:
     """Sanity check before burning a full scan on a document that isn't a lease."""
     message = "Classify the following document.\n\n" + "\n\n".join(clauses)[:6000]
     response = completion(
         model=GENERATION_MODEL, messages=[{"role": "user", "content": message}],
         response_format=DocumentCheck, temperature=0,
     )
+    if meter is not None:
+        meter.add_completion(response)
     check = DocumentCheck.model_validate_json(response.choices[0].message.content)
     return check.kind == "lease_agreement"
 
@@ -228,9 +235,10 @@ def base_section(citation: str) -> str:
     return match.group(0) if match else citation
 
 
-def scan_clause(clause: str, index: int, config: PipelineConfig) -> dict:
-    chunks = fetch_unranked(clause[:1200], config)
-    verdict = judge_clause(clause, chunks)
+def scan_clause(clause: str, index: int, config: PipelineConfig,
+                meter: ScanMeter | None = None) -> dict:
+    chunks = fetch_unranked(clause[:1200], config, meter)
+    verdict = judge_clause(clause, chunks, meter)
     url_by_section = {c.metadata.get("section"): c.metadata.get("url") for c in chunks}
     return {
         "index": index,
@@ -242,7 +250,8 @@ def scan_clause(clause: str, index: int, config: PipelineConfig) -> dict:
     }
 
 
-def scan_clauses(clauses: list[str], config: PipelineConfig) -> Iterator[dict]:
+def scan_clauses(clauses: list[str], config: PipelineConfig,
+                 meter: ScanMeter | None = None) -> Iterator[dict]:
     """Judge every clause concurrently, yielding each finding as its verdict arrives.
 
     The judgments are independent I/O-bound API calls (one embedding + one
@@ -255,7 +264,7 @@ def scan_clauses(clauses: list[str], config: PipelineConfig) -> Iterator[dict]:
     executor = ThreadPoolExecutor(max_workers=MAX_PARALLEL_SCANS)
     try:
         futures = [
-            executor.submit(scan_clause, clause, index, config)
+            executor.submit(scan_clause, clause, index, config, meter)
             for index, clause in enumerate(clauses, start=1)
         ]
         for future in as_completed(futures):
@@ -277,16 +286,21 @@ def scan_lease(path: str | Path, state: str = "wa") -> tuple[list[dict], list[di
             f"{path} splits into {len(clauses)} clauses — over the {MAX_CLAUSES}-clause cap. "
             "No residential lease is that long; try just the lease body."
         )
-    if not looks_like_lease(clauses):
+    meter = ScanMeter()  # the sanity check below is the scan's first API call
+    if not looks_like_lease(clauses, meter):
         raise SystemExit(
             f"{path} doesn't look like a residential lease — LeaseHound only scans leases."
         )
     print(f"Scanning {len(clauses)} clauses from {path}")
-    findings = list(tqdm(scan_clauses(clauses, config), total=len(clauses),
+    findings = list(tqdm(scan_clauses(clauses, config, meter), total=len(clauses),
                          desc="🐕 sniffing clauses"))
     findings.sort(key=lambda f: f["index"])
     print("🐕 Checking required protections…")
-    protections = check_protections(clauses)
+    protections = check_protections(clauses, meter)
+    record = log_scan(meter, str(path), len(clauses),
+                      verdicts=count_verdicts(findings),
+                      missing=sum(1 for p in protections if p["status"] == "missing"))
+    print(f"{cost_line(record)} — logged to logs/scan_metrics.jsonl")
     return findings, protections
 
 

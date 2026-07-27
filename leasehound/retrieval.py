@@ -106,9 +106,12 @@ Respond ONLY with the query text, nothing else.
     return response.choices[0].message.content
 
 
-def fetch_unranked(query: str, config: PipelineConfig) -> list[Result]:
+def fetch_unranked(query: str, config: PipelineConfig, meter=None) -> list[Result]:
     collection = _get_collection(config.collection)
-    embedding = openai.embeddings.create(model=EMBEDDING_MODEL, input=[query]).data[0].embedding
+    response = openai.embeddings.create(model=EMBEDDING_MODEL, input=[query])
+    if meter is not None:
+        meter.add_embedding(response, EMBEDDING_MODEL)
+    embedding = response.data[0].embedding
     results = collection.query(query_embeddings=[embedding], n_results=config.retrieval_k)
     return [
         Result(page_content=doc, metadata=meta)

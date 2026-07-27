@@ -86,7 +86,7 @@ def test_scan_refuses_oversized_documents_before_any_llm_call():
 def test_closing_scan_generator_cancels_queued_clauses():
     started = []
 
-    def slow_scan_clause(clause, index, config):
+    def slow_scan_clause(clause, index, config, meter=None):
         started.append(index)
         time.sleep(0.05 if index == 1 else 0.5)  # first verdict lands while 7 still queue
         return {"index": index, "verdict": "green"}
