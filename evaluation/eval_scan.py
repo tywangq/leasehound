@@ -46,7 +46,10 @@ def printed_number(clause_text: str) -> int | None:
     return int(match.group(1)) if match else None
 
 
-def evaluate_lease(entry: dict, leases_dir: Path) -> dict:
+def evaluate_lease(entry: dict, leases_dir: Path, keep_raw: bool = False) -> dict:
+    """Scan one lease and score it. With keep_raw, the scan's own findings and
+    protections ride along under "_scan" so a caller can reuse them (the
+    injection eval renders the report from them) without paying to rescan."""
     path = (leases_dir / entry["file"]).resolve()
     expected_red = {int(num): cites for num, cites in entry["red"].items()}
     expected_missing = set(entry["missing_protections"])
@@ -86,6 +89,8 @@ def evaluate_lease(entry: dict, leases_dir: Path) -> dict:
             false_reds.append(number)
 
     reported_missing = {p["name"] for p in protections if p["status"] == "missing"}
+    if keep_raw:
+        result["_scan"] = {"findings": findings, "protections": protections}
     return {
         **result,
         "planted": sorted(expected_red),
