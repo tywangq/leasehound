@@ -23,7 +23,7 @@ Two corpus layers, two query modes:
 | Content | State statutes + official guidance | The lease you upload |
 | Processing | Offline ingestion, evaluated with an ablation suite | Split into clauses on the fly (deterministic, no LLM) |
 
-- **Scan mode** — walks your lease clause by clause, retrieves the governing statute for each, and produces a structured red-flag report with citations. Each clause queries the statutes directly, skipping the query-rewriting stages: those bridge renter vocabulary to statute vocabulary (see the adversarial experiment below), and a lease clause already speaks statute. Clause judgments are independent API calls, so they run concurrently — a 15-clause lease scans in ~10 seconds instead of ~90. A second, negative-space pass checks a hand-curated, statute-cited checklist of required protections and reports what the lease *fails to include* (the LLM only judges presence — it never invents requirements). A document sanity check refuses non-leases before any clause is judged, and scans cap at 60 clauses — no residential lease is longer, and the cap bounds what one upload can spend
+- **Scan mode** — walks your lease clause by clause, retrieves the governing statute for each, and produces a structured red-flag report with citations. Each clause queries the statutes directly, skipping the query-rewriting stages: those bridge renter vocabulary to statute vocabulary (see the adversarial experiment below), and a lease clause already speaks statute — a hybrid lexical channel was [measured here and rejected](#hybrid-retrieval-bm25--dense--measured-and-not-shipped) too. Clause judgments are independent API calls, so they run concurrently — a 15-clause lease scans in ~10 seconds instead of ~90. A second, negative-space pass checks a hand-curated, statute-cited checklist of required protections and reports what the lease *fails to include* (the LLM only judges presence — it never invents requirements). A document sanity check refuses non-leases before any clause is judged, and scans cap at 60 clauses — no residential lease is longer, and the cap bounds what one upload can spend
 - **Ask mode** — RAG Q&A over the statute corpus ("Can my landlord charge a late fee on day 3?"); once you've scanned a lease, the report joins the chat context so answers are about *your* lease. A session-scoped vector collection for full lease-text retrieval is planned.
 
 Retrieval pipeline: LLM-driven semantic chunking & augmentation (Pydantic structured outputs, parallel ingestion with validation + retry) → query router (greetings and small talk skip retrieval entirely) → dual-query retrieval (original + rewritten) merged with reciprocal rank fusion → self-grading retrieval (CRAG-style) → LLM reranking → grounded generation with source citations.
@@ -37,13 +37,14 @@ graph TD
     INGEST --> DB[("vector_db<br>Chroma, one collection per variant")]
     NAIVE --> DB
 
-    APP["app.py<br>Gradio UI"] --> SCAN["scan.py<br>clause-by-clause judge"]
+    APP["app.py<br>Gradio UI + scan cache"] --> SCAN["scan.py<br>clause-by-clause judge"]
     APP --> ANSWER["answer.py<br>grounded Q&A"]
     UPLOAD["upload.py<br>split lease into clauses"] --> SCAN
     SCAN --> METRICS["metrics.py<br>per-scan cost & latency log"]
     SCAN --> RETRIEVAL["retrieval.py<br>shared retrieval layer"]
     ANSWER --> RETRIEVAL
-    EVAL["evaluation/<br>testset + three-layer eval suite"] --> RETRIEVAL
+    BM25["bm25.py<br>lexical channel, measured & off"] -.-> RETRIEVAL
+    EVAL["evaluation/<br>testsets + eval suite<br>retrieval · generation · scan · baseline · injection"] --> RETRIEVAL
     EVAL --> SCAN
     RETRIEVAL --> DB
 ```
@@ -92,7 +93,7 @@ A lease is sensitive: names, address, rent. LeaseHound keeps handling minimal �
 
 ```bash
 pip install -e ".[dev]"
-pytest          # unit tests: clause splitting, RRF merge, report rendering, cancellation, the scan cap, per-scan metrics, scan cache, cited-sources footer, privacy cleanup
+pytest          # 58 unit tests: clause splitting, RRF merge + hybrid wiring, BM25 scoring, report rendering, cancellation, the scan cap, per-scan metrics, scan cache, the synthetic-dataset verifier, prompts that must treat lease text as data, cited-sources footer, privacy cleanup
 ruff check leasehound evaluation scripts tests
 ```
 
@@ -149,6 +150,33 @@ Each test question is a colloquial tenant question generated from — and then v
 
 Three things the original set could not show: the vocabulary gap is real (every configuration drops); **plain-language augmentation now beats plain chunking by +.018 MRR** (it was −.013 on the leaky set) — its renter-vocabulary summaries buffer exactly this shift; and the **full pipeline is now the leader on every metric with the smallest degradation**, while the two-stage system falls five questions behind on hit@5. At the generation layer the reworded set also breaks the ceiling: full pipeline 80/82 consistent · 81/82 grounded vs 79/82 · 79/82 for two-stage. No single gap is huge, but every metric now points the same way — **ask mode keeps the full pipeline**.
 
+### Hybrid retrieval (BM25 + dense) — measured, and not shipped
+
+The roadmap called for a lexical channel, motivated by the one planted violation the scanner missed (below): an exculpation clause whose governing section retrieval buried at rank 15. `bm25.py` implements BM25 in-repo — ~30 lines of transparent scoring, no new dependency, and a tokenizer that keeps `59.18.230` as one token instead of three numbers — merged through the RRF stage that dual-query retrieval already uses. It is behind a `PipelineConfig(bm25=True)` flag and **enabled nowhere**, because the measurements said no. The experiment is the deliverable:
+
+| retrieval, all LLM stages off | MRR | nDCG | hit@5 | hit@10 |
+| --- | --- | --- | --- | --- |
+| dense only, original question set | .771 | .806 | .878 | .915 |
+| **+ BM25**, original question set | **.779** | **.821** | **.890** | **.951** |
+| dense only, renter-voice rephrasing | .708 | .758 | .866 | .915 |
+| **+ BM25**, renter-voice rephrasing | .609 | .680 | .817 | .902 |
+
+```bash
+python -m evaluation.eval_retrieval --name hybrid-n82 --no-dual --no-grader --no-rerank --bm25
+python -m evaluation.eval_retrieval --name hybrid-adv --no-dual --no-grader --no-rerank --bm25 \
+    --tests tests_adversarial.jsonl
+```
+
+Every row above is in `evaluation/results.jsonl` (the `bm25` field distinguishes them), and the scan-mode run that rejected it is kept in `evaluation/hybrid_scan_results.json` — `scan_results.json` stays the shipped configuration, so the canonical artifact never describes a setting the product doesn't use.
+
+The two halves of that table point opposite ways, and the honest set wins the argument. Gains on the original set are partly an artifact of its statute vocabulary (the same leakage [the adversarial experiment](#adversarial-rephrasing--the-same-82-questions-renter-voice) was built to expose): when the query already speaks statute, matching tokens works. Rephrased the way a renter actually asks, MRR drops **10 points** — a casual question shares only common words with legal text, so the lexical channel contributes noise and RRF weights that noise equally with the dense signal. Ask mode keeps `bm25=False`.
+
+Scan mode looked like the natural home for it — there the query *is* legal text, the clause itself — and it failed differently. Recall held at 18/18 but **two false reds appeared, one of them on the fully compliant lease**, dropping precision 1.000 → .900. The mechanism is worth naming: catalog sections like RCW 59.18.230, which enumerate prohibited clause types, are **lexical magnets** — they share vocabulary with nearly any clause — and handing the judge a list of illegal clauses biases it toward finding one. It produced a plainly wrong reading of a compliant late-fee clause ("the law requires late fees be charged from the first day"). Weighting the lexical channel down can't separate the cases either: the false-positive sections rank *higher* in both channels (dense 9–11, lexical 3–5) than the section the experiment was meant to recover (dense 15, lexical 8), so any threshold that admits the good case admits the bad ones sooner.
+
+**And the miss it was built for wasn't a retrieval-channel problem at all.** With hybrid on, RCW 59.18.230 does enter the judge's top six — and the verdict stays green. The section is split across four chunks, and the one that surfaced covers distress for rent and landlord's liens, not the prohibition on exculpation clauses. The defect is chunk granularity, and the retrieval eval structurally could not have shown it: hit@k scores a *section-level* match, which a chunk containing none of the governing rule still satisfies. Section completion (retrieving one chunk of a section, then giving the judge all of them — more prompt tokens, no extra API call) is now the roadmap item, and it is aimed at the actual cause.
+
+Total cost of reaching that conclusion: about $0.12, most of it the one gold-set scan run. Ordering was deliberate — BM25 needs no API calls, so the single-clause diagnosis and both retrieval rows were run for fractions of a cent before anything expensive, and the gold set was run before the 40-lease set precisely so a regression would surface at $0.10 rather than $0.70.
+
 ### Scan-layer evaluation — red-flag precision & recall, 6 labeled leases
 
 The scanner is measured against hand-labeled synthetic leases (`evaluation/leases/` + `manifest.json`): five leases written for this eval — re-worded violations (a day-2 late fee, 12-hour entry notice, gag clauses, a softly-phrased rights waiver), a fully compliant lease as a false-positive probe, and a no-deposit lease exercising the `not_applicable` path — plus the original acceptance-test lease.
@@ -192,7 +220,7 @@ python -m evaluation.eval_scan --manifest evaluation/leases_synthetic/manifest.j
 Scaling the set immediately paid for itself twice — both findings are the eval doing its job, and both are fixed in this repo:
 
 1. **A found bug: evidence bleed between checklist items.** The protections pass scored 32/40 because several checklist items concern the security deposit and a lease packs them into one clause — the model quoted *"held in a trust account at River City Bank"* as evidence that the **withholding terms** were stated. Six leases that genuinely omitted the withholding conditions were scored as compliant. The gold set never showed this: with six leases, the pattern is one data point. Making the prompt score each statutory requirement separately took protections to **40/40**, with no new false "missing" claims and no regression on the gold set.
-2. **The single missed violation is a *retrieval* miss, not a judgment miss.** Clause 11 of lease 018 buries an exculpation clause ("Landlord shall not be liable… even if due to Landlord's own negligence") behind a benign lead sentence about renter's insurance. Retrieval returned six insurance-adjacent sections and **not** RCW 59.18.230 — so the judge, which may only cite what it was given, correctly returned green for what it saw. This is the concrete case for the hybrid keyword channel on the roadmap: *hold harmless* and *negligence* are exact-token signals that a dense embedding of an insurance-flavored paragraph dilutes.
+2. **The single missed violation is a *retrieval* miss, not a judgment miss.** Clause 11 of lease 018 buries an exculpation clause ("Landlord shall not be liable… even if due to Landlord's own negligence") behind a benign lead sentence about renter's insurance. Retrieval returned six insurance-adjacent sections and **not** RCW 59.18.230 — so the judge, which may only cite what it was given, correctly returned green for what it saw. Chasing this one miss is what produced the [hybrid-retrieval experiment](#hybrid-retrieval-bm25--dense--measured-and-not-shipped) above, which then located the cause one level deeper: retrieving the right *section* isn't enough when the section is split across four chunks and the wrong chunk surfaces.
 
 **Precision on this set is a lower bound, and here's why.** All 7 red flags outside the label set were audited by hand: 6 are genuine violations the generator wrote into clauses it wasn't asked to plant — a late fee starting on day 4 or 5 when [RCW 59.18.170](https://app.leg.wa.gov/RCW/default.aspx?cite=59.18.170) requires five full days, 24 hours' entry notice where two days are required, house rules amendable on two weeks' notice against a 30-day statutory floor. Only one is a real over-flag (a disclosed pet-policy penalty cited to the nonrefundable-fee section). So the mechanical precision of .896 corresponds to an audited **~.985** — and the honest limitation is the dataset's, not the scanner's: the verifier confirms the planted violations are present, it does not prove every *other* clause is compliant. Generated labels are cheap and verifiable, not authoritative; the six hand-labeled leases remain the acceptance bar.
 
@@ -260,7 +288,7 @@ This closes the question the ablation opened: the augmented six-stage pipeline s
 
 ## Roadmap
 
-- Hybrid retrieval (BM25 + dense, merged through the existing RRF stage) — motivated by a measured miss, not by novelty: the one planted violation the scanner missed across 61 was an exculpation clause whose governing section retrieval never returned, and *hold harmless* is exactly the exact-token signal a keyword channel catches
+- Section completion for the judge's context — retrieve one chunk of a statute section, hand the judge all of that section's chunks. Aimed at the measured cause of the scanner's one miss: the right section was retrieved, the wrong chunk of it. Costs prompt tokens, no extra API call. (Hybrid retrieval was the previous candidate here; it was [implemented, measured, and rejected](#hybrid-retrieval-bm25--dense--measured-and-not-shipped).)
 - False-premise and unanswerable question sets — the remaining adversarial categories (testing premise correction and honest refusal, not just retrieval)
 - OCR for scanned/photo leases (Tesseract) — today a no-text-layer PDF is detected and refused with an explanation
 - Session-scoped vector collection for full lease-text retrieval in ask mode

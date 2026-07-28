@@ -252,6 +252,10 @@ def looks_like_lease(clauses: list[str], meter: ScanMeter | None = None) -> bool
 
 
 def scan_config(state: str = "wa") -> PipelineConfig:
+    # The clause text is its own query, so ask mode's rewrite/grade/rerank
+    # stages have nothing to add here. Hybrid retrieval was measured and
+    # rejected too — it cost two false reds on compliant clauses and bought
+    # nothing (see bm25.py and the README's hybrid experiment).
     return PipelineConfig(
         collection=f"{state}_reference", dual_query=False, grader=False, rerank=False,
         retrieval_k=STATUTES_PER_CLAUSE,

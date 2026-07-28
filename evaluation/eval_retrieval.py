@@ -51,6 +51,8 @@ def evaluate(config: PipelineConfig, name: str, tests_file: str = "tests.jsonl")
         "dual_query": config.dual_query,
         "grader": config.grader,
         "rerank": config.rerank,
+        "bm25": config.bm25,
+        "tests": tests_file,
         "n": n,
         "mrr": round(sum(reciprocal_ranks) / n, 4),
         "ndcg": round(sum(ndcgs) / n, 4),
@@ -69,6 +71,8 @@ def main() -> None:
     parser.add_argument("--no-dual", dest="dual", action="store_false")
     parser.add_argument("--no-grader", dest="grader", action="store_false")
     parser.add_argument("--no-rerank", dest="rerank", action="store_false")
+    parser.add_argument("--bm25", action="store_true",
+                        help="merge a BM25 lexical channel into retrieval (hybrid)")
     parser.add_argument("--tests", default="tests.jsonl", help="Test set file in evaluation/")
     args = parser.parse_args()
 
@@ -77,6 +81,7 @@ def main() -> None:
         dual_query=args.dual,
         grader=args.grader,
         rerank=args.rerank,
+        bm25=args.bm25,
     )
     summary = evaluate(config, args.name, args.tests)
     print(json.dumps(summary, indent=2))

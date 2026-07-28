@@ -1,0 +1,158 @@
+{
+  "summary": {
+    "leases": 6,
+    "planted_violations": 18,
+    "strict_recall": 1.0,
+    "lenient_recall": 1.0,
+    "precision": 0.9,
+    "citation_accuracy": 1.0,
+    "false_reds": 2,
+    "protections_exact_leases": "6/6"
+  },
+  "leases": [
+    {
+      "file": "lease_clean.md",
+      "planted": [],
+      "flagged_red": [],
+      "flagged_yellow": [],
+      "missed": [],
+      "false_reds": [
+        3
+      ],
+      "citation_hits": 0,
+      "protections_expected": [],
+      "protections_reported": [],
+      "protections_exact": true
+    },
+    {
+      "file": "lease_02_subtle.md",
+      "planted": [
+        3,
+        7
+      ],
+      "flagged_red": [
+        3,
+        7
+      ],
+      "flagged_yellow": [],
+      "missed": [],
+      "false_reds": [
+        10
+      ],
+      "citation_hits": 2,
+      "protections_expected": [
+        "Deposit location disclosure",
+        "Fire safety information"
+      ],
+      "protections_reported": [
+        "Deposit location disclosure",
+        "Fire safety information"
+      ],
+      "protections_exact": true
+    },
+    {
+      "file": "lease_03_gag.md",
+      "planted": [
+        3,
+        7,
+        8
+      ],
+      "flagged_red": [
+        3,
+        7,
+        8
+      ],
+      "flagged_yellow": [],
+      "missed": [],
+      "false_reds": [],
+      "citation_hits": 3,
+      "protections_expected": [],
+      "protections_reported": [],
+      "protections_exact": true
+    },
+    {
+      "file": "lease_04_heavy.md",
+      "planted": [
+        3,
+        5,
+        6,
+        7,
+        8
+      ],
+      "flagged_red": [
+        3,
+        5,
+        6,
+        7,
+        8
+      ],
+      "flagged_yellow": [],
+      "missed": [],
+      "false_reds": [],
+      "citation_hits": 5,
+      "protections_expected": [
+        "Deposit location disclosure"
+      ],
+      "protections_reported": [
+        "Deposit location disclosure"
+      ],
+      "protections_exact": true
+    },
+    {
+      "file": "lease_05_minimal.md",
+      "planted": [
+        4
+      ],
+      "flagged_red": [
+        4
+      ],
+      "flagged_yellow": [],
+      "missed": [],
+      "false_reds": [],
+      "citation_hits": 1,
+      "protections_expected": [
+        "Mold information"
+      ],
+      "protections_reported": [
+        "Mold information"
+      ],
+      "protections_exact": true
+    },
+    {
+      "file": "../../examples/sample_lease.md",
+      "planted": [
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        14
+      ],
+      "flagged_red": [
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        14
+      ],
+      "flagged_yellow": [],
+      "missed": [],
+      "false_reds": [],
+      "citation_hits": 7,
+      "protections_expected": [
+        "Fire safety information",
+        "Mold information"
+      ],
+      "protections_reported": [
+        "Fire safety information",
+        "Mold information"
+      ],
+      "protections_exact": true
+    }
+  ],
+  "_comment": "Gold-set scan eval with the BM25 lexical channel ENABLED (PipelineConfig(bm25=True)). Kept as the evidence behind the README's rejected hybrid-retrieval experiment: recall held at 18/18 but two false reds appeared, one on the fully compliant lease. The shipped configuration is dense-only \u2014 see scan_results.json.",
+  "config": "scan_config() + bm25=True"
+}

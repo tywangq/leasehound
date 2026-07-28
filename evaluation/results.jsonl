@@ -16,3 +16,5 @@
 {"name": "augmented-adv", "collection": "wa_reference", "dual_query": false, "grader": false, "rerank": false, "n": 82, "mrr": 0.7076, "ndcg": 0.7583, "hit@5": 0.8659, "hit@10": 0.9146}
 {"name": "naive-crag-adv", "collection": "wa_reference_naive", "dual_query": false, "grader": true, "rerank": false, "n": 82, "mrr": 0.7307, "ndcg": 0.7712, "hit@5": 0.8049, "hit@10": 0.9024}
 {"name": "full-adv", "collection": "wa_reference", "dual_query": true, "grader": true, "rerank": true, "n": 82, "mrr": 0.7482, "ndcg": 0.7861, "hit@5": 0.8659, "hit@10": 0.9024}
+{"name": "hybrid-n82", "collection": "wa_reference", "dual_query": false, "grader": false, "rerank": false, "bm25": true, "tests": "tests.jsonl", "n": 82, "mrr": 0.7787, "ndcg": 0.8208, "hit@5": 0.8902, "hit@10": 0.9512}
+{"name": "hybrid-adv", "collection": "wa_reference", "dual_query": false, "grader": false, "rerank": false, "bm25": true, "tests": "tests_adversarial.jsonl", "n": 82, "mrr": 0.6088, "ndcg": 0.6799, "hit@5": 0.8171, "hit@10": 0.9024}

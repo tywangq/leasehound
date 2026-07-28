@@ -24,6 +24,8 @@ from openai import OpenAI
 from pydantic import BaseModel, Field
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from leasehound import bm25
+
 load_dotenv(override=True)
 
 # Any litellm model id works — e.g. "ollama/llama3.1" for fully local inference.
@@ -64,6 +66,9 @@ class PipelineConfig:
     dual_query: bool = True
     grader: bool = True
     rerank: bool = True
+    # Lexical channel merged into the dense results (see bm25.py). Off by
+    # default so every existing ablation row keeps meaning what it measured.
+    bm25: bool = False
     retrieval_k: int = 20
     final_k: int = 10
 
@@ -106,17 +111,54 @@ Respond ONLY with the query text, nothing else.
     return response.choices[0].message.content
 
 
+# How deep each channel looks before the RRF merge, when the merge would
+# otherwise see less than this. Measured, not guessed: for the exculpation
+# clause that motivated hybrid retrieval, the governing section sits at rank 15
+# in the dense channel and rank 8 in the lexical one. Scan mode shows the judge
+# six chunks — so merging two six-deep lists would discard, before the merge,
+# the very chunk this stage exists to recover. Looking deeper is free: the
+# embedding is one API call regardless of how many rows Chroma returns, BM25 is
+# local, and the merge is truncated back to retrieval_k for the prompt.
+HYBRID_CANDIDATES = 20
+
+
+def candidate_k(config: PipelineConfig) -> int:
+    return max(config.retrieval_k, HYBRID_CANDIDATES)
+
+
+def bm25_search(query: str, config: PipelineConfig, k: int | None = None) -> list[Result]:
+    """Lexical half of hybrid retrieval. No API call, so it costs latency only."""
+    def load():
+        stored = _get_collection(config.collection).get(
+            include=["documents", "metadatas"]
+        )
+        return stored["documents"], stored["metadatas"]
+
+    index = bm25.get_index(config.collection, load)
+    return [
+        Result(page_content=doc, metadata=meta)
+        for doc, meta in index.search(query, k if k is not None else config.retrieval_k)
+    ]
+
+
 def fetch_unranked(query: str, config: PipelineConfig, meter=None) -> list[Result]:
     collection = _get_collection(config.collection)
     response = openai.embeddings.create(model=EMBEDDING_MODEL, input=[query])
     if meter is not None:
         meter.add_embedding(response, EMBEDDING_MODEL)
     embedding = response.data[0].embedding
-    results = collection.query(query_embeddings=[embedding], n_results=config.retrieval_k)
-    return [
+    depth = candidate_k(config) if config.bm25 else config.retrieval_k
+    results = collection.query(query_embeddings=[embedding], n_results=depth)
+    dense = [
         Result(page_content=doc, metadata=meta)
         for doc, meta in zip(results["documents"][0], results["metadatas"][0])
     ]
+    if not config.bm25:
+        return dense
+    lexical = bm25_search(query, config, k=depth)
+    # Same RRF merge the dual-query stage uses, then truncated back to
+    # retrieval_k — hybrid costs no extra prompt tokens and no extra API call.
+    return merge_chunks(dense, lexical)[: config.retrieval_k]
 
 
 def merge_chunks(*chunk_lists: list[Result], rrf_k: int = 60) -> list[Result]:

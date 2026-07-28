@@ -123,11 +123,13 @@ def main() -> None:
     parser.add_argument("--no-dual", dest="dual", action="store_false")
     parser.add_argument("--no-grader", dest="grader", action="store_false")
     parser.add_argument("--no-rerank", dest="rerank", action="store_false")
+    parser.add_argument("--bm25", action="store_true",
+                        help="merge a BM25 lexical channel into retrieval (hybrid)")
     parser.add_argument("--limit", type=int, help="Only run the first N questions (smoke test)")
     parser.add_argument("--tests", default="tests.jsonl", help="Test set file in evaluation/")
     args = parser.parse_args()
     config = PipelineConfig(collection=args.collection, dual_query=args.dual,
-                            grader=args.grader, rerank=args.rerank)
+                            grader=args.grader, rerank=args.rerank, bm25=args.bm25)
 
     with open(Path(__file__).parent / args.tests, encoding="utf-8") as f:
         cases = [json.loads(line) for line in f]
