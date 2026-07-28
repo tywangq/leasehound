@@ -39,9 +39,11 @@ CORPUS_SNAPSHOT = "2026-07-25"
 STATUTES_PER_CLAUSE = 6
 MAX_PARALLEL_SCANS = 8  # bounded so a long lease doesn't trip API rate limits
 # Every clause costs an embedding + a judge call, so scan cost scales with
-# document length. No residential lease splits into anything near this many
-# clauses — past the cap it's a book, not a lease, and on a public demo an
-# uncapped scan is an open tab on the API key.
+# document length, and on a public demo an uncapped scan is an open tab on the
+# API key. This is a spend bound, not a claim about leases: real WA housing
+# agreements do run longer — the UW 12-month agreement splits into 270 numbered
+# provisions (see evaluation/eval_real_formats.py), so the cap refuses documents
+# that are genuinely what they claim to be. Raising it is a budget decision.
 MAX_CLAUSES = 60
 
 
@@ -316,8 +318,8 @@ def scan_lease(path: str | Path, state: str = "wa") -> tuple[list[dict], list[di
         )
     if len(clauses) > MAX_CLAUSES:
         raise SystemExit(
-            f"{path} splits into {len(clauses)} clauses — over the {MAX_CLAUSES}-clause cap. "
-            "No residential lease is that long; try just the lease body."
+            f"{path} splits into {len(clauses)} clauses — over the {MAX_CLAUSES}-clause cap, "
+            "which bounds what one scan can spend. Try just the lease body."
         )
     meter = ScanMeter()  # the sanity check below is the scan's first API call
     if not looks_like_lease(clauses, meter):

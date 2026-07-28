@@ -5,13 +5,17 @@ the labeled corpus, where every lease numbers clauses "1. RENT" — and a survey
 seven real-world conventions found that six of them fell through to the paragraph
 fallback, which then returned the *entire document as one clause* whenever the
 source had no blank lines (PDF text extraction routinely emits single newlines).
-scan.py judges `clause[:MAX_CLAUSE_CHARS]`, so a 16,000-character lease was graded
-on its first 1200 characters and reported as a finished scan: no error, no
-warning, roughly 7% of the document actually read.
+
+What that costs is granularity, not text: the judge reads a clause in full, but a
+one-clause document draws one verdict for the whole lease, retrieved against a
+query truncated to `clause[:MAX_CLAUSE_CHARS]` — so the statutes fetched covered
+the opening while the prompt forbids flagging anything the extracts don't address.
+A lease with seven violations came back with one finding, and the report looked
+finished.
 
 The generated dataset could never have caught this — the generator writes the one
 convention the splitter already handled. So the invariants live here instead:
-every convention must split, and no clause may exceed the judge's window.
+every convention must split, and no clause may exceed the retrieval window.
 """
 
 import pytest
@@ -70,7 +74,7 @@ def test_the_labeled_corpus_convention_is_pinned():
 
 def test_unnumbered_text_without_blank_lines_does_not_become_one_clause():
     # The original bug: no numbering and no blank lines returned the whole
-    # document as a single clause, of which the judge saw the first 1200 chars.
+    # document as a single clause, which drew a single verdict for the lease.
     prose = "\n".join(
         "This paragraph of the rental agreement states an obligation of the parties. " * 3
         for _ in range(20)
@@ -79,7 +83,7 @@ def test_unnumbered_text_without_blank_lines_does_not_become_one_clause():
     assert mode == "lines"
     assert all(len(c) <= MAX_CLAUSE_CHARS for c in clauses)
     # The pathology was one clause holding the whole document. The property that
-    # matters is that no single clause does, so the judge sees all of the text.
+    # matters is that no single clause does, so each gets judged on its own.
     assert max(len(c) for c in clauses) < len(prose) / 5
     assert sum(len(c) for c in clauses) > 0.9 * len(prose.replace("\n", ""))
 
@@ -91,8 +95,9 @@ def test_blank_line_separated_prose_still_reports_paragraph_mode():
 
 
 @pytest.mark.parametrize("convention", sorted(CONVENTIONS))
-def test_no_clause_ever_exceeds_the_judges_window(convention):
-    # The invariant that makes truncation impossible rather than merely unlikely.
+def test_no_clause_ever_exceeds_the_retrieval_window(convention):
+    # The invariant that makes query truncation unreachable rather than unlikely:
+    # every clause is short enough to be its own complete retrieval query.
     headings = CONVENTIONS[convention]
     long_bodies = [b + " The parties further agree to the terms stated herein. " * 40
                    for b in BODIES]

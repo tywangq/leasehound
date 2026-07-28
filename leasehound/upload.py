@@ -23,9 +23,11 @@ CLAUSE_SPLIT_RE = re.compile(
     r"))"
 )
 
-# A clause longer than this is not a clause — it is an unsplit document. scan.py
-# only shows the judge the first 1200 characters, so without this the scanner
-# would quietly grade 7% of a lease and report it as a finished scan.
+# A clause longer than this is not a clause — it is an unsplit document, and one
+# verdict for a whole lease is worthless. Matching scan.py's retrieval window
+# (`fetch_unranked(clause[:1200])`) also makes that truncation unreachable: every
+# clause becomes its own complete query instead of the document's first 1200
+# characters standing in for all of it.
 MAX_CLAUSE_CHARS = 1200
 
 
@@ -42,13 +44,19 @@ SENTENCE_END_RE = re.compile(r"(?<=[.;:])\s+")
 
 
 def cap_clause_length(clauses: list[str]) -> list[str]:
-    """Break any clause longer than the judge's window, on sentence boundaries.
+    """Break any clause longer than the retrieval window, on sentence boundaries.
 
-    The point is to convert an invisible loss into visible work. scan.py judges
-    `clause[:MAX_CLAUSE_CHARS]`, so an unsplit document used to be graded on its
-    opening 1200 characters and reported as a completed scan. Now it becomes
-    more clauses instead — and if that pushes it past the 60-clause cap, the
-    scan refuses with an explanation, which is the honest outcome.
+    The point is to convert an invisible loss into visible work. The judge does
+    see a clause in full — what collapses is *granularity*. An unsplit document
+    arrived as one clause, so it drew one verdict for the whole lease, retrieved
+    against a query that was only its first 1200 characters: the statutes fetched
+    described the opening (parties, premises, rent) while the prompt forbids
+    flagging anything the extracts don't cover. A lease with seven violations
+    came back with one finding, and the report looked complete.
+
+    Now such a document becomes more clauses instead — each with its own
+    retrieval and its own verdict — and if that pushes it past the 60-clause cap
+    the scan refuses with an explanation, which is the honest outcome.
     """
     out: list[str] = []
     for clause in clauses:

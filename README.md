@@ -33,7 +33,7 @@ Two corpus layers, two query modes:
 | Content | State statutes + official guidance | The lease you upload |
 | Processing | Offline ingestion, evaluated with an ablation suite | Split into clauses on the fly (deterministic, no LLM) |
 
-- **Scan mode** — walks your lease clause by clause, retrieves the governing statute for each, and produces a structured red-flag report with citations. Each clause queries the statutes directly, skipping the query-rewriting stages: those bridge renter vocabulary to statute vocabulary (see the adversarial experiment below), and a lease clause already speaks statute — a hybrid lexical channel was [measured here and rejected](#hybrid-retrieval-bm25--dense--measured-and-not-shipped) too. Clause judgments are independent API calls, so they run concurrently — a 15-clause lease scans in ~10 seconds instead of ~90. A second, negative-space pass checks a hand-curated, statute-cited checklist of required protections and reports what the lease *fails to include* (the LLM only judges presence — it never invents requirements). A document sanity check refuses non-leases before any clause is judged, and scans cap at 60 clauses — no residential lease is longer, and the cap bounds what one upload can spend
+- **Scan mode** — walks your lease clause by clause, retrieves the governing statute for each, and produces a structured red-flag report with citations. Each clause queries the statutes directly, skipping the query-rewriting stages: those bridge renter vocabulary to statute vocabulary (see the adversarial experiment below), and a lease clause already speaks statute — a hybrid lexical channel was [measured here and rejected](#hybrid-retrieval-bm25--dense--measured-and-not-shipped) too. Clause judgments are independent API calls, so they run concurrently — a 15-clause lease scans in ~10 seconds instead of ~90. A second, negative-space pass checks a hand-curated, statute-cited checklist of required protections and reports what the lease *fails to include* (the LLM only judges presence — it never invents requirements). A document sanity check refuses non-leases before any clause is judged, and scans cap at 60 clauses to bound what one upload can spend — a budget limit, not a claim about leases: [real WA housing agreements run longer](#document-formats--real-published-leases-and-real-numbering)
 - **Ask mode** — RAG Q&A over the statute corpus ("Can my landlord charge a late fee on day 3?"); once you've scanned a lease, the report joins the chat context so answers are about *your* lease. A session-scoped vector collection for full lease-text retrieval is planned.
 
 Retrieval pipeline: LLM-driven semantic chunking & augmentation (Pydantic structured outputs, parallel ingestion with validation + retry) → query router (greetings and small talk skip retrieval entirely) → dual-query retrieval (original + rewritten) merged with reciprocal rank fusion → self-grading retrieval (CRAG-style) → LLM reranking → grounded generation with source citations.
@@ -144,7 +144,7 @@ The scanner is measured first: hand-labeled leases, then a zero-shot baseline (w
 | [Zero-shot baseline](#zero-shot-baseline--the-same-leases-without-the-pipeline) | What does the pipeline add over pasting the lease into the model? | citations 18/18 vs **3/14** — retrieval is the difference |
 | [40 generated leases](#scaling-past-the-ceiling--40-generated-leases-labels-for-free) | Does it hold past the hand-labeled ceiling? | 60/61 red; found and fixed an evidence-bleed bug |
 | [Prompt injection](#prompt-injection-resistance--the-lease-is-hostile-input) | Can a lease talk to the model? | 5/5 held — after one payload suppressed a whole scan |
-| [Document formats](#document-formats--the-splitter-meets-real-numbering-conventions) | Does clause splitting survive real-world numbering? | **6 of 7 conventions failed silently**; fixed |
+| [Document formats](#document-formats--real-published-leases-and-real-numbering) | Does the pipeline survive documents nobody here wrote? | **6 of 7 conventions failed silently**; fixed, then re-checked on 5 real published leases |
 | [Retrieval ablation](#retrieval-ablation--section-level-n82) | Which pipeline stage actually earns its cost? | naive chunking ties the six-stage pipeline |
 | [Adversarial rephrasing](#adversarial-rephrasing--the-same-82-questions-renter-voice) | Does it hold when renters don't speak statute? | full pipeline wins; the earlier tie was vocabulary leakage |
 | [Hybrid BM25](#hybrid-retrieval-bm25--dense--measured-and-not-shipped) | Would a lexical channel fix the scanner's one miss? | no — measured, rejected, cause found elsewhere |
@@ -245,7 +245,7 @@ The last row is the interesting one, because **the first run failed it**: one se
 
 Worth being precise about what this does *and doesn't* show: five payloads on one model at `temperature=0` is a smoke test, not a security guarantee, and injection is an open problem — a determined attacker gets more than five tries. What the architecture does buy is that the two highest-value attacks are structurally hard: the judge can only cite statute text retrieved from a read-only corpus the document can't touch, and the protections checklist is curated in code, so a lease cannot add, remove, or reword a legal requirement no matter what it says.
 
-### Document formats — the splitter meets real numbering conventions
+### Document formats — real published leases, and real numbering
 
 Every lease in both labeled sets numbers its clauses `1. RENT`, because the generator was told to. The clause splitter was written against that corpus — so the corpus could never reveal what the splitter does with a lease numbered any other way. This survey asks that directly, and it is free: splitting is deterministic regex, no API calls.
 
@@ -258,9 +258,11 @@ Every lease in both labeled sets numbers its clauses `1. RENT`, because the gene
 | `101. RENT` | **1 clause** | 4 clauses |
 | unnumbered prose, no blank lines | **1 clause** | splits by line |
 
-Six of seven conventions collapsed the entire lease into one clause, and the failure was silent in the worst way. The pattern only matched one or two digits followed by `.` or `)` and a capital letter, so everything else fell through to the paragraph fallback — which split on *blank lines*, and PDF text extraction routinely emits single newlines only. The document then survived as a single "clause", and since `scan.py` shows the judge `clause[:1200]`, **a 16,000-character lease was graded on its opening 1,200 characters and reported as a finished scan** — no error, no warning, about 7% of the document actually read.
+Six of seven conventions collapsed the entire lease into one clause, and the failure was silent in the worst way. The pattern only matched one or two digits followed by `.` or `)` and a capital letter, so everything else fell through to the paragraph fallback — which split on *blank lines*, and PDF text extraction routinely emits single newlines only. The document then survived as a single "clause".
 
-The fix has three parts, and the third is the one that matters. The pattern now covers decimal, `ARTICLE`/`Section`, and three-digit numbering, with every alternative requiring explicit punctuation and a capital letter so that a wrapped cross-reference (`…described in Section\n1.1 of this Agreement`) still cannot pass as a heading. The fallback splits on single newlines when there are no blank lines, and reports that as a distinct `lines` mode in the metrics log, because the weakest strategy should be visible. And no clause may now exceed the judge's window: an oversized one is broken on sentence boundaries, so a document that resists splitting becomes *more clauses* rather than *less text* — and if that pushes it past the 60-clause cap, the scan refuses with an explanation, which is the honest outcome.
+What that costs is **granularity, not text**. The judge reads a clause in full; the truncation in `scan_clause` is on the *retrieval query* (`fetch_unranked(clause[:1200])`). So a one-clause lease drew **one verdict for the whole document**, and the statutes retrieved to support it were fetched using only the first 1,200 characters — the parties-and-premises opening. The judge prompt then forbids flagging anything the extracts don't address, so a lease with seven violations came back with one finding, and the report looked finished. No error, no warning.
+
+The fix has three parts, and the third is the one that matters. The pattern now covers decimal, `ARTICLE`/`Section`, and three-digit numbering, with every alternative requiring explicit punctuation and a capital letter so that a wrapped cross-reference (`…described in Section\n1.1 of this Agreement`) still cannot pass as a heading. The fallback splits on single newlines when there are no blank lines, and reports that as a distinct `lines` mode in the metrics log, because the weakest strategy should be visible. And no clause may now exceed the retrieval window: an oversized one is broken on sentence boundaries, so a document that resists splitting becomes *more clauses* — each with its own retrieval and its own verdict — rather than one verdict standing in for all of them. Past the 60-clause cap the scan refuses with an explanation, which is the honest outcome. A side effect worth naming: with every clause under 1,200 characters, the query truncation is now unreachable, so each clause is its own complete query.
 
 ```bash
 pytest tests/test_upload_formats.py    # 29 tests: seven conventions × two separators, plus the invariants
@@ -268,7 +270,30 @@ pytest tests/test_upload_formats.py    # 29 tests: seven conventions × two sepa
 
 Cost of the whole finding: **$0**, and no published number moved. Before touching the pattern, all 46 labeled and example documents were re-split with both the old and new implementation and compared — 0 of 46 changed, byte for byte, including the mode. Identical scan input means identical scan output, so no paid eval had to be re-run to keep the tables above honest.
 
-What this still doesn't measure: real PDF extraction quality. These are conventions rendered as text, not scanned documents with interleaved page headers, multi-column layouts, or ligature damage. The splitter is now correct about *numbering*; whether `pypdf` hands it clean text from an arbitrary real lease is a separate, unmeasured question.
+#### The same question against documents nobody here wrote
+
+Conventions rendered as text are still my text. So the fix was re-checked against five real published housing documents — two US federal forms (public-domain government works) and three public-university agreements, all listed with provenance in `evaluation/leases_real/sources.json` and fetched on demand rather than committed. No labels, so no precision or recall: this measures the deterministic front of the pipeline plus the two whole-document passes.
+
+| document | chars | clauses | split mode | over the retrieval window | gate |
+| --- | --- | --- | --- | --- | --- |
+| HUD-90105a model lease | 39,996 | 49 | numbered | 0 | lease ✅ |
+| HUD-52641-A tenancy addendum | 29,100 | 40 | numbered | 0 | lease — but it is an *addendum* |
+| UW 12-month housing agreement | 67,660 | **270** | numbered | 0 | over the clause cap |
+| UW Tacoma housing agreement | 46,955 | **131** | numbered | 0 | over the clause cap |
+| WWU housing agreement | 20,685 | 33 | numbered | 0 | **rejected** |
+
+```bash
+python -m evaluation.eval_real_formats --fetch    # then, free: extract + split
+python -m evaluation.eval_real_formats --scan     # + the paid whole-document passes ($0.007)
+```
+
+**Extraction and splitting held: 5/5.** `pypdf` returned usable text from every file, all five split in `numbered` mode, and not one clause exceeded the retrieval window. That is the result the fix above was for, confirmed on documents written by strangers.
+
+**The clause cap is refusing real documents, and the code was lying about why.** Two of the three Washington agreements split into 270 and 131 numbered provisions. The cap's comment, the CLI error, and this README all said "no residential lease is that long" — and a real UW housing agreement disproves it. The cap is a *spend* bound on a public demo, which is a fine reason; claiming long leases don't exist was not. All three now say what the limit actually is.
+
+**The gate is calibrated on the wrong axis.** It was built to separate leases from obvious non-leases — this README, a scan report, the LICENSE — and it does that. Real boundary documents defeat it in both directions: it accepted a tenancy *addendum* as a lease, and rejected the WWU housing agreement, which is a genuine Washington residential occupancy agreement. The likely mechanism is vocabulary: university agreements charge "housing rates" rather than rent, assign a "space" rather than a dwelling, and often state outright that they are licences and not leases. Whether such an agreement is a lease under RCW 59.18 is a legal question this repo should not answer casually — which is exactly why it is recorded as an open finding rather than patched into a passing number.
+
+Still unmeasured: scanned or photographed leases with no text layer (detected and refused today, OCR is on the roadmap), and per-clause verdict quality on real documents, which would need labels these don't have.
 
 ### Retrieval ablation — section-level, n=82
 
@@ -353,7 +378,8 @@ This closes the question the ablation opened: the augmented six-stage pipeline s
 
 - Section completion for the judge's context — retrieve one chunk of a statute section, hand the judge all of that section's chunks. Aimed at the measured cause of the scanner's one miss: the right section was retrieved, the wrong chunk of it. Costs prompt tokens, no extra API call. (Hybrid retrieval was the previous candidate here; it was [implemented, measured, and rejected](#hybrid-retrieval-bm25--dense--measured-and-not-shipped).)
 - False-premise and unanswerable question sets — the remaining adversarial categories (testing premise correction and honest refusal, not just retrieval)
-- Real published leases as a format probe — the [format survey](#document-formats--the-splitter-meets-real-numbering-conventions) fixed clause *numbering*, but `pypdf` output from arbitrary real documents (interleaved page furniture, multi-column layouts) is still unmeasured. Unlabeled, so it probes extraction and splitting, not legal accuracy
+- Recalibrate the is-this-a-lease gate on boundary documents — the [real-document probe](#document-formats--real-published-leases-and-real-numbering) found it accepts a tenancy addendum and rejects a genuine WA university housing agreement. Needs a labelled set of boundary cases, and a decision on whether such agreements fall under RCW 59.18 at all, before touching the prompt
+- Revisit the 60-clause cap now that it is known to refuse real long-form agreements (270 and 131 clauses) — raising it is a spend decision, so it wants a per-scan budget rather than a clause count
 - OCR for scanned/photo leases (Tesseract) — today a no-text-layer PDF is detected and refused with an explanation
 - Session-scoped vector collection for full lease-text retrieval in ask mode
 - Fairness grade for the whole lease — derived mechanically from verdict counts, never model-invented
