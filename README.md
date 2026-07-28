@@ -2,7 +2,7 @@
 
 **Upload your lease. LeaseHound sniffs out the clauses that shouldn't be there.** A two-layer RAG system that answers tenant-law questions and scans rental agreements for prohibited provisions — grounded in Washington State's Residential Landlord-Tenant Act (RCW 59.18).
 
-**🐕 [Live demo](https://leasehound-671004460975.us-west1.run.app)** — one click scans the sample lease. Hosted on Cloud Run's free tier, scaling to zero between visitors; a free uptime check every five minutes keeps an instance warm, so a visitor gets ~80 ms instead of the 25-second cold start, and pages me if the demo stops answering.
+**🐕 [Live demo](https://leasehound-671004460975.us-west1.run.app)** — one click scans the sample lease, warm and answering in ~80 ms ([how that stays free](#try-it)).
 
 ![LeaseHound in motion: the sample lease is scanned clause by clause, the red-flag report pins to the side panel, and a follow-up question gets a cited answer](docs/demo.gif)
 
@@ -70,24 +70,28 @@ python scripts/fetch_corpus.py     # fetch RCW 59.18 → corpus/wa/statutes/ (98
 python -m leasehound.ingest        # chunk + embed → vector_db/ (one-time, a few cents)
 ```
 
-## Try it — scan a lease
+## Try it
 
 ```bash
 python -m leasehound.scan examples/sample_lease.md   # CLI
 python -m leasehound.app                             # web UI at localhost:7860
 ```
 
-No setup at all: the **[hosted demo](https://leasehound-671004460975.us-west1.run.app)** runs the same code on Cloud Run — the repo's `Dockerfile` bakes the vector DB into the image, so the container is stateless and scales to zero between visitors. Cold starts cost ~25 s (loading Chroma, Gradio, and a 42 MB vector store), which is a bad first impression for the one visitor who matters, so a Cloud Monitoring uptime check probes every five minutes: it keeps an instance warm, alerts on failure, and stays inside the free tier at 288 requests/day — `min-instances=1` would have solved the same problem for about $15/month.
-
-The web UI is a single chat with an artifact-style side panel: attach a lease (or one-click the sample) to scan it, or just type to ask questions — scan progress streams into the chat clause by clause, and the finished red-flag report pins to the panel so it stays visible while you ask follow-ups — answered token-by-token with the report in context and statute citations.
+The web UI is a single chat with an artifact-style side panel: attach a lease (or one-click the sample) to scan it, or just type to ask questions. Scan progress streams into the chat clause by clause, and the finished red-flag report pins to the panel so it stays visible while you ask follow-ups — answered token-by-token with the report in context and statute citations.
 
 ![The finished state, readable: a question about the late-fee clause, its cited answer, and the pinned scan report](docs/screenshot.png)
 
-Every scan is metered: one JSON line per scan (API calls, token usage, estimated cost, latency, verdict counts, clause-split mode — the file name, never lease text) appends to `logs/scan_metrics.jsonl` *and* stdout, so Cloud Logging keeps the records that the container's ephemeral filesystem doesn't. `python -m leasehound.metrics` summarizes the log. The 15-clause sample lease above: 17 LLM calls + 15 embeddings, ≈ $0.015, ~9 s. Across the 76 scans logged while building the evaluation sets (9–15 clauses each): **mean ≈ $0.011/scan, p50 8.1 s, p95 12.0 s, max 13.9 s** — latency is dominated by the slowest clause in the pool, not by clause count, which is why the eight-way pool matters more than prompt size.
-
-Finished scans are cached in process memory, keyed by document **content hash** — not upload path, not browser session — so every visitor who clicks the sample lease after the first gets the saved report at zero API cost (logged as a `cache_hit` with cost 0), and re-uploading a renamed copy of the same file can't trigger a paid rescan. Attach a different lease to watch a live scan.
+No setup at all: the **[hosted demo](https://leasehound-671004460975.us-west1.run.app)** runs the same code on Cloud Run — the repo's `Dockerfile` bakes the vector DB into the image, so the container is stateless and scales to zero between visitors. Cold starts cost ~25 s (loading Chroma, Gradio, and a 42 MB vector store), a bad first impression for the one visitor who matters, so a Cloud Monitoring uptime check probes every five minutes: it keeps an instance warm, alerts me on failure, and stays inside the free tier at 288 requests/day — `min-instances=1` would have solved the same problem for about $15/month.
 
 `examples/sample_lease.md` is a synthetic lease with **seven deliberately planted violations** (late fees inside the grace period, landlord attorney-fee clause, no-notice entry, rent NDA, rights waiver, electronic-payment-only, exculpation) — it doubles as the scanner's acceptance test. Current result: **7/7 planted violations flagged red with statute citations, zero false reds** among the ordinary clauses; the security-deposit clause comes back yellow (fact-dependent), which is the intended behavior. See `examples/README.md` for the expected-flags table and `examples/scan_report.md` for the full output.
+
+## What a scan costs
+
+Every scan is metered: one JSON line per scan (API calls, token usage, estimated cost, latency, verdict counts, clause-split mode — the file name, never lease text) appends to `logs/scan_metrics.jsonl` *and* stdout, so Cloud Logging keeps the records that the container's ephemeral filesystem doesn't. `python -m leasehound.metrics` summarizes the log.
+
+The 15-clause sample lease: 17 LLM calls + 15 embeddings, ≈ $0.015, ~9 s. Across the 76 scans logged while building the evaluation sets (9–15 clauses each): **mean ≈ $0.011/scan, p50 8.1 s, p95 12.0 s, max 13.9 s** — latency is dominated by the slowest clause in the pool, not by clause count, which is why the eight-way pool matters more than prompt size.
+
+Finished scans are cached in process memory, keyed by document **content hash** — not upload path, not browser session — so every visitor who clicks the sample lease after the first gets the saved report at zero API cost (logged as a `cache_hit` with cost 0), and re-uploading a renamed copy of the same file can't trigger a paid rescan. Attach a different lease to watch a live scan.
 
 ## Privacy
 
@@ -103,13 +107,13 @@ A lease is sensitive: names, address, rent. LeaseHound keeps handling minimal �
 
 ```bash
 pip install -e ".[dev]"
-pytest          # 58 unit tests: clause splitting, RRF merge + hybrid wiring, BM25 scoring, report rendering, cancellation, the scan cap, per-scan metrics, scan cache, the synthetic-dataset verifier, prompts that must treat lease text as data, cited-sources footer, privacy cleanup
+pytest          # 99 unit tests: clause splitting across seven real numbering conventions, the judge-window invariant, RRF merge + hybrid wiring, BM25 scoring, ask-mode prompt assembly + stream unwrapping, statute-drift comparison, report rendering, cancellation, the scan cap, per-scan metrics, scan cache, the synthetic-dataset verifier, prompts that must treat lease text as data, cited-sources footer, privacy cleanup
 ruff check leasehound evaluation scripts tests
 ```
 
 CI (GitHub Actions) runs both on every push. Tests cover the deterministic core only — no API calls, no vector DB.
 
-A second workflow (`eval.yml`) runs the paid evaluations: the gold-set scan eval and the retrieval eval on every push to `main` that touches pipeline code (≈ $0.15/run — path-filtered so docs commits cost nothing), with the pricier generation eval and the 40-lease synthetic set on manual dispatch. Scores land in the job summary as a report, not a gate: temperature-0 API calls still drift a flag's worth between runs, and a hard threshold would flake. Forks never see the API key (main-only triggers), and the workflow skips gracefully when the secret isn't configured.
+Two more workflows sit alongside it. `corpus.yml` watches the statute snapshot for drift — free, no secret, [described above](#keeping-the-snapshot-honest). `eval.yml` runs the paid evaluations: the gold-set scan eval and the retrieval eval on every push to `main` that touches pipeline code (≈ $0.15/run — path-filtered so docs commits cost nothing), with the pricier generation eval and the 40-lease synthetic set on manual dispatch. Scores land in the job summary as a report, not a gate: temperature-0 API calls still drift a flag's worth between runs, and a hard threshold would flake. Forks never see the API key (main-only triggers), and the workflow skips gracefully when the secret isn't configured.
 
 ## Corpus status
 
@@ -118,9 +122,35 @@ A second workflow (`eval.yml`) runs the paid evaluations: the gold-set scan eval
 - ⬜ Seattle municipal layer (planned)
 - States are first-class metadata: each state is an independent collection; CA is the planned follow-up.
 
+### Keeping the snapshot honest
+
+Every verdict inherits the date of that fetch — the report footer stamps it — and Washington amends RCW 59.18 most sessions (.230 was amended in 2025). Nothing in the repo would have noticed.
+
+```bash
+python -m scripts.check_corpus_drift    # exit 0 clean · 1 drifted · 2 the check itself broke
+```
+
+A weekly GitHub Action (`corpus.yml`) re-fetches the chapter, renders it through `fetch_corpus.py`'s *own* normalization, and compares byte-for-byte against what is committed. On drift it files an issue carrying the per-section diff and the checklist a human owes: read the amendment, re-fetch, bump `CORPUS_SNAPSHOT`, re-embed, re-run the gold set. It needs no API key and nothing beyond the standard library, so it costs **$0** whether or not the law changed.
+
+Two choices there are deliberate. It **alerts rather than auto-updates** — amended legal text is the scanner's ground truth, and a changed prohibition may need a new required-protections checklist item, which is a judgment call, not a rebuild. And it **separates drift from its own failure**: if leg.wa.gov reorganizes its markup the parser returns nothing, and a naive check would announce that all 98 sections were repealed, so a section-count guard reports a scraper bug (exit 2) instead. Different fix, different urgency, different person.
+
 ## Evaluation
 
 The scanner is measured first: hand-labeled leases, then a zero-shot baseline (what does the pipeline add over pasting the lease into the model?), a generated 40-lease set that scales past the hand-labeled ceiling, and a prompt-injection suite that treats lease text as hostile input. After that come the retrieval and generation layers behind ask mode — an ablation suite, an adversarial rephrasing experiment, and two investigations whose measured answer was *don't ship it*. Negative results are kept on purpose: they are how the architecture earns its shape.
+
+| experiment | the question it answers | what it found |
+| --- | --- | --- |
+| [Scan layer](#scan-layer-evaluation--red-flag-precision--recall-6-labeled-leases) | Does it catch planted violations in hand-labeled leases? | 18/18 red, 0 false reds, 18/18 cited |
+| [Zero-shot baseline](#zero-shot-baseline--the-same-leases-without-the-pipeline) | What does the pipeline add over pasting the lease into the model? | citations 18/18 vs **3/14** — retrieval is the difference |
+| [40 generated leases](#scaling-past-the-ceiling--40-generated-leases-labels-for-free) | Does it hold past the hand-labeled ceiling? | 60/61 red; found and fixed an evidence-bleed bug |
+| [Prompt injection](#prompt-injection-resistance--the-lease-is-hostile-input) | Can a lease talk to the model? | 5/5 held — after one payload suppressed a whole scan |
+| [Document formats](#document-formats--the-splitter-meets-real-numbering-conventions) | Does clause splitting survive real-world numbering? | **6 of 7 conventions failed silently**; fixed |
+| [Retrieval ablation](#retrieval-ablation--section-level-n82) | Which pipeline stage actually earns its cost? | naive chunking ties the six-stage pipeline |
+| [Adversarial rephrasing](#adversarial-rephrasing--the-same-82-questions-renter-voice) | Does it hold when renters don't speak statute? | full pipeline wins; the earlier tie was vocabulary leakage |
+| [Hybrid BM25](#hybrid-retrieval-bm25--dense--measured-and-not-shipped) | Would a lexical channel fix the scanner's one miss? | no — measured, rejected, cause found elsewhere |
+| [Generation layer](#generation-layer-evaluation--is-the-final-answer-right-n82--2-configs) | Is the final answer right and grounded? | 82/82 consistent, 81/82 grounded |
+
+**How to read these numbers.** Every table below is one run, and `temperature=0` is not determinism — one baseline row moved by a clause between two runs, and borderline verdicts can flip. Treat a gap of one or two questions as a tie. The six hand-labeled leases are the acceptance bar; the generated set's labels are verified by construction rather than authoritative; and the LLM judges share a model family with the systems they grade, mitigated by grading against reference statute text instead of taste. Each section below adds only the caveats specific to it.
 
 ### Scan-layer evaluation — red-flag precision & recall, 6 labeled leases
 
@@ -137,7 +167,7 @@ The scanner is measured against hand-labeled synthetic leases (`evaluation/lease
 python -m evaluation.eval_scan
 ```
 
-Caveats, honestly: this is one run over six leases; even at `temperature=0` the API is not perfectly deterministic (explanation wording drifts between runs, and borderline judgments can flip); and the fire-safety checklist item is a known borderline case — a smoke-detector maintenance clause sometimes reads as fire-safety information. Tracking that variance is what this eval is for.
+Specific caveat: the fire-safety checklist item is a known borderline case — a smoke-detector maintenance clause sometimes reads as fire-safety information. Tracking that variance is what this eval is for.
 
 ### Zero-shot baseline — the same leases, without the pipeline
 
@@ -161,7 +191,7 @@ python -m evaluation.eval_baseline --model openai/gpt-4.1  # a model tier up
 3. **The negative-space check doesn't survive zero-shot.** Without the curated checklist the model free-associates missing disclosures — six claims against the fully compliant lease — while never spotting the genuinely missing mold and fire-safety information (0/6 exact; gpt-4.1 manages 3/6). A model can't reliably notice what's absent without a list of what must be present.
 4. **A model tier up doesn't buy the pipeline back.** gpt-4.1 fixes citations (14/14) but still under-flags (14/18) and still misses half the checklist — while the pipeline gets 18/18 red, 18/18 cited, 6/6 protections out of the *cheaper* model. The architecture, not the model, is doing the work here.
 
-Scoring is deliberately generous to the baseline: missing-protection claims that match no checklist item (federal disclosures, inventions) are recorded but not penalized, and raw model output is saved in `baseline_results.json` for audit. Caveats: one run per row, and the mini row moved by one clause between two runs — the same temperature-0 drift the scan-layer eval documents.
+Scoring is deliberately generous to the baseline: missing-protection claims that match no checklist item (federal disclosures, inventions) are recorded but not penalized, and raw model output is saved in `baseline_results.json` for audit.
 
 ### Scaling past the ceiling — 40 generated leases, labels for free
 
@@ -214,6 +244,31 @@ A sixth surface is easy to miss, so it gets its own phase: after a scan, the app
 The last row is the interesting one, because **the first run failed it**: one sentence in the preamble made the gate classify a perfectly ordinary lease as not-a-lease, and the entire report was suppressed before a single clause was judged. Suppression is the most effective attack available against a scanner — the user sees a polite refusal, not a missing red flag. The fix is a principle, not a keyword blocklist: the gate now states that the document is data rather than instructions, and that self-describing claims are neither directives nor evidence — classify on structure and substance (parties, dwelling, rent, obligations). Verified both ways: the attack no longer lands, and the gate still rejects the documents it was built to reject (this README, a scan report, the LICENSE).
 
 Worth being precise about what this does *and doesn't* show: five payloads on one model at `temperature=0` is a smoke test, not a security guarantee, and injection is an open problem — a determined attacker gets more than five tries. What the architecture does buy is that the two highest-value attacks are structurally hard: the judge can only cite statute text retrieved from a read-only corpus the document can't touch, and the protections checklist is curated in code, so a lease cannot add, remove, or reword a legal requirement no matter what it says.
+
+### Document formats — the splitter meets real numbering conventions
+
+Every lease in both labeled sets numbers its clauses `1. RENT`, because the generator was told to. The clause splitter was written against that corpus — so the corpus could never reveal what the splitter does with a lease numbered any other way. This survey asks that directly, and it is free: splitting is deterministic regex, no API calls.
+
+| numbering convention | before | after |
+| --- | --- | --- |
+| `1. RENT` · `12) Rent` | 4 clauses | 4 clauses |
+| `1.1 Rent` · `4.10.2 Rent` | **1 clause** | 4 clauses |
+| `ARTICLE I - RENT` | **1 clause** | 4 clauses |
+| `Section 1: Rent` | **1 clause** | 4 clauses |
+| `101. RENT` | **1 clause** | 4 clauses |
+| unnumbered prose, no blank lines | **1 clause** | splits by line |
+
+Six of seven conventions collapsed the entire lease into one clause, and the failure was silent in the worst way. The pattern only matched one or two digits followed by `.` or `)` and a capital letter, so everything else fell through to the paragraph fallback — which split on *blank lines*, and PDF text extraction routinely emits single newlines only. The document then survived as a single "clause", and since `scan.py` shows the judge `clause[:1200]`, **a 16,000-character lease was graded on its opening 1,200 characters and reported as a finished scan** — no error, no warning, about 7% of the document actually read.
+
+The fix has three parts, and the third is the one that matters. The pattern now covers decimal, `ARTICLE`/`Section`, and three-digit numbering, with every alternative requiring explicit punctuation and a capital letter so that a wrapped cross-reference (`…described in Section\n1.1 of this Agreement`) still cannot pass as a heading. The fallback splits on single newlines when there are no blank lines, and reports that as a distinct `lines` mode in the metrics log, because the weakest strategy should be visible. And no clause may now exceed the judge's window: an oversized one is broken on sentence boundaries, so a document that resists splitting becomes *more clauses* rather than *less text* — and if that pushes it past the 60-clause cap, the scan refuses with an explanation, which is the honest outcome.
+
+```bash
+pytest tests/test_upload_formats.py    # 29 tests: seven conventions × two separators, plus the invariants
+```
+
+Cost of the whole finding: **$0**, and no published number moved. Before touching the pattern, all 46 labeled and example documents were re-split with both the old and new implementation and compared — 0 of 46 changed, byte for byte, including the mode. Identical scan input means identical scan output, so no paid eval had to be re-run to keep the tables above honest.
+
+What this still doesn't measure: real PDF extraction quality. These are conventions rendered as text, not scanned documents with interleaved page headers, multi-column layouts, or ligature damage. The splitter is now correct about *numbering*; whether `pypdf` hands it clean text from an arbitrary real lease is a separate, unmeasured question.
 
 ### Retrieval ablation — section-level, n=82
 
@@ -292,12 +347,13 @@ python -m evaluation.eval_generation --name full-n82
 python -m evaluation.eval_generation --name naive-crag-n82 --collection wa_reference_naive --no-dual --no-rerank
 ```
 
-This closes the question the ablation opened: the augmented six-stage pipeline shows **no measurable win at the generation layer either** — every gap in the table is a single question. Caveats: both configurations sit at this test set's ceiling (98–100%), so the eval bounds the difference rather than ranking the systems — separating them needs harder, adversarial questions; the judge shares a model family with the generator (mitigated by grading against reference text, not taste); one run.
+This closes the question the ablation opened: the augmented six-stage pipeline shows **no measurable win at the generation layer either** — every gap in the table is a single question. Specific caveat: both configurations sit at this test set's ceiling (98–100%), so the eval bounds the difference rather than ranking the systems — separating them needs harder, adversarial questions.
 
 ## Roadmap
 
 - Section completion for the judge's context — retrieve one chunk of a statute section, hand the judge all of that section's chunks. Aimed at the measured cause of the scanner's one miss: the right section was retrieved, the wrong chunk of it. Costs prompt tokens, no extra API call. (Hybrid retrieval was the previous candidate here; it was [implemented, measured, and rejected](#hybrid-retrieval-bm25--dense--measured-and-not-shipped).)
 - False-premise and unanswerable question sets — the remaining adversarial categories (testing premise correction and honest refusal, not just retrieval)
+- Real published leases as a format probe — the [format survey](#document-formats--the-splitter-meets-real-numbering-conventions) fixed clause *numbering*, but `pypdf` output from arbitrary real documents (interleaved page furniture, multi-column layouts) is still unmeasured. Unlabeled, so it probes extraction and splitting, not legal accuracy
 - OCR for scanned/photo leases (Tesseract) — today a no-text-layer PDF is detected and refused with an explanation
 - Session-scoped vector collection for full lease-text retrieval in ask mode
 - Fairness grade for the whole lease — derived mechanically from verdict counts, never model-invented
