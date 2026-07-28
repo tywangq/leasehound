@@ -495,6 +495,22 @@ COPY_JS = f"""
 # or the submit would race the attachment and send text alone.
 EXAMPLES_JS = """
 () => {
+    // Put the cursor in the message box on load, so a visitor can start typing
+    // without clicking first. Deliberately not Gradio's autofocus=True: that
+    // scrolls the focused input into view, measured at 713px down, which pushes
+    // the wordmark and the one-click scan example off the top of the page.
+    // preventScroll buys the focus without the jump.
+    let focusTries = 0;
+    const focusBox = setInterval(() => {
+        const input = document.querySelector('.chat-col .multimodal-textbox textarea');
+        if (input) {
+            input.focus({preventScroll: true});
+            clearInterval(focusBox);
+        } else if (++focusTries > 40) {
+            clearInterval(focusBox);
+        }
+    }, 50);
+
     document.addEventListener('click', (event) => {
         const chip = event.target.closest('#example-scan button, #example-prompts button');
         if (!chip) return;
@@ -554,6 +570,8 @@ with gr.Blocks(
                 show_label=False,
                 file_types=[".pdf", ".md", ".txt"],
                 file_count="single",
+                # Cursor lands here on load: asking is the zero-friction entry
+                # point, and the scan button is one click away either way.
             )
             gr.Examples(
                 examples=[SCAN_EXAMPLE],
