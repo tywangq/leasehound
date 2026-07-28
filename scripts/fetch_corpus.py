@@ -69,7 +69,14 @@ def section_title(body_text: str, number: str) -> str:
     return "Untitled"
 
 
-def write_section(number: str, fragment: str) -> Path:
+def render_section(number: str, fragment: str) -> tuple[Path, str]:
+    """Normalize one section into its corpus filename and file content.
+
+    Kept separate from writing so `check_corpus_drift` can render the live page
+    and compare byte-for-byte against the committed files. A drift check that
+    re-implemented this normalization would disagree with the fetcher over
+    whitespace and cry wolf every week, which is worse than no check at all.
+    """
     text = strip_tags(fragment)
     # Drop the leading anchor artifacts (HTML/PDF buttons, RCW number repeated).
     text = re.sub(rf"^(HTML|PDF)*\s*(RCW\s*)?{re.escape(number)}\s*", "", text).strip()
@@ -82,6 +89,11 @@ def write_section(number: str, fragment: str) -> Path:
         f"Jurisdiction: Washington State (Residential Landlord-Tenant Act)\n\n"
         f"{text}\n"
     )
+    return path, content
+
+
+def write_section(number: str, fragment: str) -> Path:
+    path, content = render_section(number, fragment)
     path.write_text(content, encoding="utf-8")
     return path
 

@@ -1,0 +1,61 @@
+name: Corpus drift
+
+# The scanner cites a committed snapshot of RCW 59.18, so every verdict inherits
+# the date of that fetch. Washington amends the chapter most sessions and nothing
+# else in the repo would notice. This job is the thing that notices.
+#
+# Costs nothing to run: the check makes one HTTP request and zero API calls, and
+# needs no dependencies beyond the standard library — so there is no install
+# step, no vector DB, and no OPENAI_API_KEY. Re-embedding and the gold-set eval
+# stay manual, because amended legal text should be read by a person before it
+# becomes the scanner's ground truth.
+#
+# Note: GitHub disables scheduled workflows after 60 days of repo inactivity
+# (it emails first). Re-enable from the Actions tab if that happens.
+on:
+  schedule:
+    - cron: "0 8 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compare the live chapter against the committed corpus
+        id: drift
+        run: |
+          set +e
+          python -m scripts.check_corpus_drift --out drift.md
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+
+      - name: File or update the drift issue
+        if: steps.drift.outputs.status == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create corpus-drift --color B60205 \
+            --description "The live RCW text no longer matches the committed corpus" || true
+          existing=$(gh issue list --label corpus-drift --state open --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            # Same amendment, still open: comment rather than pile up duplicates.
+            gh issue comment "$existing" --body-file drift.md
+          else
+            gh issue create --title "RCW 59.18 drifted from the committed corpus" \
+              --label corpus-drift --body-file drift.md
+          fi
+
+      - name: Fail loudly if the check itself broke
+        if: steps.drift.outputs.status == '2'
+        run: |
+          echo "The drift check could not fetch or parse the chapter — this is a" \
+               "scraper failure, not a legislative change. See the log above." >&2
+          exit 1
