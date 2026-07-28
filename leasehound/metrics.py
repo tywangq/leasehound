@@ -73,8 +73,14 @@ class ScanMeter:
 
 
 def log_scan(meter: ScanMeter, source: str, clauses: int,
-             verdicts: dict | None = None, missing: int | None = None) -> dict:
-    """Append one scan's metrics to the log; returns the record for display."""
+             verdicts: dict | None = None, missing: int | None = None,
+             split_mode: str | None = None, cache_hit: bool = False) -> dict:
+    """Append one scan's metrics to the log; returns the record for display.
+
+    The record is also printed to stdout: on Cloud Run the container filesystem
+    (and this JSONL file with it) evaporates on scale-to-zero, but stdout lands
+    in Cloud Logging and survives.
+    """
     record = {
         "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "source": Path(source).name,
@@ -85,9 +91,14 @@ def log_scan(meter: ScanMeter, source: str, clauses: int,
         record["verdicts"] = verdicts
     if missing is not None:
         record["missing_protections"] = missing
+    if split_mode is not None:
+        record["split_mode"] = split_mode
+    if cache_hit:
+        record["cache_hit"] = True
     LOG_PATH.parent.mkdir(exist_ok=True)
     with LOG_PATH.open("a", encoding="utf-8") as f:
         f.write(json.dumps(record) + "\n")
+    print(json.dumps(record), flush=True)
     return record
 
 

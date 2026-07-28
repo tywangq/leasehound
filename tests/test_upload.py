@@ -1,6 +1,6 @@
 """Clause splitting: deterministic, so it gets exact tests."""
 
-from leasehound.upload import MIN_CLAUSE_CHARS, split_clauses
+from leasehound.upload import MIN_CLAUSE_CHARS, split_clauses, split_clauses_with_mode
 
 FILLER = "The parties agree to the terms set forth in this provision as written. "
 
@@ -45,6 +45,14 @@ def test_tail_paragraph_is_kept_even_when_short():
     # The fallback flushes its final buffer regardless of size, so a lease's
     # last paragraph is never silently dropped.
     assert split_clauses("Signed by both parties.") == ["Signed by both parties."]
+
+
+def test_split_mode_names_the_strategy_that_applied():
+    # The paragraph fallback yields arbitrary blocks, not true clauses — the
+    # mode goes into the metrics log so that degradation is visible.
+    assert split_clauses_with_mode(NUMBERED_LEASE)[1] == "numbered"
+    unnumbered = "\n\n".join(FILLER for _ in range(12))
+    assert split_clauses_with_mode(unnumbered)[1] == "paragraphs"
 
 
 def test_pdf_dependency_is_installed():

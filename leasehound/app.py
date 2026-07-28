@@ -8,16 +8,21 @@ context is explicit — Washington law always, plus the latest scan report once
 a scan has run.
 
 Privacy: uploads are parsed in memory and the temp file is deleted right after
-parsing; clause text goes to the OpenAI API for analysis and is never stored.
+parsing; clause text goes to the OpenAI API for analysis and is never written
+to disk. Finished scans are cached in process memory, keyed by document
+content hash, so rescanning an identical document costs zero API calls.
 
 Usage:
     python -m leasehound.app     # http://localhost:7860
 """
 
+import hashlib
 import re
 import tempfile
+import threading
 import time
 import traceback
+from collections import OrderedDict
 from pathlib import Path
 
 import gradio as gr
@@ -33,7 +38,7 @@ from leasehound.scan import (
     scan_clauses,
     scan_config,
 )
-from leasehound.upload import load_clauses
+from leasehound.upload import read_document, split_clauses_with_mode
 
 REPO_ROOT = Path(__file__).parent.parent
 SAMPLE_LEASE = REPO_ROOT / "examples" / "sample_lease.md"
@@ -118,6 +123,10 @@ LAW_ONLY_CONTEXT = (
     "Scan a lease and it will know your report too."
 )
 ALREADY_SNIFFED = "🐕 Already sniffed this one — the report is still on the right (below on narrow screens)."
+CACHED_SNIFF = (
+    "🐕 The hound has sniffed this exact lease before — here's the saved report, "
+    "no fresh API calls. Attach a different lease to watch a live scan."
+)
 CALLED_OFF = "🐕 Called off — the hound stopped mid-sniff. Scan again whenever you're ready."
 NOTHING_EXTRACTED = (
     "🐕 The hound couldn't find any text in this document — a scanned or photo PDF has "
@@ -204,6 +213,37 @@ def cleanup_upload(path: Path) -> None:
         path.unlink(missing_ok=True)
 
 
+# Cross-visitor scan cache, keyed by document CONTENT — not upload path, which
+# is unique per upload, and not session, which is one browser tab. Most demo
+# traffic scans the one sample lease; only its first scan after a cold start
+# should cost API calls. Memory only (never disk), bounded, gone with the
+# instance — the next first scan re-warms it. Stores findings + protections
+# rather than the rendered report so a hit renders under its own file name.
+CACHE_MAX_ENTRIES = 32
+_scan_cache: OrderedDict[str, dict] = OrderedDict()
+_scan_cache_lock = threading.Lock()
+
+
+def cache_key(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8", "replace")).hexdigest()
+
+
+def cache_get(digest: str) -> dict | None:
+    with _scan_cache_lock:
+        entry = _scan_cache.get(digest)
+        if entry is not None:
+            _scan_cache.move_to_end(digest)
+        return entry
+
+
+def cache_put(digest: str, entry: dict) -> None:
+    with _scan_cache_lock:
+        _scan_cache[digest] = entry
+        _scan_cache.move_to_end(digest)
+        while len(_scan_cache) > CACHE_MAX_ENTRIES:
+            _scan_cache.popitem(last=False)
+
+
 def progress_line(done: int, total: int) -> str:
     return f"🐕 On the scent — {done}/{total} clauses sniffed…"
 
@@ -275,8 +315,9 @@ def scan_flow(path, key, history, report, scanned, context_base, question=""):
             yield from answer_flow(question, history, report, context_base)
         return
 
-    clauses = load_clauses(path)
+    text = read_document(path)
     cleanup_upload(path)
+    clauses, split_mode = split_clauses_with_mode(text)
     if not clauses:
         history.append({"role": "assistant", "content": NOTHING_EXTRACTED})
         yield _out(history, stop=gr.update(visible=False))
@@ -286,6 +327,26 @@ def scan_flow(path, key, history, report, scanned, context_base, question=""):
         history.append({"role": "assistant", "content": message})
         yield _out(history, stop=gr.update(visible=False))
         return
+
+    digest = cache_key(text)
+    cached = cache_get(digest)
+    if cached:
+        findings, protections = cached["findings"], cached["protections"]
+        new_report = render_report(findings, name, "wa", protections)
+        counts = count_verdicts(findings)
+        missing = sum(1 for p in protections if p["status"] == "missing")
+        log_scan(ScanMeter(), name, len(clauses), verdicts=counts, missing=missing,
+                 split_mode=split_mode, cache_hit=True)
+        history.append({"role": "assistant", "content": CACHED_SNIFF})
+        yield _out(history, report=new_report, state=new_report,
+                   context=report_context(name), source=key,
+                   stop=gr.update(visible=False), col=gr.update(visible=True),
+                   download=gr.update(value=report_file(new_report, name)),
+                   actions=gr.update(visible=True))
+        if question:
+            yield from answer_flow(question, history, new_report, context_base)
+        return
+
     meter = ScanMeter()  # the sanity check below is the scan's first API call
     if not looks_like_lease(clauses, meter):
         history.append({"role": "assistant", "content": NOT_A_LEASE})
@@ -315,7 +376,8 @@ def scan_flow(path, key, history, report, scanned, context_base, question=""):
     new_report = render_report(findings, name, "wa", protections)
     counts = count_verdicts(findings)
     missing = sum(1 for p in protections if p["status"] == "missing")
-    log_scan(meter, name, total, verdicts=counts, missing=missing)
+    log_scan(meter, name, total, verdicts=counts, missing=missing, split_mode=split_mode)
+    cache_put(digest, {"findings": findings, "protections": protections})
     history[-1]["content"] = (
         f"🐕 Sniff complete: 🚩 {counts['red']} red · ⚠️ {counts['yellow']} caution · "
         f"✅ {counts['green']} clear · 🔍 {missing} missing protections. "

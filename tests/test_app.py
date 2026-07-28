@@ -1,4 +1,7 @@
-"""App helpers: cited-only sources footer and upload cleanup (privacy)."""
+"""App helpers: cited-only sources footer, upload cleanup (privacy), scan cache."""
+
+import json
+from pathlib import Path
 
 import leasehound.app as app
 from leasehound.app import (
@@ -77,3 +80,49 @@ def test_cleanup_removes_upload_but_never_the_sample(tmp_path, monkeypatch):
 
     cleanup_upload(SAMPLE_LEASE)
     assert SAMPLE_LEASE.exists()
+
+
+def test_scan_cache_is_bounded_lru():
+    app._scan_cache.clear()
+    for i in range(app.CACHE_MAX_ENTRIES + 5):
+        app.cache_put(f"digest{i}", {"findings": [], "protections": []})
+    assert len(app._scan_cache) == app.CACHE_MAX_ENTRIES
+    assert app.cache_get("digest0") is None  # oldest evicted
+    assert app.cache_get(f"digest{app.CACHE_MAX_ENTRIES + 4}") is not None
+    app._scan_cache.clear()
+
+
+def test_second_scan_of_identical_content_makes_no_api_calls(monkeypatch, tmp_path):
+    import leasehound.metrics as metrics
+
+    filler = "The parties agree to the terms set forth in this provision as written. "
+    lease_text = f"Lease intro. {filler}\n\n" + "\n\n".join(
+        f"{i}. CLAUSE HEADING. {filler}" for i in range(1, 5)
+    )
+    api_calls = {"count": 0}
+
+    def fake_scan_clauses(clauses, config, meter=None):
+        api_calls["count"] += 1
+        yield {"index": 1, "clause": clauses[0], "verdict": "green",
+               "citations": [], "urls": {}, "explanation": "fine"}
+
+    monkeypatch.setattr(app, "read_document", lambda path: lease_text)
+    monkeypatch.setattr(app, "looks_like_lease", lambda clauses, meter=None: True)
+    monkeypatch.setattr(app, "scan_clauses", fake_scan_clauses)
+    monkeypatch.setattr(app, "check_protections", lambda clauses, meter=None: [])
+    monkeypatch.setattr(metrics, "LOG_PATH", tmp_path / "scan_metrics.jsonl")
+    app._scan_cache.clear()
+
+    first_history: list = []
+    list(app.scan_flow(Path("first_upload.md"), "key-a", first_history, "", "", []))
+    # Same content under a different name, path, and session: cache must serve it.
+    second_history: list = []
+    list(app.scan_flow(Path("renamed_copy.md"), "key-b", second_history, "", "", []))
+
+    assert api_calls["count"] == 1
+    assert any(m["content"] == app.CACHED_SNIFF for m in second_history)
+    # The cached scan renders under the new file name, not the original's.
+    log_lines = (tmp_path / "scan_metrics.jsonl").read_text().splitlines()
+    assert json.loads(log_lines[1])["cache_hit"] is True
+    assert json.loads(log_lines[1])["source"] == "renamed_copy.md"
+    app._scan_cache.clear()

@@ -65,3 +65,16 @@ def test_log_scan_writes_one_json_line_with_file_name_only(monkeypatch, tmp_path
     assert record["missing_protections"] == 2
     assert record["llm_calls"] == 1
     assert record["seconds"] >= 0
+
+
+def test_log_scan_records_split_mode_cache_hit_and_echoes_to_stdout(
+    monkeypatch, tmp_path, capsys
+):
+    monkeypatch.setattr(metrics, "LOG_PATH", tmp_path / "scan_metrics.jsonl")
+    record = log_scan(ScanMeter(), "lease.pdf", 5,
+                      split_mode="paragraphs", cache_hit=True)
+    assert record["split_mode"] == "paragraphs"
+    assert record["cache_hit"] is True
+    # The JSONL file is ephemeral on Cloud Run; the same record must reach
+    # stdout so Cloud Logging keeps it.
+    assert json.loads(capsys.readouterr().out.strip()) == record
