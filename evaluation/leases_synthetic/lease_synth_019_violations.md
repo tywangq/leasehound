@@ -1,0 +1,19 @@
+This Residential Lease Agreement (the "Lease") is entered into by and between BELLEVUE PROPERTY MANAGEMENT, LLC (the "Landlord"), and JAMIE R. CHEN (the "Tenant"), for the rental of the residential premises located at 1432 NE 12th St, Unit 304, Bellevue, WA 98005 (the "Premises"), within the city of Bellevue, Washington.
+
+1. TERM AND RENT. The Lease commences on June 15, 2024, and shall continue on a month-to-month basis thereafter unless terminated in accordance with this Lease or applicable law. Tenant agrees to pay monthly rent in the amount of one thousand nine hundred seventy-five dollars ($1,975.00), due on or before the first (1st) day of each calendar month, without setoff or deduction unless otherwise provided by law.
+
+2. RENTAL PAYMENT METHOD. Rent payments shall be made exclusively via Zelle, to the Landlord’s designated account. No other methods of payment, including but not limited to personal checks, money orders, or cash, will be accepted. Tenant bears responsibility for timely payment transmission; a payment is considered received when deposited to Landlord's designated account.
+
+3. SECURITY DEPOSIT. Upon execution of this Lease, Tenant shall pay a security deposit of one thousand nine hundred seventy-five dollars ($1,975.00), which shall be held in a trust account at First Sound Bank, located at 11100 Main St, Bellevue, WA 98004. The deposit may be withheld or deducted by Landlord for unpaid rent, repairs of damages beyond normal wear and tear, cleaning to restore the Premises to the same level of cleanliness as at move-in (excluding normal use), or other lawful reasons specified herein. Within twenty-one (21) days after termination of tenancy and delivery of possession, Landlord shall provide an itemized statement of any deductions.
+
+4. MOVE-IN CONDITION AND CHECKLIST. Tenant acknowledges receipt and completion of a signed written checklist accurately describing the condition and cleanliness of the Premises at move-in, including a detailed inventory of fixtures, appliances, and furnishings, as required by RCW 59.18.260.
+
+5. OCCUPANCY AND USE. The Premises shall be occupied solely by Tenant and those listed on the application, not to exceed three (3) persons in total. The Premises are to be used exclusively for private residential purposes. No commercial, illegal, or disruptive activities shall be conducted or permitted on the Premises.
+
+6. ENTRY BY LANDLORD. Landlord, or Landlord’s agents, may enter the Premises for purposes including inspection, maintenance, repairs, or to show the Premises to prospective tenants or buyers, by providing at least twenty-four (24) hours' advance notice to Tenant, except in case of emergency where no notice is required. Notice may be delivered in writing, by email, or by posting on the primary entry door.
+
+7. FIRE SAFETY AND SMOKE DETECTOR INFORMATION. Tenant acknowledges receipt of written information supplied by Landlord regarding fire safety, emergency procedures, and smoke detector maintenance requirements, as mandated by city ordinance and state law.
+
+8. MOLD INFORMATION. Tenant acknowledges receipt of the Washington Department of Health’s information about identifying, preventing, and dealing with indoor mold, pursuant to RCW 59.18.060.
+
+9. WAIVER OF CLASS ACTION AND JURY TRIAL. Tenant hereby expressly waives any right to participate as a plaintiff or member of any class action, collective action, or representative proceeding against Landlord arising out of or relating to this Lease or the tenancy. Tenant further waives the right to a trial by jury in any legal action relating to the Premises, this Lease, or the Landlord-Tenant relationship, to the fullest extent allowed by law.

@@ -1,0 +1,119 @@
+# Paid evaluation runs — separate from ci.yml, which stays free (lint + tests).
+#
+# Design decisions, in cost order:
+# - Push runs only the cheap tier: gold-set scan eval (6 leases, ~$0.10),
+#   retrieval eval (~$0.05), and injection resistance (5 leases, ~$0.08).
+#   The generation eval (~$0.40) and the 40-lease silver set (~$0.60) run on
+#   workflow_dispatch only.
+# - main only, never PRs: fork PRs must not reach the API key secret.
+# - Path-filtered so docs-only commits cost nothing; results files are
+#   excluded or a run would re-trigger itself when results are committed.
+# - Scores are REPORTED (job summary), not gated: temperature-0 API calls
+#   still drift, and a hard threshold would flake. A crash still fails.
+# - Skips gracefully when the OPENAI_API_KEY secret isn't configured.
+# - The vector store isn't in git (42MB artifact); it's rebuilt from corpus/
+#   on first run (~$0.10 in embedding/augmentation calls) and cached.
+name: Eval
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "leasehound/**"
+      - "corpus/**"
+      - "evaluation/*.py"
+      - "evaluation/leases/**"
+      - "evaluation/tests.jsonl"
+      - "pyproject.toml"
+      - ".github/workflows/eval.yml"
+  workflow_dispatch:
+    inputs:
+      full:
+        description: "Also run the generation eval and the synthetic silver set"
+        type: boolean
+        default: true
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - name: Gate on API key
+        id: gate
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "OPENAI_API_KEY secret not set — paid evals skipped." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.skip != 'true'
+      - uses: actions/setup-python@v5
+        if: steps.gate.outputs.skip != 'true'
+        with:
+          python-version: "3.12"
+      - name: Install
+        if: steps.gate.outputs.skip != 'true'
+        run: pip install -e ".[dev]"
+      - name: Restore vector store
+        if: steps.gate.outputs.skip != 'true'
+        id: vector-cache
+        uses: actions/cache@v4
+        with:
+          path: vector_db
+          key: vector-db-${{ hashFiles('corpus/**', 'leasehound/ingest.py') }}
+      - name: Build vector store (cache miss)
+        if: steps.gate.outputs.skip != 'true' && steps.vector-cache.outputs.cache-hit != 'true'
+        run: python -m leasehound.ingest
+      - name: Scan eval (gold set)
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          python -m evaluation.eval_scan | tee scan_eval.txt
+          {
+            echo "## Scan eval — gold set"
+            echo '```'
+            cat scan_eval.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Retrieval eval
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          python -m evaluation.eval_retrieval --name "ci-${GITHUB_SHA::7}" | tee retrieval_eval.txt
+          {
+            echo "## Retrieval eval"
+            echo '```'
+            tail -20 retrieval_eval.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Generation eval (manual runs only)
+        if: steps.gate.outputs.skip != 'true' && github.event_name == 'workflow_dispatch' && inputs.full
+        run: |
+          python -m evaluation.eval_generation --name "ci-${GITHUB_SHA::7}" | tee generation_eval.txt
+          {
+            echo "## Generation eval"
+            echo '```'
+            tail -20 generation_eval.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Injection resistance (5 payloads)
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          python -m evaluation.eval_injection | tee injection_eval.txt
+          {
+            echo "## Prompt-injection resistance"
+            echo '```'
+            cat injection_eval.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Scan eval — synthetic silver set (manual runs only)
+        if: steps.gate.outputs.skip != 'true' && github.event_name == 'workflow_dispatch' && inputs.full
+        run: |
+          python -m evaluation.eval_scan \
+            --manifest evaluation/leases_synthetic/manifest.json \
+            --results synthetic_results_ci.json | tee silver_eval.txt
+          {
+            echo "## Scan eval — synthetic silver set (40 leases, incl. injection)"
+            echo '```'
+            head -60 silver_eval.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
