@@ -122,7 +122,7 @@ LAW_ONLY_CONTEXT = (
     "🧠 The hound knows **Washington tenant law (RCW 59.18)**. "
     "Scan a lease and it will know your report too."
 )
-ALREADY_SNIFFED = "🐕 Already sniffed this one — the report is still on the right (below on narrow screens)."
+ALREADY_SNIFFED = "🐕 Already sniffed this one — the report is still on the right."
 CACHED_SNIFF = (
     "🐕 The hound has sniffed this exact lease before — here's the saved report, "
     "no fresh API calls. Attach a different lease to watch a live scan."
@@ -137,8 +137,9 @@ NOT_A_LEASE = (
     "residential lease — and leases are all it scans. Attach a lease, or try the sample."
 )
 TOO_MANY_CLAUSES = (
-    "🐕 This document splits into {count} clauses — no residential lease is that long, "
-    "so the hound stops at {limit}. If it really is a lease, try attaching just the lease body."
+    "🐕 This document splits into {count} clauses, and the hound stops at {limit} to keep "
+    "any one scan affordable. Long-form agreements really do run this long — try attaching "
+    "just the part you want checked."
 )
 HOUND_TRIPPED = (
     "🐕 The hound tripped over an error and lost the scent — nothing was changed. "
@@ -381,7 +382,7 @@ def scan_flow(path, key, history, report, scanned, context_base, question=""):
     history[-1]["content"] = (
         f"🐕 Sniff complete: 🚩 {counts['red']} red · ⚠️ {counts['yellow']} caution · "
         f"✅ {counts['green']} clear · 🔍 {missing} missing protections. "
-        "Full report on the right (below on narrow screens) — ask me about any clause."
+        "Full report on the right — ask me about any clause."
     )
     yield _out(history, box=gr.update(interactive=True),
                report=new_report, state=new_report,

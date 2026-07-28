@@ -8,3 +8,7 @@ preprocessed_db/
 uploads/
 .DS_Store
 *.egg-info/
+
+# Real published lease PDFs: third-party documents, fetched on demand from
+# evaluation/leases_real/sources.json. The manifest and results are tracked.
+evaluation/leases_real/*.pdf

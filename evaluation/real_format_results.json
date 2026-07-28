@@ -1,0 +1,96 @@
+{
+  "documents": 5,
+  "cost_usd": 0.00686,
+  "results": [
+    {
+      "file": "hud_90105a_model_lease.pdf",
+      "publisher": "U.S. Department of Housing and Urban Development",
+      "kind": "full residential lease (model, subsidized programs)",
+      "chars": 39996,
+      "split_mode": "numbered",
+      "clauses": 49,
+      "median_clause_chars": 892,
+      "max_clause_chars": 1193,
+      "clauses_over_retrieval_window": 0,
+      "tiny_clauses": 0,
+      "over_clause_cap": false,
+      "gate_accepted_as_lease": true,
+      "protections_missing": [
+        "Deposit location disclosure",
+        "Fire safety information",
+        "Mold information"
+      ],
+      "protections_present": 2,
+      "llm_calls": 2,
+      "cost_usd": 0.00304
+    },
+    {
+      "file": "hud_52641a_tenancy_addendum.pdf",
+      "publisher": "U.S. Department of Housing and Urban Development",
+      "kind": "lease addendum, not a standalone lease",
+      "chars": 29100,
+      "split_mode": "numbered",
+      "clauses": 40,
+      "median_clause_chars": 831,
+      "max_clause_chars": 1194,
+      "clauses_over_retrieval_window": 0,
+      "tiny_clauses": 3,
+      "over_clause_cap": false,
+      "gate_accepted_as_lease": true,
+      "protections_missing": [
+        "Deposit location disclosure",
+        "Deposit withholding terms",
+        "Fire safety information",
+        "Mold information",
+        "Move-in condition checklist"
+      ],
+      "protections_present": 0,
+      "llm_calls": 2,
+      "cost_usd": 0.00318
+    },
+    {
+      "file": "uw_12month_housing_agreement.pdf",
+      "publisher": "University of Washington (HFS)",
+      "kind": "residential occupancy agreement (WA)",
+      "chars": 67660,
+      "split_mode": "numbered",
+      "clauses": 270,
+      "median_clause_chars": 175,
+      "max_clause_chars": 1194,
+      "clauses_over_retrieval_window": 0,
+      "tiny_clauses": 70,
+      "over_clause_cap": true,
+      "scan": "skipped \u2014 270 clauses is over the 60 cap"
+    },
+    {
+      "file": "uwt_housing_agreement.pdf",
+      "publisher": "University of Washington Tacoma",
+      "kind": "residential occupancy agreement (WA)",
+      "chars": 46955,
+      "split_mode": "numbered",
+      "clauses": 131,
+      "median_clause_chars": 264,
+      "max_clause_chars": 1168,
+      "clauses_over_retrieval_window": 0,
+      "tiny_clauses": 17,
+      "over_clause_cap": true,
+      "scan": "skipped \u2014 131 clauses is over the 60 cap"
+    },
+    {
+      "file": "wwu_housing_agreement.pdf",
+      "publisher": "Western Washington University",
+      "kind": "residential occupancy agreement (WA)",
+      "chars": 20685,
+      "split_mode": "numbered",
+      "clauses": 33,
+      "median_clause_chars": 573,
+      "max_clause_chars": 1193,
+      "clauses_over_retrieval_window": 0,
+      "tiny_clauses": 2,
+      "over_clause_cap": false,
+      "gate_accepted_as_lease": false,
+      "llm_calls": 1,
+      "cost_usd": 0.00064
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "_comment": [
+    "Real published housing documents, used only as a formatting probe for pypdf",
+    "extraction and clause splitting — there are no violation labels here, and no",
+    "precision or recall is computed from them.",
+    "Chosen because they are genuinely real (people sign these) and genuinely",
+    "public: two are US federal forms, which are public-domain government works,",
+    "and three are published by public universities. No private lease, and no",
+    "individual's signed agreement, is used anywhere in this repo.",
+    "The files themselves are gitignored: they are third-party documents whose",
+    "canonical home is the URL. Run: python -m evaluation.eval_real_formats --fetch"
+  ],
+  "documents": [
+    {
+      "file": "hud_90105a_model_lease.pdf",
+      "publisher": "U.S. Department of Housing and Urban Development",
+      "kind": "full residential lease (model, subsidized programs)",
+      "form": "HUD-90105a",
+      "url": "https://www.hud.gov/sites/dfiles/OCHCO/documents/90105a.pdf",
+      "note": "The closest thing to a canonical real residential lease in the public domain. Federal, so it is not written against RCW 59.18 — useful as a false-positive probe."
+    },
+    {
+      "file": "hud_52641a_tenancy_addendum.pdf",
+      "publisher": "U.S. Department of Housing and Urban Development",
+      "kind": "lease addendum, not a standalone lease",
+      "form": "HUD-52641-A",
+      "url": "https://www.hud.gov/sites/dfiles/OCHCO/documents/52641A.pdf",
+      "note": "Attached to real Housing Choice Voucher leases. Included partly as a gate probe: an addendum is not a lease."
+    },
+    {
+      "file": "uw_12month_housing_agreement.pdf",
+      "publisher": "University of Washington (HFS)",
+      "kind": "residential occupancy agreement (WA)",
+      "url": "https://hfs.uw.edu/media/chtn5x4a/12-month-housing-agreement-2025-26.pdf",
+      "note": "Washington, and long-form: hundreds of enumerated provisions. The document that disproved the '60 clauses is not a lease' assumption."
+    },
+    {
+      "file": "uwt_housing_agreement.pdf",
+      "publisher": "University of Washington Tacoma",
+      "kind": "residential occupancy agreement (WA)",
+      "url": "https://www.tacoma.uw.edu/sites/default/files/2025-06/ay.25.26-uw-tacoma-housing-agreement.pdf"
+    },
+    {
+      "file": "wwu_housing_agreement.pdf",
+      "publisher": "Western Washington University",
+      "kind": "residential occupancy agreement (WA)",
+      "url": "https://housing.wwu.edu/sites/housing.wwu.edu/files/2025-03/2025-26%20Housing%20Agreement_updated.pdf"
+    }
+  ]
+}
