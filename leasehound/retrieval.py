@@ -69,6 +69,9 @@ class PipelineConfig:
     # Lexical channel merged into the dense results (see bm25.py). Off by
     # default so every existing ablation row keeps meaning what it measured.
     bm25: bool = False
+    # Hand the judge every chunk of a retrieved section, not just the chunk that
+    # matched. Off by default until measured (see eval_scan_retrieval.py).
+    section_completion: bool = False
     retrieval_k: int = 20
     final_k: int = 10
 
@@ -154,11 +157,54 @@ def fetch_unranked(query: str, config: PipelineConfig, meter=None) -> list[Resul
         for doc, meta in zip(results["documents"][0], results["metadatas"][0])
     ]
     if not config.bm25:
-        return dense
+        return complete_sections(dense, config) if config.section_completion else dense
     lexical = bm25_search(query, config, k=depth)
     # Same RRF merge the dual-query stage uses, then truncated back to
     # retrieval_k — hybrid costs no extra prompt tokens and no extra API call.
-    return merge_chunks(dense, lexical)[: config.retrieval_k]
+    merged = merge_chunks(dense, lexical)[: config.retrieval_k]
+    return complete_sections(merged, config) if config.section_completion else merged
+
+
+# A section averages ~3.7 chunks, so completing every retrieved section would
+# multiply the judge's prompt. Only the best few are expanded.
+SECTIONS_TO_COMPLETE = 3
+
+
+def chunk_order(chunk_id: str) -> int:
+    """Ingest writes ids as `<state>-<n>` in document order, and the metadata
+    carries no chunk index, so the id suffix is what puts a section back together
+    in reading order."""
+    tail = chunk_id.rsplit("-", 1)[-1]
+    return int(tail) if tail.isdigit() else 0
+
+
+def complete_sections(chunks: list[Result], config: PipelineConfig) -> list[Result]:
+    """Replace the top sections' single hits with all of that section's chunks.
+
+    Retrieving the right *section* is not the same as retrieving the rule: a
+    section split across four chunks can surface the one chunk that does not
+    contain the prohibition, and the judge — which may only cite what it is
+    given — then correctly returns green for what it saw. That was the measured
+    cause of the scanner's one missed violation. Handing over the whole section
+    costs prompt tokens and no extra API call.
+    """
+    collection = _get_collection(config.collection)
+    ordered: list[str] = []
+    for chunk in chunks:
+        section = chunk.metadata.get("section")
+        if section and section not in ordered:
+            ordered.append(section)
+    completing = ordered[:SECTIONS_TO_COMPLETE]
+
+    expanded: list[Result] = []
+    for section in completing:
+        got = collection.get(where={"section": section})
+        siblings = sorted(zip(got["ids"], got["documents"], got["metadatas"]),
+                          key=lambda row: chunk_order(row[0]))
+        expanded += [Result(page_content=doc, metadata=meta) for _, doc, meta in siblings]
+    # Sections past the cap keep whichever chunk retrieval actually chose.
+    kept = [c for c in chunks if c.metadata.get("section") not in completing]
+    return expanded + kept
 
 
 def merge_chunks(*chunk_lists: list[Result], rrf_k: int = 60) -> list[Result]:

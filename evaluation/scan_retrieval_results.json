@@ -1,0 +1,326 @@
+{
+  "summary": {
+    "labelled_clauses": 18,
+    "scored": 18,
+    "not_recovered_by_splitter": 0,
+    "section_hit@1": 0.8333,
+    "section_hit@3": 0.8889,
+    "section_hit@5": 1.0,
+    "section_hit@k": 1.0,
+    "mrr": 0.8861,
+    "k": 6,
+    "section_completion": false,
+    "misses": []
+  },
+  "provenance": {
+    "generation_model": "openai/gpt-4.1-mini",
+    "utility_model": "openai/gpt-4.1-nano",
+    "embedding_model": "text-embedding-3-large",
+    "corpus_snapshot": "2026-07-25",
+    "commit": "4af5acf",
+    "run_at": "2026-07-29"
+  },
+  "cases": [
+    {
+      "file": "lease_02_subtle.md",
+      "clause": 3,
+      "acceptable": [
+        "RCW 59.18.170",
+        "RCW 59.18.230"
+      ],
+      "retrieved_sections": [
+        "RCW 59.18.170",
+        "RCW 59.18.170",
+        "RCW 59.18.625",
+        "RCW 59.18.610",
+        "RCW 59.18.170",
+        "RCW 59.18.255"
+      ],
+      "rank": 1
+    },
+    {
+      "file": "lease_02_subtle.md",
+      "clause": 7,
+      "acceptable": [
+        "RCW 59.18.150"
+      ],
+      "retrieved_sections": [
+        "RCW 59.18.150",
+        "RCW 59.18.150",
+        "RCW 59.18.125",
+        "RCW 59.18.150",
+        "RCW 59.18.150",
+        "RCW 59.18.115"
+      ],
+      "rank": 1
+    },
+    {
+      "file": "lease_03_gag.md",
+      "clause": 3,
+      "acceptable": [
+        "RCW 59.18.230"
+      ],
+      "retrieved_sections": [
+        "RCW 59.18.230",
+        "RCW 59.18.700",
+        "RCW 59.18.140",
+        "RCW 59.18.230",
+        "RCW 59.18.030",
+        "RCW 59.18.230"
+      ],
+      "rank": 1
+    },
+    {
+      "file": "lease_03_gag.md",
+      "clause": 7,
+      "acceptable": [
+        "RCW 59.18.230"
+      ],
+      "retrieved_sections": [
+        "RCW 59.18.230",
+        "RCW 59.18.315",
+        "RCW 59.18.230",
+        "RCW 59.18.320",
+        "RCW 59.18.315",
+        "RCW 59.18.330"
+      ],
+      "rank": 1
+    },
+    {
+      "file": "lease_03_gag.md",
+      "clause": 8,
+      "acceptable": [
+        "RCW 59.18.063",
+        "RCW 59.18.230"
+      ],
+      "retrieved_sections": [
+        "RCW 59.18.063",
+        "RCW 59.18.063",
+        "RCW 59.18.283",
+        "RCW 59.18.610",
+        "RCW 59.18.063",
+        "RCW 59.18.057"
+      ],
+      "rank": 1
+    },
+    {
+      "file": "lease_04_heavy.md",
+      "clause": 3,
+      "acceptable": [
+        "RCW 59.18.170",
+        "RCW 59.18.230"
+      ],
+      "retrieved_sections": [
+        "RCW 59.18.170",
+        "RCW 59.18.170",
+        "RCW 59.18.625",
+        "RCW 59.18.170",
+        "RCW 59.18.610",
+        "RCW 59.18.255"
+      ],
+      "rank": 1
+    },
+    {
+      "file": "lease_04_heavy.md",
+      "clause": 5,
+      "acceptable": [
+        "RCW 59.18.230",
+        "RCW 59.18.250",
+        "RCW 59.18.290",
+        "RCW 59.18.510"
+      ],
+      "retrieved_sections": [
+        "RCW 59.18.250",
+        "RCW 59.18.270",
+        "RCW 59.18.510",
+        "RCW 59.18.290",
+        "RCW 59.18.410",
+        "RCW 59.18.250"
+      ],
+      "rank": 1
+    },
+    {
+      "file": "lease_04_heavy.md",
+      "clause": 6,
+      "acceptable": [
+        "RCW 59.18.060",
+        "RCW 59.18.230"
+      ],
+      "retrieved_sections": [
+        "RCW 59.18.740",
+        "RCW 59.18.060",
+        "RCW 59.18.180",
+        "RCW 59.18.100",
+        "RCW 59.18.595",
+        "RCW 59.18.585"
+      ],
+      "rank": 2
+    },
+    {
+      "file": "lease_04_heavy.md",
+      "clause": 7,
+      "acceptable": [
+        "RCW 59.18.230"
+      ],
+      "retrieved_sections": [
+        "RCW 59.18.230",
+        "RCW 59.18.360",
+        "RCW 59.18.360",
+        "RCW 59.18.230",
+        "RCW 59.18.230",
+        "RCW 59.18.420"
+      ],
+      "rank": 1
+    },
+    {
+      "file": "lease_04_heavy.md",
+      "clause": 8,
+      "acceptable": [
+        "RCW 59.18.150"
+      ],
+      "retrieved_sections": [
+        "RCW 59.18.150",
+        "RCW 59.18.150",
+        "RCW 59.18.150",
+        "RCW 59.18.125",
+        "RCW 59.18.150",
+        "RCW 59.18.115"
+      ],
+      "rank": 1
+    },
+    {
+      "file": "lease_05_minimal.md",
+      "clause": 4,
+      "acceptable": [
+        "RCW 59.18.230"
+      ],
+      "retrieved_sections": [
+        "RCW 59.18.575",
+        "RCW 59.18.360",
+        "RCW 59.18.160",
+        "RCW 59.18.420",
+        "RCW 59.18.230",
+        "RCW 59.18.080"
+      ],
+      "rank": 5
+    },
+    {
+      "file": "../../examples/sample_lease.md",
+      "clause": 3,
+      "acceptable": [
+        "RCW 59.18.170",
+        "RCW 59.18.230"
+      ],
+      "retrieved_sections": [
+        "RCW 59.18.170",
+        "RCW 59.18.170",
+        "RCW 59.18.170",
+        "RCW 59.18.625",
+        "RCW 59.18.610",
+        "RCW 59.18.410"
+      ],
+      "rank": 1
+    },
+    {
+      "file": "../../examples/sample_lease.md",
+      "clause": 5,
+      "acceptable": [
+        "RCW 59.18.230",
+        "RCW 59.18.250",
+        "RCW 59.18.290",
+        "RCW 59.18.510"
+      ],
+      "retrieved_sections": [
+        "RCW 59.18.250",
+        "RCW 59.18.510",
+        "RCW 59.18.290",
+        "RCW 59.18.270",
+        "RCW 59.18.290",
+        "RCW 59.18.340"
+      ],
+      "rank": 1
+    },
+    {
+      "file": "../../examples/sample_lease.md",
+      "clause": 7,
+      "acceptable": [
+        "RCW 59.18.150"
+      ],
+      "retrieved_sections": [
+        "RCW 59.18.150",
+        "RCW 59.18.150",
+        "RCW 59.18.150",
+        "RCW 59.18.150",
+        "RCW 59.18.125",
+        "RCW 59.18.115"
+      ],
+      "rank": 1
+    },
+    {
+      "file": "../../examples/sample_lease.md",
+      "clause": 9,
+      "acceptable": [
+        "RCW 59.18.230"
+      ],
+      "retrieved_sections": [
+        "RCW 59.18.230",
+        "RCW 59.18.030",
+        "RCW 59.18.700",
+        "RCW 59.18.230",
+        "RCW 59.18.230",
+        "RCW 59.18.065"
+      ],
+      "rank": 1
+    },
+    {
+      "file": "../../examples/sample_lease.md",
+      "clause": 11,
+      "acceptable": [
+        "RCW 59.18.230"
+      ],
+      "retrieved_sections": [
+        "RCW 59.18.230",
+        "RCW 59.18.230",
+        "RCW 59.18.360",
+        "RCW 59.18.360",
+        "RCW 59.18.230",
+        "RCW 59.18.575"
+      ],
+      "rank": 1
+    },
+    {
+      "file": "../../examples/sample_lease.md",
+      "clause": 13,
+      "acceptable": [
+        "RCW 59.18.063",
+        "RCW 59.18.230"
+      ],
+      "retrieved_sections": [
+        "RCW 59.18.063",
+        "RCW 59.18.063",
+        "RCW 59.18.063",
+        "RCW 59.18.283",
+        "RCW 59.18.610",
+        "RCW 59.18.610"
+      ],
+      "rank": 1
+    },
+    {
+      "file": "../../examples/sample_lease.md",
+      "clause": 14,
+      "acceptable": [
+        "RCW 59.18.060",
+        "RCW 59.18.230"
+      ],
+      "retrieved_sections": [
+        "RCW 59.18.740",
+        "RCW 59.18.180",
+        "RCW 59.18.100",
+        "RCW 59.18.060",
+        "RCW 59.18.595",
+        "RCW 59.18.585"
+      ],
+      "rank": 4
+    }
+  ]
+}
