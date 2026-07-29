@@ -308,7 +308,7 @@ def scan_clauses(clauses: list[str], config: PipelineConfig,
         executor.shutdown(wait=False, cancel_futures=True)
 
 
-def scan_lease(path: str | Path, state: str = "wa") -> tuple[list[dict], list[dict]]:
+def scan_lease(path: str | Path, state: str = "wa") -> tuple[list[dict], list[dict], bool]:
     config = scan_config(state)
     clauses, split_mode = split_clauses_with_mode(read_document(Path(path)))
     if not clauses:
@@ -322,10 +322,16 @@ def scan_lease(path: str | Path, state: str = "wa") -> tuple[list[dict], list[di
             "which bounds what one scan can spend. Try just the lease body."
         )
     meter = ScanMeter()  # the sanity check below is the scan's first API call
-    if not looks_like_lease(clauses, meter):
-        raise SystemExit(
-            f"{path} doesn't look like a residential lease — LeaseHound only scans leases."
-        )
+    # Advisory, not fatal. The gate used to raise here, which made a wrong reject a
+    # total failure — and the real-document probe found it rejecting a genuine WA
+    # housing agreement (evaluation/eval_real_formats.py). Warning and continuing
+    # also closes the injection suite's most effective attack by construction: a
+    # payload that flips the gate can no longer suppress a report, only annotate it.
+    # The 60-clause cap above, not this call, is what bounds spend.
+    gate_flagged = not looks_like_lease(clauses, meter)
+    if gate_flagged:
+        print(f"⚠️  {path} doesn't read as a residential lease — scanning anyway; "
+              "verdicts against landlord-tenant law will be unreliable.")
     print(f"Scanning {len(clauses)} clauses from {path}")
     findings = list(tqdm(scan_clauses(clauses, config, meter), total=len(clauses),
                          desc="🐕 sniffing clauses"))
@@ -335,9 +341,9 @@ def scan_lease(path: str | Path, state: str = "wa") -> tuple[list[dict], list[di
     record = log_scan(meter, str(path), len(clauses),
                       verdicts=count_verdicts(findings),
                       missing=sum(1 for p in protections if p["status"] == "missing"),
-                      split_mode=split_mode)
+                      split_mode=split_mode, gate_flagged=gate_flagged)
     print(f"{cost_line(record)} — logged to logs/scan_metrics.jsonl")
-    return findings, protections
+    return findings, protections, gate_flagged
 
 
 BADGE = {"red": "🚩", "yellow": "⚠️", "green": "✅"}
@@ -347,8 +353,16 @@ def count_verdicts(findings: list[dict]) -> dict:
     return {v: sum(1 for f in findings if f["verdict"] == v) for v in ("red", "yellow", "green")}
 
 
+GATE_WARNING = (
+    "> ⚠️ This document didn't read as a residential lease, so it was scanned anyway "
+    "on request — treat the verdicts below as unreliable. Judging text that isn't a "
+    "lease against landlord-tenant law produces confident nonsense."
+)
+
+
 def render_report(
-    findings: list[dict], source: str, state: str, protections: list[dict] | None = None
+    findings: list[dict], source: str, state: str, protections: list[dict] | None = None,
+    gate_flagged: bool = False,
 ) -> str:
     counts = count_verdicts(findings)
     missing = [p for p in (protections or []) if p["status"] == "missing"]
@@ -369,6 +383,8 @@ def render_report(
         f"> Legal information, not legal advice. Judged against RCW 59.18 as of {CORPUS_SNAPSHOT} — the law may have changed since.",
         "",
     ]
+    if gate_flagged:
+        lines += [GATE_WARNING, ""]
     for verdict in ("red", "yellow", "green"):
         matching = [f for f in findings if f["verdict"] == verdict]
         if not matching or verdict == "green":
@@ -411,8 +427,8 @@ def main() -> None:
     parser.add_argument("--out", default="scan_report.md")
     args = parser.parse_args()
 
-    findings, protections = scan_lease(args.file, args.state)
-    report = render_report(findings, args.file, args.state, protections)
+    findings, protections, gate_flagged = scan_lease(args.file, args.state)
+    report = render_report(findings, args.file, args.state, protections, gate_flagged)
     Path(args.out).write_text(report, encoding="utf-8")
     counts = count_verdicts(findings)
     missing = sum(1 for p in protections if p["status"] == "missing")

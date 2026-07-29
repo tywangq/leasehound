@@ -121,3 +121,41 @@ def test_closing_scan_generator_cancels_queued_clauses():
     # 8 filled the pool at submit; at most one more sneaks in when the fast
     # clause frees a worker. The rest of the queue must never start.
     assert len(started) <= 9
+
+
+def test_a_document_that_fails_the_gate_is_scanned_anyway_and_flagged():
+    # The gate used to raise here, which made a wrong reject cost the visitor
+    # everything — and the real-document probe caught it rejecting a genuine WA
+    # housing agreement. It is advisory now: the report still gets produced, and
+    # carries a warning. This also means a prompt injection that flips the gate
+    # can no longer suppress a report, only annotate one.
+    clauses = ["1. RENT. Tenant pays $2,000 monthly.", "2. TERM. Month to month.",
+               "3. DEPOSIT. Held in trust."]
+
+    def judged(clause, index, config, meter=None):
+        return {"index": index, "clause": clause, "verdict": "green",
+                "citations": [], "urls": {}, "explanation": "fine"}
+
+    with (
+        patch.object(scan, "read_document", lambda path: ""),
+        patch.object(scan, "split_clauses_with_mode", lambda text: (clauses, "numbered")),
+        patch.object(scan, "looks_like_lease", lambda c, meter=None: False),
+        patch.object(scan, "scan_clause", judged),
+        patch.object(scan, "check_protections", lambda c, meter=None: []),
+        patch.object(scan, "log_scan", lambda *a, **k: {}),
+        patch.object(scan, "cost_line", lambda record: ""),
+    ):
+        findings, protections, gate_flagged = scan.scan_lease("not_a_lease.md")
+
+    assert gate_flagged is True
+    assert len(findings) == len(clauses)  # the scan ran rather than being suppressed
+
+
+def test_the_report_warns_when_the_document_did_not_read_as_a_lease():
+    findings = [{"index": 1, "clause": "1. RENT.", "verdict": "green",
+                 "citations": [], "urls": {}, "explanation": "fine"}]
+    flagged = scan.render_report(findings, "x.md", "wa", [], gate_flagged=True)
+    clean = scan.render_report(findings, "x.md", "wa", [], gate_flagged=False)
+    assert "didn't read as a residential lease" in flagged
+    assert "unreliable" in flagged
+    assert "didn't read as a residential lease" not in clean

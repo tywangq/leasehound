@@ -133,8 +133,9 @@ NOTHING_EXTRACTED = (
     "no text layer. Try a text-based .pdf, .md, or .txt."
 )
 NOT_A_LEASE = (
-    "🐕 The hound gave this document a good sniff, but it doesn't smell like a "
-    "residential lease — and leases are all it scans. Attach a lease, or try the sample."
+    "🐕 The hound gave this document a good sniff, and it doesn't smell like a "
+    "residential lease. Sniffing it anyway — but landlord-tenant verdicts on something "
+    "that isn't a lease are unreliable, so read the report with that in mind."
 )
 TOO_MANY_CLAUSES = (
     "🐕 This document splits into {count} clauses, and the hound stops at {limit} to keep "
@@ -333,7 +334,8 @@ def scan_flow(path, key, history, report, scanned, context_base, question=""):
     cached = cache_get(digest)
     if cached:
         findings, protections = cached["findings"], cached["protections"]
-        new_report = render_report(findings, name, "wa", protections)
+        new_report = render_report(findings, name, "wa", protections,
+                                  cached.get("gate_flagged", False))
         counts = count_verdicts(findings)
         missing = sum(1 for p in protections if p["status"] == "missing")
         log_scan(ScanMeter(), name, len(clauses), verdicts=counts, missing=missing,
@@ -349,10 +351,12 @@ def scan_flow(path, key, history, report, scanned, context_base, question=""):
         return
 
     meter = ScanMeter()  # the sanity check below is the scan's first API call
-    if not looks_like_lease(clauses, meter):
+    # Advisory, not a stop: a wrong reject used to cost the visitor everything, and
+    # the real-document probe caught it rejecting a genuine WA housing agreement.
+    gate_flagged = not looks_like_lease(clauses, meter)
+    if gate_flagged:
         history.append({"role": "assistant", "content": NOT_A_LEASE})
-        yield _out(history, stop=gr.update(visible=False))
-        return
+        yield _out(history)
 
     total = len(clauses)
     config = scan_config("wa")
@@ -374,11 +378,13 @@ def scan_flow(path, key, history, report, scanned, context_base, question=""):
     history[-1]["content"] = "🐕 One more pass — checking the protections the law requires…"
     yield _out(history)
     protections = check_protections(clauses, meter)
-    new_report = render_report(findings, name, "wa", protections)
+    new_report = render_report(findings, name, "wa", protections, gate_flagged)
     counts = count_verdicts(findings)
     missing = sum(1 for p in protections if p["status"] == "missing")
-    log_scan(meter, name, total, verdicts=counts, missing=missing, split_mode=split_mode)
-    cache_put(digest, {"findings": findings, "protections": protections})
+    log_scan(meter, name, total, verdicts=counts, missing=missing, split_mode=split_mode,
+             gate_flagged=gate_flagged)
+    cache_put(digest, {"findings": findings, "protections": protections,
+                       "gate_flagged": gate_flagged})
     history[-1]["content"] = (
         f"🐕 Sniff complete: 🚩 {counts['red']} red · ⚠️ {counts['yellow']} caution · "
         f"✅ {counts['green']} clear · 🔍 {missing} missing protections. "

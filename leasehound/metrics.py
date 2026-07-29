@@ -74,7 +74,8 @@ class ScanMeter:
 
 def log_scan(meter: ScanMeter, source: str, clauses: int,
              verdicts: dict | None = None, missing: int | None = None,
-             split_mode: str | None = None, cache_hit: bool = False) -> dict:
+             split_mode: str | None = None, cache_hit: bool = False,
+             gate_flagged: bool = False) -> dict:
     """Append one scan's metrics to the log; returns the record for display.
 
     The record is also printed to stdout: on Cloud Run the container filesystem
@@ -95,6 +96,10 @@ def log_scan(meter: ScanMeter, source: str, clauses: int,
         record["split_mode"] = split_mode
     if cache_hit:
         record["cache_hit"] = True
+    if gate_flagged:
+        # The document did not read as a lease but was scanned anyway; the verdicts
+        # in this record are not comparable with the rest.
+        record["gate_flagged"] = True
     LOG_PATH.parent.mkdir(exist_ok=True)
     with LOG_PATH.open("a", encoding="utf-8") as f:
         f.write(json.dumps(record) + "\n")

@@ -78,3 +78,14 @@ def test_log_scan_records_split_mode_cache_hit_and_echoes_to_stdout(
     # The JSONL file is ephemeral on Cloud Run; the same record must reach
     # stdout so Cloud Logging keeps it.
     assert json.loads(capsys.readouterr().out.strip()) == record
+
+
+def test_log_scan_records_the_gate_flag(tmp_path, monkeypatch):
+    # A flagged scan's verdicts are not comparable with the rest, so the log has
+    # to say so — otherwise the metrics summary silently mixes them in.
+    monkeypatch.setattr(metrics, "LOG_PATH", tmp_path / "scan_metrics.jsonl")
+    meter = metrics.ScanMeter()
+    flagged = metrics.log_scan(meter, "odd.md", 3, gate_flagged=True)
+    ordinary = metrics.log_scan(meter, "lease.md", 3)
+    assert flagged["gate_flagged"] is True
+    assert "gate_flagged" not in ordinary
