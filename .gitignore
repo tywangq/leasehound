@@ -13,5 +13,6 @@ uploads/
 # evaluation/leases_real/sources.json. The manifest and results are tracked.
 evaluation/leases_real/*.pdf
 
-# Personal interview prep — lives with the project, doesn't belong in a public repo.
+# Personal interview prep lives on the Desktop, not here. This line is a guard: if a
+# file by that name ever reappears in the repo, it must not reach a public commit.
 INTERVIEW.md

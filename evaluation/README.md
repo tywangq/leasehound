@@ -27,8 +27,17 @@ architecture earned its shape rather than accumulating it.
 Artifacts live beside this file — `scan_results.json`, `synthetic_results.json`,
 `injection_results.json`, `real_format_results.json`, `scan_retrieval_results.json`,
 `enumerated_split_results.json`, `ask_cost_results.json`, `scan_cost_summary.json`,
-`hybrid_scan_results.json`, `results.jsonl`, `generation_results.jsonl` — each stamped
-with the models, corpus snapshot, and commit that produced it.
+`hybrid_scan_results.json`, `results.jsonl`, `generation_results.jsonl`.
+
+Eight of them carry a `provenance` stamp — generation, utility and embedding model,
+corpus snapshot, commit, run date. **Five do not, including `scan_results.json`, the
+gold set that is the acceptance bar.** Those predate the stamping, and re-running a
+paid eval purely to add a header is the kind of spend this project declines: the
+numbers are unchanged, and a stamp would document the re-run rather than the result.
+So the rule is: an unstamped artifact was produced before commit `4af5acf`, on the
+same models named in `retrieval.py`, against corpus snapshot 2026-07-25. Stated here
+rather than implied, because the first draft of this paragraph claimed all of them
+were stamped.
 
 ## Scan-layer evaluation — red-flag precision & recall, 6 labeled leases
 
