@@ -25,6 +25,7 @@ from typing import Literal
 from litellm import completion
 from pydantic import BaseModel, Field
 
+from evaluation.provenance import stamp
 from leasehound.retrieval import GENERATION_MODEL, llm_retry
 from leasehound.scan import base_section
 
@@ -189,7 +190,7 @@ def main() -> None:
 
     # One results file, one entry per model — reruns overwrite their own row.
     existing = json.loads(RESULTS_PATH.read_text(encoding="utf-8")) if RESULTS_PATH.exists() else {}
-    existing[args.model] = {"summary": summary, "leases": results}
+    existing[args.model] = {"summary": summary, "provenance": stamp(), "leases": results}
     RESULTS_PATH.write_text(json.dumps(existing, indent=2), encoding="utf-8")
 
     print(json.dumps(summary, indent=2))

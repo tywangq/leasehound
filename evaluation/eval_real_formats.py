@@ -30,6 +30,7 @@ import json
 import urllib.request
 from pathlib import Path
 
+from evaluation.provenance import stamp
 from leasehound.metrics import ScanMeter
 from leasehound.scan import MAX_CLAUSES, check_protections, looks_like_lease
 from leasehound.upload import MAX_CLAUSE_CHARS, read_document, split_clauses_with_mode
@@ -110,7 +111,8 @@ def main() -> None:
 
     results = [measure(entry, args.scan) for entry in sources]
     total = sum(r.get("cost_usd", 0) for r in results)
-    output = {"documents": len(results), "cost_usd": round(total, 5), "results": results}
+    output = {"documents": len(results), "cost_usd": round(total, 5),
+              "provenance": stamp(), "results": results}
     RESULTS_PATH.write_text(json.dumps(output, indent=2), encoding="utf-8")
 
     for r in results:

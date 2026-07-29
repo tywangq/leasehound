@@ -33,6 +33,7 @@ from litellm import completion
 from pydantic import BaseModel, Field
 from tqdm import tqdm
 
+from evaluation.provenance import stamp
 from leasehound.answer import make_messages
 from leasehound.ingest import fetch_documents
 from leasehound.retrieval import (
@@ -155,6 +156,7 @@ def main() -> None:
         "declined_despite_retrieval": sum(r["retrieval_had_gt"] for r in declined),
         "grounded": round(sum(not r["unsupported_claim"] for r in rows) / n, 4),
         "cites_gt": round(sum(r["cites_gt"] for r in rows) / n, 4),
+        **stamp(),
     }
     with open(RESULTS_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps(summary) + "\n")

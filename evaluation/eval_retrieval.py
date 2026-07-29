@@ -16,6 +16,7 @@ from pathlib import Path
 
 from tqdm import tqdm
 
+from evaluation.provenance import stamp
 from leasehound.retrieval import PipelineConfig, fetch_context
 
 TESTS_PATH = Path(__file__).parent / "tests.jsonl"
@@ -58,6 +59,7 @@ def evaluate(config: PipelineConfig, name: str, tests_file: str = "tests.jsonl")
         "ndcg": round(sum(ndcgs) / n, 4),
         "hit@5": round(hits5 / n, 4),
         "hit@10": round(hits10 / n, 4),
+        **stamp(),
     }
     with open(RESULTS_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps(summary) + "\n")

@@ -32,6 +32,7 @@ import json
 import re
 from pathlib import Path
 
+from evaluation.provenance import stamp
 from leasehound.scan import base_section, scan_lease
 
 LEASES_DIR = Path(__file__).parent / "leases"
@@ -58,7 +59,7 @@ def evaluate_lease(entry: dict, leases_dir: Path, keep_raw: bool = False) -> dic
         result["category"] = entry["category"]
 
     try:
-        findings, protections = scan_lease(path)
+        findings, protections, gate_flagged = scan_lease(path)
     except SystemExit as stop:
         return {
             **result,
@@ -89,8 +90,10 @@ def evaluate_lease(entry: dict, leases_dir: Path, keep_raw: bool = False) -> dic
             false_reds.append(number)
 
     reported_missing = {p["name"] for p in protections if p["status"] == "missing"}
+    result["gate_flagged"] = gate_flagged
     if keep_raw:
-        result["_scan"] = {"findings": findings, "protections": protections}
+        result["_scan"] = {"findings": findings, "protections": protections,
+                           "gate_flagged": gate_flagged}
     return {
         **result,
         "planted": sorted(expected_red),
@@ -141,7 +144,7 @@ def main() -> None:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     results = [evaluate_lease(entry, manifest_path.parent) for entry in manifest["leases"]]
 
-    output = {"summary": summarize(results)}
+    output = {"summary": summarize(results), "provenance": stamp()}
     categories = sorted({r["category"] for r in results if r.get("category")})
     if categories:
         output["by_category"] = {
