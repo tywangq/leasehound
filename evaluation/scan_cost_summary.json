@@ -1,0 +1,43 @@
+{
+  "note": "Aggregated from logs/scan_metrics.jsonl, which is gitignored because it records a file name per scan. Regenerate with `python -m leasehound.metrics --write`.",
+  "provenance": {
+    "generation_model": "openai/gpt-4.1-mini",
+    "utility_model": "openai/gpt-4.1-nano",
+    "embedding_model": "text-embedding-3-large",
+    "corpus_snapshot": "2026-07-25",
+    "commit": "59b8376",
+    "run_at": "2026-07-29"
+  },
+  "all_scans": {
+    "scans": 129,
+    "cache_hits_excluded": 0,
+    "clauses_min": 10,
+    "clauses_max": 49,
+    "mean_clauses": 13.0,
+    "mean_cost_usd": 0.0117,
+    "total_cost_usd": 1.5119,
+    "p50_seconds": 8.63,
+    "p95_seconds": 21.82,
+    "max_seconds": 71.4,
+    "mean_llm_calls": 15.0,
+    "mean_embedding_calls": 13.0,
+    "partial_scans": 0,
+    "gate_flagged": 0
+  },
+  "scans_9_to_15_clauses": {
+    "scans": 120,
+    "cache_hits_excluded": 0,
+    "clauses_min": 10,
+    "clauses_max": 15,
+    "mean_clauses": 12.5,
+    "mean_cost_usd": 0.0112,
+    "total_cost_usd": 1.3393,
+    "p50_seconds": 8.67,
+    "p95_seconds": 21.82,
+    "max_seconds": 71.4,
+    "mean_llm_calls": 14.5,
+    "mean_embedding_calls": 12.5,
+    "partial_scans": 0,
+    "gate_flagged": 0
+  }
+}

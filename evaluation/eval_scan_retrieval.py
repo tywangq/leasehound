@@ -6,7 +6,7 @@ feature, had no retrieval eval: its retrieval was only ever observed indirectly,
 through whether a verdict came out red. That is a bad instrument, because a
 missed violation has two very different causes — retrieval never surfaced the
 governing law, or it did and the judge misread it — and telling them apart took
-three wrong hypotheses the one time it mattered (see the README's hybrid
+three wrong hypotheses the one time it mattered (see evaluation/README.md's hybrid
 experiment). This makes the distinction mechanical.
 
 The labels already existed. The gold manifest maps each planted violation's

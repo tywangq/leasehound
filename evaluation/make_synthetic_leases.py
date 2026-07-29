@@ -16,7 +16,7 @@ Trust comes from three guards, not from the generator model:
   unmentioned. Failures regenerate (with the errors fed back), max 3 tries.
 - Generation uses a different model (gpt-4.1) than the judge under test
   (gpt-4.1-mini). Same-family caveat: both are OpenAI models, so shared
-  blind spots can't be ruled out — noted in the README.
+  blind spots can't be ruled out — noted in evaluation/README.md.
 
 Known limitation: the verifier proves every PLANTED violation is present, not
 that every other clause is compliant. Auditing the committed set found the

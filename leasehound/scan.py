@@ -326,7 +326,7 @@ def scan_config(state: str = "wa", collection: str | None = None) -> PipelineCon
     # The clause text is its own query, so ask mode's rewrite/grade/rerank
     # stages have nothing to add here. Hybrid retrieval was measured and
     # rejected too — it cost two false reds on compliant clauses and bought
-    # nothing (see bm25.py and the README's hybrid experiment).
+    # nothing (see bm25.py and evaluation/README.md's hybrid experiment).
     #
     # `collection` exists so an experimental index can be put through the paid
     # gold set as a precision gate without editing the shipped default.

@@ -108,6 +108,38 @@ def measure(entry: dict, scan: bool) -> dict:
     return result
 
 
+# Keys only a --scan run produces. A free run must not erase them.
+PAID_KEYS = ("gate_accepted_as_lease", "protections_missing", "protections_present",
+             "llm_calls", "cost_usd")
+
+
+def carry_paid_results(results: list[dict], existing: dict | None) -> list[dict]:
+    """Preserve a previous paid run's findings through a later free run.
+
+    This exists because it already went wrong. The paid probe (commit 618c00d)
+    recorded the protections verdicts this eval's write-up discusses; a later free
+    run — same script, same output path, just without --scan — overwrote the file
+    and silently deleted them, leaving evaluation/README.md pointing at evidence that was no
+    longer in the artifact. Splitting cost nothing and so gets run casually, which
+    is exactly why it must not be able to destroy something that cost money.
+    """
+    if not existing:
+        return results
+    previous = {r.get("file"): r for r in existing.get("results", [])}
+    for result in results:
+        # Per document, and all-or-nothing. Carrying key by key would let this run's
+        # protections verdict sit beside an older run's gate decision in one record
+        # that describes neither run — worse than losing the old numbers outright.
+        if any(key in result for key in PAID_KEYS):
+            continue
+        carried = {key: previous.get(result.get("file"), {})[key] for key in PAID_KEYS
+                   if key in previous.get(result.get("file"), {})}
+        if carried:
+            result.update(carried)
+            result["paid_fields_carried_from"] = existing.get("provenance", {}).get("commit")
+    return results
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--fetch", action="store_true", help="Download the source documents")
@@ -118,10 +150,15 @@ def main() -> None:
     if args.fetch:
         fetch(sources)
 
-    results = [measure(entry, args.scan) for entry in sources]
+    existing = (json.loads(RESULTS_PATH.read_text(encoding="utf-8"))
+                if RESULTS_PATH.exists() else None)
+    results = carry_paid_results([measure(entry, args.scan) for entry in sources], existing)
     total = sum(r.get("cost_usd", 0) for r in results)
     output = {"documents": len(results), "cost_usd": round(total, 5),
-              "provenance": stamp(), "results": results}
+              "scan_run": args.scan, "provenance": stamp(), "results": results}
+    if not args.scan and existing:
+        output["note"] = ("Free run: splitting was re-measured, and any paid fields shown were "
+                          "carried forward from an earlier --scan run rather than re-paid for.")
     RESULTS_PATH.write_text(json.dumps(output, indent=2), encoding="utf-8")
 
     for r in results:

@@ -10,6 +10,7 @@ Usage:
     python -m leasehound.metrics    # summarize the log
 """
 
+import argparse
 import json
 import threading
 import time
@@ -19,6 +20,9 @@ from pathlib import Path
 from litellm import completion_cost, cost_per_token
 
 LOG_PATH = Path(__file__).parent.parent / "logs" / "scan_metrics.jsonl"
+# The log is gitignored (it names files); this aggregate is committed so the cost and
+# latency figures the README quotes are reproducible from the repo.
+SUMMARY_PATH = Path(__file__).parent.parent / "evaluation" / "scan_cost_summary.json"
 
 
 class ScanMeter:
@@ -117,18 +121,77 @@ def cost_line(record: dict) -> str:
             f"{record['llm_calls']} LLM calls + {record['embedding_calls']} embeddings")
 
 
+def percentile(values: list[float], fraction: float) -> float:
+    """Nearest-rank percentile on a sorted list — no numpy for a summary this small."""
+    return values[min(len(values) - 1, int(round(fraction * (len(values) - 1))))]
+
+
+def summarize_log(records: list[dict], clause_range: tuple[int, int] | None = None) -> dict:
+    """Aggregate the scan log into a publishable summary.
+
+    Deliberately carries no `source` field. The log records a file name per scan so a
+    developer can match a row to a document, and that is exactly why the log itself
+    is gitignored — but the cost and latency figures quoted in the README are the
+    most-referenced operational numbers in the project and were reproducible from
+    nothing. This is the shareable projection: counts, percentiles, no documents.
+    """
+    if clause_range:
+        low, high = clause_range
+        records = [r for r in records if low <= r["clauses"] <= high]
+    paid = [r for r in records if not r.get("cache_hit")]
+    n = len(paid)
+    if not n:
+        return {"scans": 0}
+    seconds = sorted(r["seconds"] for r in paid)
+    total_cost = sum(r["cost_usd"] for r in paid)
+    return {
+        "scans": n,
+        "cache_hits_excluded": len(records) - n,
+        "clauses_min": min(r["clauses"] for r in paid),
+        "clauses_max": max(r["clauses"] for r in paid),
+        "mean_clauses": round(sum(r["clauses"] for r in paid) / n, 1),
+        "mean_cost_usd": round(total_cost / n, 4),
+        "total_cost_usd": round(total_cost, 4),
+        "p50_seconds": percentile(seconds, 0.50),
+        "p95_seconds": percentile(seconds, 0.95),
+        "max_seconds": seconds[-1],
+        "mean_llm_calls": round(sum(r["llm_calls"] for r in paid) / n, 1),
+        "mean_embedding_calls": round(sum(r["embedding_calls"] for r in paid) / n, 1),
+        "partial_scans": sum(1 for r in paid if r.get("clauses_total")),
+        "gate_flagged": sum(1 for r in paid if r.get("gate_flagged")),
+    }
+
+
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--write", action="store_true",
+                        help=f"also write the shareable summary to {SUMMARY_PATH.name}")
+    args = parser.parse_args()
+
     if not LOG_PATH.exists():
         print(f"No scans logged yet ({LOG_PATH}).")
         return
     records = [json.loads(line) for line in LOG_PATH.read_text(encoding="utf-8").splitlines()
                if line.strip()]
-    n = len(records)
-    seconds = sorted(r["seconds"] for r in records)
-    total_cost = sum(r["cost_usd"] for r in records)
-    print(f"{n} scans · total ≈ ${total_cost:.4f} · mean ≈ ${total_cost / n:.4f}/scan")
-    print(f"latency: median {seconds[n // 2]}s · max {seconds[-1]}s · "
-          f"mean clauses {sum(r['clauses'] for r in records) / n:.1f}")
+    overall = summarize_log(records)
+    print(f"{overall['scans']} scans · total ≈ ${overall['total_cost_usd']:.4f} · "
+          f"mean ≈ ${overall['mean_cost_usd']:.4f}/scan")
+    print(f"latency: p50 {overall['p50_seconds']}s · p95 {overall['p95_seconds']}s · "
+          f"max {overall['max_seconds']}s · mean clauses {overall['mean_clauses']}")
+
+    if args.write:
+        from evaluation.provenance import stamp
+        SUMMARY_PATH.write_text(json.dumps({
+            "note": "Aggregated from logs/scan_metrics.jsonl, which is gitignored because it "
+                    "records a file name per scan. Regenerate with "
+                    "`python -m leasehound.metrics --write`.",
+            "provenance": stamp(),
+            "all_scans": overall,
+            # The README quotes this band, so it is reported as its own row rather
+            # than left for a reader to reconstruct.
+            "scans_9_to_15_clauses": summarize_log(records, clause_range=(9, 15)),
+        }, indent=2), encoding="utf-8")
+        print(f"Summary written to {SUMMARY_PATH}")
 
 
 if __name__ == "__main__":

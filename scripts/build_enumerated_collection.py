@@ -28,6 +28,7 @@ import argparse
 import json
 from pathlib import Path
 
+import numpy
 from chromadb import PersistentClient
 from litellm import completion
 from pydantic import BaseModel, Field
@@ -37,6 +38,7 @@ from leasehound.retrieval import (
     DB_PATH,
     EMBEDDING_MODEL,
     UTILITY_MODEL,
+    chunk_order,
     llm_retry,
     openai,
 )
@@ -53,6 +55,15 @@ class UnitSummary(BaseModel):
                          "ONE item only. Name the lease wording a tenant would actually see.")
 
 
+def clean(text: str) -> str:
+    """Drop the stray control characters the cheap model sprinkles into headlines.
+
+    The headline is embedded along with everything else, so "RCW 59.18.230(2)(e) 7
+    attorney's fees" is not a cosmetic problem — it is noise inside the vector.
+    """
+    return " ".join("".join(c for c in text if c.isprintable()).split())
+
+
 @llm_retry
 def summarize(section: str, title: str, label: str, text: str) -> UnitSummary:
     prompt = f"""One enumerated item from {section} ("{title}") of Washington State's
@@ -63,9 +74,34 @@ ONLY what this item covers — do not summarize the rest of the section.
 
 {text}
 """
+    # temperature=0 so a rebuild reproduces the collection this experiment measured.
+    # Without it every rebuild re-embeds different text and the published retrieval
+    # numbers describe an index nobody can reconstruct.
     response = completion(model=UTILITY_MODEL, messages=[{"role": "user", "content": prompt}],
-                         response_format=UnitSummary)
-    return UnitSummary.model_validate_json(response.choices[0].message.content)
+                         response_format=UnitSummary, temperature=0)
+    described = UnitSummary.model_validate_json(response.choices[0].message.content)
+    return UnitSummary(headline=clean(described.headline), summary=clean(described.summary))
+
+
+def splice_units(entries: list[dict], section: str, units: list[dict]) -> list[dict]:
+    """Put the units where the section's chunks were, and renumber every id.
+
+    Ids carry document order — `retrieval.chunk_order` reads the integer suffix to
+    reassemble a section for `section_completion`, and anything it can't parse sorts
+    to 0. So the units cannot get ids like `wa-230(2)(a)`: that reads as position 0
+    and silently scrambles reading order the moment both features are on at once.
+    Renumbering the whole collection sequentially keeps the one scheme that works.
+    """
+    positions = [i for i, e in enumerate(entries) if e["metadata"].get("section") == section]
+    if not positions:
+        raise SystemExit(f"{section} has no chunks to replace")
+    if positions != list(range(positions[0], positions[-1] + 1)):
+        raise SystemExit(f"{section}'s chunks are not contiguous — refusing to guess a position")
+    spliced = entries[: positions[0]] + units + entries[positions[-1] + 1:]
+    state = entries[0]["id"].rsplit("-", 1)[0]
+    for i, entry in enumerate(spliced):
+        entry["id"] = f"{state}-{i}"
+    return spliced
 
 
 def corpus_file(section: str) -> Path:
@@ -88,10 +124,15 @@ def main() -> None:
     chroma = PersistentClient(path=DB_PATH)
     source = chroma.get_collection(source_name)
     everything = source.get(include=["documents", "metadatas", "embeddings"])
-
-    kept = [i for i, meta in enumerate(everything["metadatas"])
-            if meta.get("section") != args.section]
-    replaced = len(everything["ids"]) - len(kept)
+    # Sorted into document order first: Chroma's get() makes no ordering promise, and
+    # the splice below needs the section's chunks to be adjacent to mean anything.
+    entries = sorted(
+        ({"id": i, "document": d, "metadata": m, "embedding": e}
+         for i, d, m, e in zip(everything["ids"], everything["documents"],
+                               everything["metadatas"], everything["embeddings"])),
+        key=lambda e: chunk_order(e["id"]),
+    )
+    replaced = sum(1 for e in entries if e["metadata"].get("section") == args.section)
     if not replaced:
         raise SystemExit(f"{args.section} has no chunks in {source_name} — nothing to replace")
 
@@ -109,38 +150,41 @@ def main() -> None:
                     if meta.get("section") == args.section)
 
     print(f"{args.section}: {replaced} chunks -> {len(units)} enumerated units")
-    documents, metadatas = [], []
+    documents, labels = [], []
     for unit in units:
         described = summarize(args.section, title, unit.label, unit.text)
         documents.append(f"{described.headline}\n\n{described.summary}\n\n{unit.text}")
-        metadatas.append(dict(template))
+        labels.append(unit.label)
         print(f"  {unit.label}  {described.headline}")
 
-    embeddings = [e.embedding for e in
+    # Chroma rejects a mix of ndarray and list, and the reused embeddings come back
+    # from get() as ndarrays — so the new ones are converted rather than appended raw.
+    embeddings = [numpy.asarray(e.embedding, dtype=numpy.float32) for e in
                   openai.embeddings.create(model=EMBEDDING_MODEL, input=documents).data]
+    new_entries = [{"id": "", "document": doc, "metadata": dict(template), "embedding": emb}
+                   for doc, emb in zip(documents, embeddings)]
+    spliced = splice_units(entries, args.section, new_entries)
 
     if target_name in [c.name for c in chroma.list_collections()]:
         chroma.delete_collection(target_name)
     target = chroma.get_or_create_collection(target_name)
-    # Reuse every untouched embedding rather than re-embedding 355 chunks.
+    # Every untouched embedding is reused rather than re-embedded, so the whole
+    # experiment costs one embedding per new unit.
     target.add(
-        ids=[everything["ids"][i] for i in kept],
-        embeddings=[everything["embeddings"][i] for i in kept],
-        documents=[everything["documents"][i] for i in kept],
-        metadatas=[everything["metadatas"][i] for i in kept],
-    )
-    target.add(
-        ids=[f"{args.state}-{args.section.split('.')[-1]}{u.label}" for u in units],
-        embeddings=embeddings, documents=documents, metadatas=metadatas,
+        ids=[e["id"] for e in spliced],
+        embeddings=[e["embedding"] for e in spliced],
+        documents=[e["document"] for e in spliced],
+        metadatas=[e["metadata"] for e in spliced],
     )
     print(f"\nCollection '{target_name}': {target.count()} chunks "
-          f"({len(kept)} reused + {len(units)} new)")
+          f"({len(entries) - replaced} reused + {len(units)} new, ids renumbered in order)")
 
     RESULTS_PATH.write_text(json.dumps({
         "collection": target_name, "section": args.section,
         "chunks_replaced": replaced, "units_created": len(units),
         "embeddings_paid_for": len(units),
-        "labels": [u.label for u in units],
+        "labels": labels,
+        "ids_renumbered": True,
     }, indent=2), encoding="utf-8")
 
 

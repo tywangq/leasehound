@@ -1,12 +1,13 @@
 {
   "documents": 5,
-  "cost_usd": 0,
+  "cost_usd": 0.02227,
+  "scan_run": true,
   "provenance": {
     "generation_model": "openai/gpt-4.1-mini",
     "utility_model": "openai/gpt-4.1-nano",
     "embedding_model": "text-embedding-3-large",
     "corpus_snapshot": "2026-07-25",
-    "commit": "4af5acf",
+    "commit": "59b8376",
     "run_at": "2026-07-29"
   },
   "results": [
@@ -21,7 +22,16 @@
       "max_clause_chars": 1193,
       "clauses_over_retrieval_window": 0,
       "tiny_clauses": 0,
-      "over_clause_cap": false
+      "over_clause_cap": false,
+      "protection_windows": 2,
+      "gate_accepted_as_lease": true,
+      "protections_missing": [
+        "Fire safety information",
+        "Mold information"
+      ],
+      "protections_present": 3,
+      "llm_calls": 3,
+      "cost_usd": 0.00497
     },
     {
       "file": "hud_52641a_tenancy_addendum.pdf",
@@ -34,7 +44,18 @@
       "max_clause_chars": 1194,
       "clauses_over_retrieval_window": 0,
       "tiny_clauses": 3,
-      "over_clause_cap": false
+      "over_clause_cap": false,
+      "protection_windows": 2,
+      "gate_accepted_as_lease": true,
+      "protections_missing": [
+        "Deposit location disclosure",
+        "Fire safety information",
+        "Mold information",
+        "Move-in condition checklist"
+      ],
+      "protections_present": 1,
+      "llm_calls": 3,
+      "cost_usd": 0.00404
     },
     {
       "file": "uw_12month_housing_agreement.pdf",
@@ -47,7 +68,18 @@
       "max_clause_chars": 1194,
       "clauses_over_retrieval_window": 0,
       "tiny_clauses": 70,
-      "over_clause_cap": true
+      "over_clause_cap": true,
+      "protection_windows": 3,
+      "gate_accepted_as_lease": true,
+      "protections_missing": [
+        "Deposit withholding terms",
+        "Fire safety information",
+        "Mold information",
+        "Move-in condition checklist"
+      ],
+      "protections_present": 1,
+      "llm_calls": 4,
+      "cost_usd": 0.00743
     },
     {
       "file": "uwt_housing_agreement.pdf",
@@ -60,7 +92,18 @@
       "max_clause_chars": 1168,
       "clauses_over_retrieval_window": 0,
       "tiny_clauses": 17,
-      "over_clause_cap": true
+      "over_clause_cap": true,
+      "protection_windows": 2,
+      "gate_accepted_as_lease": true,
+      "protections_missing": [
+        "Deposit location disclosure",
+        "Deposit withholding terms",
+        "Fire safety information",
+        "Mold information"
+      ],
+      "protections_present": 1,
+      "llm_calls": 3,
+      "cost_usd": 0.00519
     },
     {
       "file": "wwu_housing_agreement.pdf",
@@ -73,7 +116,11 @@
       "max_clause_chars": 1193,
       "clauses_over_retrieval_window": 0,
       "tiny_clauses": 2,
-      "over_clause_cap": false
+      "over_clause_cap": false,
+      "protection_windows": 1,
+      "gate_accepted_as_lease": false,
+      "llm_calls": 1,
+      "cost_usd": 0.00064
     }
   ]
 }

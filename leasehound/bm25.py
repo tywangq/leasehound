@@ -1,7 +1,7 @@
 """Lexical retrieval channel: BM25 over the same chunks as the dense index.
 
 **Measured and not enabled anywhere by default.** Kept because the experiment
-that rejected it is the useful artifact — see the README's hybrid-retrieval
+that rejected it is the useful artifact — see evaluation/README.md's hybrid-retrieval
 section for the numbers. In short:
 
 - Ask mode: on the original question set it helps (hit@10 .915 → .951), but that
