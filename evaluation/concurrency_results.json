@@ -1,0 +1,58 @@
+{
+  "pool_workers": 8,
+  "stubbed_clause_seconds": 4.0,
+  "note": "API latency is stubbed; this measures the pool's shape, not the API.",
+  "staircase": {
+    "1": {
+      "waves": 1,
+      "seconds": 4.006
+    },
+    "4": {
+      "waves": 1,
+      "seconds": 4.006
+    },
+    "8": {
+      "waves": 1,
+      "seconds": 4.006
+    },
+    "9": {
+      "waves": 2,
+      "seconds": 8.008
+    },
+    "16": {
+      "waves": 2,
+      "seconds": 8.01
+    },
+    "17": {
+      "waves": 3,
+      "seconds": 12.01
+    },
+    "24": {
+      "waves": 3,
+      "seconds": 12.013
+    }
+  },
+  "concurrent_scans": {
+    "1": {
+      "slowest_scan_seconds": 8.009,
+      "total_seconds": 8.01
+    },
+    "2": {
+      "slowest_scan_seconds": 8.009,
+      "total_seconds": 8.01
+    },
+    "4": {
+      "slowest_scan_seconds": 8.017,
+      "total_seconds": 8.019
+    }
+  },
+  "admission_control": {
+    "queue_concurrency": 4,
+    "queue_max_size": 16,
+    "peak_api_calls_at_full_concurrency": 32,
+    "visitors_served_without_waiting": 4,
+    "worst_wait_at_queue_full_seconds": 32.0,
+    "visitor_number_that_gets_turned_away": 21
+  },
+  "peak_rss_mb": 235.8
+}
