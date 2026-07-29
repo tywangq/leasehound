@@ -210,6 +210,8 @@ Six hand-labeled leases saturate: the pipeline scores 18/18, so neither an impro
 | red flags outside the label set | 5 | 2 | 0 | 7 |
 | missing-protections exact set match | 24/24 | 10/11 | 5/5 | **39/40** |
 
+**Read the 60/60 citation row narrowly — part of it closes on itself.** The generator is told which section to violate in which clause, the acceptable citations for that violation come from the same manifest, and the judge may only cite sections present in its retrieved extracts. So the row measures whether retrieval surfaced the section the generator was instructed to violate — a real thing to measure, and the one that fails when retrieval misses — but not "citation accuracy" in the open-ended sense a reader might assume. The unrehearsed version of that number is the [zero-shot baseline](#zero-shot-baseline--the-same-leases-without-the-pipeline) above, where nothing constrains what the model may cite and same-model citations drop to 3/14.
+
 ```bash
 python -m evaluation.make_synthetic_leases     # regenerate the set (~$0.35)
 python -m evaluation.eval_scan --manifest evaluation/leases_synthetic/manifest.json \
