@@ -1,6 +1,14 @@
 {
   "documents": 5,
-  "cost_usd": 0.00686,
+  "cost_usd": 0,
+  "provenance": {
+    "generation_model": "openai/gpt-4.1-mini",
+    "utility_model": "openai/gpt-4.1-nano",
+    "embedding_model": "text-embedding-3-large",
+    "corpus_snapshot": "2026-07-25",
+    "commit": "4af5acf",
+    "run_at": "2026-07-29"
+  },
   "results": [
     {
       "file": "hud_90105a_model_lease.pdf",
@@ -13,16 +21,7 @@
       "max_clause_chars": 1193,
       "clauses_over_retrieval_window": 0,
       "tiny_clauses": 0,
-      "over_clause_cap": false,
-      "gate_accepted_as_lease": true,
-      "protections_missing": [
-        "Deposit location disclosure",
-        "Fire safety information",
-        "Mold information"
-      ],
-      "protections_present": 2,
-      "llm_calls": 2,
-      "cost_usd": 0.00304
+      "over_clause_cap": false
     },
     {
       "file": "hud_52641a_tenancy_addendum.pdf",
@@ -35,18 +34,7 @@
       "max_clause_chars": 1194,
       "clauses_over_retrieval_window": 0,
       "tiny_clauses": 3,
-      "over_clause_cap": false,
-      "gate_accepted_as_lease": true,
-      "protections_missing": [
-        "Deposit location disclosure",
-        "Deposit withholding terms",
-        "Fire safety information",
-        "Mold information",
-        "Move-in condition checklist"
-      ],
-      "protections_present": 0,
-      "llm_calls": 2,
-      "cost_usd": 0.00318
+      "over_clause_cap": false
     },
     {
       "file": "uw_12month_housing_agreement.pdf",
@@ -59,8 +47,7 @@
       "max_clause_chars": 1194,
       "clauses_over_retrieval_window": 0,
       "tiny_clauses": 70,
-      "over_clause_cap": true,
-      "scan": "skipped \u2014 270 clauses is over the 60 cap"
+      "over_clause_cap": true
     },
     {
       "file": "uwt_housing_agreement.pdf",
@@ -73,8 +60,7 @@
       "max_clause_chars": 1168,
       "clauses_over_retrieval_window": 0,
       "tiny_clauses": 17,
-      "over_clause_cap": true,
-      "scan": "skipped \u2014 131 clauses is over the 60 cap"
+      "over_clause_cap": true
     },
     {
       "file": "wwu_housing_agreement.pdf",
@@ -87,10 +73,7 @@
       "max_clause_chars": 1193,
       "clauses_over_retrieval_window": 0,
       "tiny_clauses": 2,
-      "over_clause_cap": false,
-      "gate_accepted_as_lease": false,
-      "llm_calls": 1,
-      "cost_usd": 0.00064
+      "over_clause_cap": false
     }
   ]
 }
