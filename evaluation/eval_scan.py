@@ -47,7 +47,8 @@ def printed_number(clause_text: str) -> int | None:
     return int(match.group(1)) if match else None
 
 
-def evaluate_lease(entry: dict, leases_dir: Path, keep_raw: bool = False) -> dict:
+def evaluate_lease(entry: dict, leases_dir: Path, keep_raw: bool = False,
+                   collection: str | None = None) -> dict:
     """Scan one lease and score it. With keep_raw, the scan's own findings and
     protections ride along under "_scan" so a caller can reuse them (the
     injection eval renders the report from them) without paying to rescan."""
@@ -59,7 +60,9 @@ def evaluate_lease(entry: dict, leases_dir: Path, keep_raw: bool = False) -> dic
         result["category"] = entry["category"]
 
     try:
-        findings, protections, gate_flagged = scan_lease(path)
+        scan = scan_lease(path, collection=collection)
+        findings, protections = scan.findings, scan.protections
+        gate_flagged = scan.gate_flagged
     except SystemExit as stop:
         return {
             **result,
@@ -91,6 +94,11 @@ def evaluate_lease(entry: dict, leases_dir: Path, keep_raw: bool = False) -> dic
 
     reported_missing = {p["name"] for p in protections if p["status"] == "missing"}
     result["gate_flagged"] = gate_flagged
+    if scan.partial:
+        # No labelled lease is over the clause cap today, so this never fires. It
+        # exists because if one ever is, every planted violation past the cap would
+        # score as a recall miss and quietly make the scanner look worse than it is.
+        result["partial_scan"] = f"{scan.clauses_judged}/{scan.clauses_total} clauses judged"
     if keep_raw:
         result["_scan"] = {"findings": findings, "protections": protections,
                            "gate_flagged": gate_flagged}
@@ -138,13 +146,20 @@ def main() -> None:
                         help="ground-truth manifest (default: the gold set)")
     parser.add_argument("--results", default=str(RESULTS_PATH),
                         help="where to write the detailed results JSON")
+    parser.add_argument("--collection",
+                        help="retrieve from a non-default collection — this is the paid "
+                             "precision gate for an experimental index")
     args = parser.parse_args()
 
     manifest_path = Path(args.manifest)
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    results = [evaluate_lease(entry, manifest_path.parent) for entry in manifest["leases"]]
+    results = [evaluate_lease(entry, manifest_path.parent, collection=args.collection)
+               for entry in manifest["leases"]]
 
-    output = {"summary": summarize(results), "provenance": stamp()}
+    provenance = stamp()
+    if args.collection:
+        provenance["collection"] = args.collection
+    output = {"summary": summarize(results), "provenance": provenance}
     categories = sorted({r["category"] for r in results if r.get("category")})
     if categories:
         output["by_category"] = {

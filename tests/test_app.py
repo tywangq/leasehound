@@ -126,3 +126,42 @@ def test_second_scan_of_identical_content_makes_no_api_calls(monkeypatch, tmp_pa
     assert json.loads(log_lines[1])["cache_hit"] is True
     assert json.loads(log_lines[1])["source"] == "renamed_copy.md"
     app._scan_cache.clear()
+
+
+def test_a_long_lease_is_scanned_partially_instead_of_being_turned_away(monkeypatch, tmp_path):
+    """The demo's likeliest visitor action is uploading a real lease, and real WA
+    housing agreements run to 270 clauses. Refusing over the cap meant that visitor
+    got an apology; judging the first 60 and naming the rest costs the same."""
+    import leasehound.metrics as metrics
+
+    filler = "The parties agree to the terms set forth in this provision as written. "
+    total = app.MAX_CLAUSES + 30
+    lease_text = "\n\n".join(f"{i}. CLAUSE HEADING. {filler}" for i in range(1, total + 1))
+    judged, protections_saw = [], []
+
+    def fake_scan_clauses(clauses, config, meter=None):
+        judged.extend(clauses)
+        for i, clause in enumerate(clauses, start=1):
+            yield {"index": i, "clause": clause, "verdict": "green",
+                   "citations": [], "urls": {}, "explanation": "fine"}
+
+    monkeypatch.setattr(app, "read_document", lambda path: lease_text)
+    monkeypatch.setattr(app, "looks_like_lease", lambda clauses, meter=None: True)
+    monkeypatch.setattr(app, "scan_clauses", fake_scan_clauses)
+    monkeypatch.setattr(app, "check_protections",
+                        lambda clauses, meter=None: protections_saw.extend(clauses) or [])
+    monkeypatch.setattr(metrics, "LOG_PATH", tmp_path / "scan_metrics.jsonl")
+    app._scan_cache.clear()
+
+    history: list = []
+    list(app.scan_flow(Path("uw_housing_agreement.pdf"), "key-long", history, "", "", []))
+
+    assert len(judged) == app.MAX_CLAUSES, "spend must stay bounded by the cap"
+    # The negative-space pass is exempt: "this lease omits X" needs the whole document.
+    assert len(protections_saw) == total
+    chat = " ".join(m["content"] for m in history)
+    assert f"clauses {app.MAX_CLAUSES + 1}–{total}" in chat, "the visitor is told what was skipped"
+    assert app.HOUND_TRIPPED not in chat
+    logged = json.loads((tmp_path / "scan_metrics.jsonl").read_text().splitlines()[0])
+    assert logged["clauses"] == app.MAX_CLAUSES and logged["clauses_total"] == total
+    app._scan_cache.clear()

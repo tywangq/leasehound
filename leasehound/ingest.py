@@ -134,6 +134,58 @@ MAX_CHUNK_CHARS = 3000  # a chunk longer than this defeats retrieval granularity
 MIN_CHARS_FOR_MULTI = 2000  # docs longer than this must not come back as a single chunk
 VALIDATION_ATTEMPTS = 3
 
+# A stem that introduces an enumerated catalog: "(2) No rental agreement may
+# provide that the tenant:" followed by (a), (b), (c)… Statutes write these as
+# one sentence distributed over a list, so the prohibition is only legible as
+# stem + item — an item alone reads as a fragment ("Agrees to pay the landlord's
+# attorneys' fees…" prohibits nothing on its own).
+CATALOG_STEM_RE = re.compile(r"^\((\d{1,2})\)\s+(.+:)\s*$", re.M)
+CATALOG_ITEM_RE = re.compile(r"^\(([a-z])\)\s+(.+?)(?=\n\([a-z]\)\s|\n\(\d{1,2}\)\s|\Z)",
+                             re.M | re.S)
+
+
+class EnumeratedUnit(BaseModel):
+    """One enumerated item, carrying the stem that gives it meaning."""
+
+    label: str  # e.g. "(2)(f)"
+    stem: str
+    item: str
+
+    @property
+    def text(self) -> str:
+        return f"{self.stem}\n({self.label.split(')(')[-1].rstrip(')')}) {self.item}"
+
+
+def split_enumerated_catalog(text: str, min_items: int = 4) -> list[EnumeratedUnit]:
+    """Find enumerated catalogs and return one unit per item, deterministically.
+
+    The LLM chunker is already *instructed* to do this ("give each enumerated item
+    its own chunk") and does not: RCW 59.18.230 enumerates ten prohibited lease
+    provisions in subsection (2) and came back as four length-shaped chunks, which
+    is why .230 is the only section that never reaches the judge. An instruction a
+    model ignores is not a strategy, so this does it by parsing the statute's own
+    subsection markers instead of asking again.
+
+    `min_items` keeps short parenthesized pairs — an (a)/(b) either-or — from being
+    shattered into fragments; a catalog worth indexing separately is a real list.
+    """
+    units: list[EnumeratedUnit] = []
+    for stem_match in CATALOG_STEM_RE.finditer(text):
+        subsection, stem = stem_match.group(1), stem_match.group(2).strip()
+        # Items run from the end of the stem to the next top-level "(n)" subsection.
+        rest = text[stem_match.end():]
+        next_subsection = re.search(r"^\(\d{1,2}\)\s", rest, re.M)
+        body = rest[: next_subsection.start()] if next_subsection else rest
+        items = CATALOG_ITEM_RE.findall(body)
+        if len(items) < min_items:
+            continue
+        units.extend(
+            EnumeratedUnit(label=f"({subsection})({letter})", stem=stem,
+                           item=" ".join(item.split()))
+            for letter, item in items
+        )
+    return units
+
 
 @llm_retry
 def call_chunker(document: dict) -> list[Chunk]:

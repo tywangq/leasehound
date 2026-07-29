@@ -12,3 +12,6 @@ uploads/
 # Real published lease PDFs: third-party documents, fetched on demand from
 # evaluation/leases_real/sources.json. The manifest and results are tracked.
 evaluation/leases_real/*.pdf
+
+# Personal interview prep — lives with the project, doesn't belong in a public repo.
+INTERVIEW.md

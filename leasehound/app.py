@@ -137,10 +137,11 @@ NOT_A_LEASE = (
     "residential lease. Sniffing it anyway — but landlord-tenant verdicts on something "
     "that isn't a lease are unreliable, so read the report with that in mind."
 )
-TOO_MANY_CLAUSES = (
-    "🐕 This document splits into {count} clauses, and the hound stops at {limit} to keep "
-    "any one scan affordable. Long-form agreements really do run this long — try attaching "
-    "just the part you want checked."
+PARTIAL_SCAN = (
+    "🐕 This document splits into {count} clauses — long-form agreements really do run "
+    "this long. The hound judges the first {limit} to keep any one scan affordable, so "
+    "clauses {rest} won't get a verdict; the report says so too. The missing-protections "
+    "check still reads the whole thing. Attach just the part you care about for full coverage."
 )
 HOUND_TRIPPED = (
     "🐕 The hound tripped over an error and lost the scent — nothing was changed. "
@@ -324,22 +325,26 @@ def scan_flow(path, key, history, report, scanned, context_base, question=""):
         history.append({"role": "assistant", "content": NOTHING_EXTRACTED})
         yield _out(history, stop=gr.update(visible=False))
         return
-    if len(clauses) > MAX_CLAUSES:
-        message = TOO_MANY_CLAUSES.format(count=len(clauses), limit=MAX_CLAUSES)
-        history.append({"role": "assistant", "content": message})
-        yield _out(history, stop=gr.update(visible=False))
-        return
+    # Over the cap the scan goes ahead on a prefix. Refusing here meant a visitor
+    # who uploaded a real WA housing agreement (270 clauses) got nothing at all,
+    # which is a worse answer than 60 judged clauses that say which 210 they aren't.
+    judged = clauses[:MAX_CLAUSES]
+    if len(judged) < len(clauses):
+        history.append({"role": "assistant", "content": PARTIAL_SCAN.format(
+            count=len(clauses), limit=MAX_CLAUSES,
+            rest=f"{len(judged) + 1}–{len(clauses)}")})
+        yield _out(history)
 
     digest = cache_key(text)
     cached = cache_get(digest)
     if cached:
         findings, protections = cached["findings"], cached["protections"]
         new_report = render_report(findings, name, "wa", protections,
-                                  cached.get("gate_flagged", False))
+                                  cached.get("gate_flagged", False), len(clauses))
         counts = count_verdicts(findings)
         missing = sum(1 for p in protections if p["status"] == "missing")
-        log_scan(ScanMeter(), name, len(clauses), verdicts=counts, missing=missing,
-                 split_mode=split_mode, cache_hit=True)
+        log_scan(ScanMeter(), name, len(judged), verdicts=counts, missing=missing,
+                 split_mode=split_mode, cache_hit=True, clauses_total=len(clauses))
         history.append({"role": "assistant", "content": CACHED_SNIFF})
         yield _out(history, report=new_report, state=new_report,
                    context=report_context(name), source=key,
@@ -358,7 +363,7 @@ def scan_flow(path, key, history, report, scanned, context_base, question=""):
         history.append({"role": "assistant", "content": NOT_A_LEASE})
         yield _out(history)
 
-    total = len(clauses)
+    total = len(judged)
     config = scan_config("wa")
     history.append({"role": "assistant", "content": progress_line(0, total)})
     # A fresh scan makes any previous report stale immediately: law-only context
@@ -369,7 +374,7 @@ def scan_flow(path, key, history, report, scanned, context_base, question=""):
                stop=gr.update(visible=True), col=gr.update(visible=True),
                actions=gr.update(visible=False))
     findings = []
-    for finding in scan_clauses(clauses, config, meter):
+    for finding in scan_clauses(judged, config, meter):
         findings.append(finding)
         history[-1]["content"] = progress_line(len(findings), total)
         yield _out(history)
@@ -377,16 +382,20 @@ def scan_flow(path, key, history, report, scanned, context_base, question=""):
 
     history[-1]["content"] = "🐕 One more pass — checking the protections the law requires…"
     yield _out(history)
+    # Every clause, including the ones past the cap: "missing" is a claim about
+    # the whole document, so this pass can't be the one that reads a prefix.
     protections = check_protections(clauses, meter)
-    new_report = render_report(findings, name, "wa", protections, gate_flagged)
+    new_report = render_report(findings, name, "wa", protections, gate_flagged, len(clauses))
     counts = count_verdicts(findings)
     missing = sum(1 for p in protections if p["status"] == "missing")
     log_scan(meter, name, total, verdicts=counts, missing=missing, split_mode=split_mode,
-             gate_flagged=gate_flagged)
+             gate_flagged=gate_flagged, clauses_total=len(clauses))
     cache_put(digest, {"findings": findings, "protections": protections,
                        "gate_flagged": gate_flagged})
+    coverage = (f" — across clauses 1–{total} of {len(clauses)}"
+                if total < len(clauses) else "")
     history[-1]["content"] = (
-        f"🐕 Sniff complete: 🚩 {counts['red']} red · ⚠️ {counts['yellow']} caution · "
+        f"🐕 Sniff complete{coverage}: 🚩 {counts['red']} red · ⚠️ {counts['yellow']} caution · "
         f"✅ {counts['green']} clear · 🔍 {missing} missing protections. "
         "Full report on the right — ask me about any clause."
     )

@@ -14,6 +14,7 @@ import argparse
 import re
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from typing import Literal
@@ -42,8 +43,12 @@ MAX_PARALLEL_SCANS = 8  # bounded so a long lease doesn't trip API rate limits
 # document length, and on a public demo an uncapped scan is an open tab on the
 # API key. This is a spend bound, not a claim about leases: real WA housing
 # agreements do run longer — the UW 12-month agreement splits into 270 numbered
-# provisions (see evaluation/eval_real_formats.py), so the cap refuses documents
-# that are genuinely what they claim to be. Raising it is a budget decision.
+# provisions (see evaluation/eval_real_formats.py).
+#
+# Over the cap the scan is PARTIAL, not refused. Refusing was the wrong trade:
+# it made the demo's single likeliest visitor action — uploading a real lease —
+# return nothing at all, when judging the first 60 clauses and naming the ones
+# left unjudged spends exactly the same bounded amount.
 MAX_CLAUSES = 60
 
 
@@ -152,6 +157,56 @@ class ProtectionReport(BaseModel):
     checks: list[ProtectionStatus]
 
 
+# One prompt's worth of lease. Longer leases are WINDOWED, not cut: this pass
+# reports what a lease FAILS to include, and "absent" is a claim about the whole
+# document — truncating the text turns it from partial into wrong. The 49-clause
+# HUD model lease is 39,996 characters, so a single 24k prompt saw 28 of its 49
+# clauses and called the rest missing by not looking.
+PROTECTIONS_WINDOW_CHARS = 24000
+
+
+def protection_windows(clauses: list[str], limit: int = PROTECTIONS_WINDOW_CHARS) -> list[str]:
+    """Pack clauses into prompt-sized windows, splitting only at clause boundaries.
+
+    A lease that already fits yields exactly one window whose text is what the
+    single-prompt version sent — so windowing cannot move a published number for
+    any document that never overflowed (0 of the 48 labelled/example docs do).
+    """
+    windows: list[str] = []
+    current: list[str] = []
+    length = 0
+    for clause in clauses:
+        addition = len(clause) + (2 if current else 0)
+        if current and length + addition > limit:
+            windows.append("\n\n".join(current))
+            current, length = [clause], len(clause)
+        else:
+            current.append(clause)
+            length += addition
+    if current:
+        windows.append("\n\n".join(current))
+    return windows or [""]
+
+
+# present > missing > not_applicable, and the order is the whole point. One
+# window sees the deposit clause and reports the withholding terms missing;
+# a later window states them. Any window finding the requirement satisfied
+# settles it, "missing" needs every window to have looked and not found it, and
+# not_applicable only survives if no window ever saw the precondition hold.
+STATUS_PRECEDENCE = {"present": 2, "missing": 1, "not_applicable": 0}
+
+
+def merge_protection_checks(windows: list[list[ProtectionStatus]]) -> list[ProtectionStatus]:
+    best: dict[int, ProtectionStatus] = {}
+    for checks in windows:
+        for check in checks:
+            held = best.get(check.index)
+            if held is None or (STATUS_PRECEDENCE[check.status]
+                                > STATUS_PRECEDENCE[held.status]):
+                best[check.index] = check
+    return [best[i] for i in sorted(best)]
+
+
 def make_protections_prompt(lease_text: str) -> str:
     items = "\n".join(
         f"{i}. {p['name']} ({p['citation']}): {p['requirement']}"
@@ -178,22 +233,36 @@ Checklist:
 {items}
 
 Lease text:
-{lease_text[:24000]}
+{lease_text}
 
 Respond with one status per checklist item, in order.
 """
 
 
 @llm_retry
-def check_protections(clauses: list[str], meter: ScanMeter | None = None) -> list[dict]:
-    messages = [{"role": "user", "content": make_protections_prompt("\n\n".join(clauses))}]
+def check_protections_window(text: str, meter: ScanMeter | None = None) -> list[ProtectionStatus]:
+    """One prompt's verdicts. A window judging an item "missing" is expected and
+    not yet a finding — only the merge across every window can say that."""
+    messages = [{"role": "user", "content": make_protections_prompt(text)}]
     response = completion(
         model=GENERATION_MODEL, messages=messages,
         response_format=ProtectionReport, temperature=0,
     )
     if meter is not None:
         meter.add_completion(response)
-    checks = ProtectionReport.model_validate_json(response.choices[0].message.content).checks
+    return ProtectionReport.model_validate_json(response.choices[0].message.content).checks
+
+
+def check_protections(clauses: list[str], meter: ScanMeter | None = None) -> list[dict]:
+    """Whole-document negative-space check: one API call per 24k window, merged.
+
+    Cost scales with document length like the clause pass does — the sample lease
+    and every labelled document are one window, so this is one call there.
+    """
+    windows = protection_windows(clauses)
+    checks = merge_protection_checks(
+        [check_protections_window(window, meter) for window in windows]
+    )
     results = []
     for check in checks:
         if 1 <= check.index <= len(PROTECTION_CHECKLIST):
@@ -253,13 +322,17 @@ def looks_like_lease(clauses: list[str], meter: ScanMeter | None = None) -> bool
     return check.kind == "lease_agreement"
 
 
-def scan_config(state: str = "wa") -> PipelineConfig:
+def scan_config(state: str = "wa", collection: str | None = None) -> PipelineConfig:
     # The clause text is its own query, so ask mode's rewrite/grade/rerank
     # stages have nothing to add here. Hybrid retrieval was measured and
     # rejected too — it cost two false reds on compliant clauses and bought
     # nothing (see bm25.py and the README's hybrid experiment).
+    #
+    # `collection` exists so an experimental index can be put through the paid
+    # gold set as a precision gate without editing the shipped default.
     return PipelineConfig(
-        collection=f"{state}_reference", dual_query=False, grader=False, rerank=False,
+        collection=collection or f"{state}_reference",
+        dual_query=False, grader=False, rerank=False,
         retrieval_k=STATUTES_PER_CLAUSE,
     )
 
@@ -308,42 +381,67 @@ def scan_clauses(clauses: list[str], config: PipelineConfig,
         executor.shutdown(wait=False, cancel_futures=True)
 
 
-def scan_lease(path: str | Path, state: str = "wa") -> tuple[list[dict], list[dict], bool]:
-    config = scan_config(state)
+@dataclass
+class ScanResult:
+    """What one scan produced, and how much of the document it covers.
+
+    A tuple got to three elements and wanted a fourth; `clauses_total` is only
+    meaningful next to how many were actually judged, so the two travel together.
+    """
+
+    findings: list[dict]
+    protections: list[dict]
+    gate_flagged: bool
+    clauses_total: int  # after splitting, BEFORE the cap
+    split_mode: str
+
+    @property
+    def clauses_judged(self) -> int:
+        return len(self.findings)
+
+    @property
+    def partial(self) -> bool:
+        return self.clauses_total > self.clauses_judged
+
+
+def scan_lease(path: str | Path, state: str = "wa", collection: str | None = None) -> ScanResult:
+    config = scan_config(state, collection)
     clauses, split_mode = split_clauses_with_mode(read_document(Path(path)))
     if not clauses:
         raise SystemExit(
             f"No text could be extracted from {path} — "
             "a scanned/photo PDF has no text layer; try a text-based .pdf, .md, or .txt."
         )
-    if len(clauses) > MAX_CLAUSES:
-        raise SystemExit(
-            f"{path} splits into {len(clauses)} clauses — over the {MAX_CLAUSES}-clause cap, "
-            "which bounds what one scan can spend. Try just the lease body."
-        )
+    judged = clauses[:MAX_CLAUSES]
     meter = ScanMeter()  # the sanity check below is the scan's first API call
     # Advisory, not fatal. The gate used to raise here, which made a wrong reject a
     # total failure — and the real-document probe found it rejecting a genuine WA
     # housing agreement (evaluation/eval_real_formats.py). Warning and continuing
     # also closes the injection suite's most effective attack by construction: a
     # payload that flips the gate can no longer suppress a report, only annotate it.
-    # The 60-clause cap above, not this call, is what bounds spend.
+    # The 60-clause cap, not this call, is what bounds spend.
     gate_flagged = not looks_like_lease(clauses, meter)
     if gate_flagged:
         print(f"⚠️  {path} doesn't read as a residential lease — scanning anyway; "
               "verdicts against landlord-tenant law will be unreliable.")
-    print(f"Scanning {len(clauses)} clauses from {path}")
-    findings = list(tqdm(scan_clauses(clauses, config, meter), total=len(clauses),
+    if len(judged) < len(clauses):
+        print(f"⚠️  {path} splits into {len(clauses)} clauses; judging the first "
+              f"{len(judged)} — the {MAX_CLAUSES}-clause cap bounds what one scan spends.")
+    print(f"Scanning {len(judged)} clauses from {path}")
+    findings = list(tqdm(scan_clauses(judged, config, meter), total=len(judged),
                          desc="🐕 sniffing clauses"))
     findings.sort(key=lambda f: f["index"])
+    # Every clause, not just the judged ones: this pass reports what the lease
+    # omits, so it has to read the parts the clause cap skipped.
     print("🐕 Checking required protections…")
     protections = check_protections(clauses, meter)
-    record = log_scan(meter, str(path), len(clauses),
+    record = log_scan(meter, str(path), len(judged),
                       verdicts=count_verdicts(findings),
                       missing=sum(1 for p in protections if p["status"] == "missing"),
-                      split_mode=split_mode, gate_flagged=gate_flagged)
+                      split_mode=split_mode, gate_flagged=gate_flagged,
+                      clauses_total=len(clauses))
     print(f"{cost_line(record)} — logged to logs/scan_metrics.jsonl")
-    return findings, protections, gate_flagged
+    return ScanResult(findings, protections, gate_flagged, len(clauses), split_mode)
 
 
 BADGE = {"red": "🚩", "yellow": "⚠️", "green": "✅"}
@@ -360,9 +458,22 @@ GATE_WARNING = (
 )
 
 
+def partial_scan_notice(judged: int, total: int) -> str:
+    """Name the unjudged clauses. A report that silently covers a prefix reads
+    exactly like one that covers everything, which is the failure mode that made
+    the clause-splitter bug expensive."""
+    return (
+        f"> ⚠️ **Partial scan — clauses {judged + 1}–{total} were not judged.** One scan "
+        f"stops at {MAX_CLAUSES} clauses to bound what a single upload can spend, and this "
+        f"document splits into {total}. The red / caution / clear verdicts below cover "
+        f"clauses 1–{judged} only; a red flag may well be sitting in the part that wasn't "
+        "read. The missing-protections check did read the whole document."
+    )
+
+
 def render_report(
     findings: list[dict], source: str, state: str, protections: list[dict] | None = None,
-    gate_flagged: bool = False,
+    gate_flagged: bool = False, clauses_total: int | None = None,
 ) -> str:
     counts = count_verdicts(findings)
     missing = [p for p in (protections or []) if p["status"] == "missing"]
@@ -385,6 +496,8 @@ def render_report(
     ]
     if gate_flagged:
         lines += [GATE_WARNING, ""]
+    if clauses_total is not None and clauses_total > len(findings):
+        lines += [partial_scan_notice(len(findings), clauses_total), ""]
     for verdict in ("red", "yellow", "green"):
         matching = [f for f in findings if f["verdict"] == verdict]
         if not matching or verdict == "green":
@@ -427,13 +540,16 @@ def main() -> None:
     parser.add_argument("--out", default="scan_report.md")
     args = parser.parse_args()
 
-    findings, protections, gate_flagged = scan_lease(args.file, args.state)
-    report = render_report(findings, args.file, args.state, protections, gate_flagged)
+    result = scan_lease(args.file, args.state)
+    report = render_report(result.findings, args.file, args.state, result.protections,
+                           result.gate_flagged, result.clauses_total)
     Path(args.out).write_text(report, encoding="utf-8")
-    counts = count_verdicts(findings)
-    missing = sum(1 for p in protections if p["status"] == "missing")
+    counts = count_verdicts(result.findings)
+    missing = sum(1 for p in result.protections if p["status"] == "missing")
     print(f"\n🚩 {counts['red']} red · ⚠️ {counts['yellow']} yellow · ✅ {counts['green']} green"
           f" · 🔍 {missing} missing protections")
+    if result.partial:
+        print(f"⚠️  Partial: {result.clauses_judged} of {result.clauses_total} clauses judged")
     print(f"Report written to {args.out}")
 
 

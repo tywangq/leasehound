@@ -22,8 +22,9 @@ Residential leases routinely contain clauses that are void and unenforceable und
 | the same leases, same model, zero-shot | 14/18 flagged · **3/14 citations correct** · 0/6 protection sets |
 | 40 generated leases · 61 planted violations | 60/61 flagged red · 60/60 cited correctly · [precision is an audited lower bound](#scaling-past-the-ceiling--40-generated-leases-labels-for-free) |
 | 5 prompt-injection payloads inside hostile leases | **5/5 held** — every planted violation still red, no scan suppressed, and 5/5 clean on the report → ask-mode carryover path |
-| scan-mode retrieval, 61 labelled clauses | governing section arrives 61/61 — but [all 31 partial misses are one section](#scan-mode-retrieval--one-miss-and-two-fixes-that-did-not-work) |
+| scan-mode retrieval, 61 labelled clauses | governing section arrives 61/61 — [all 31 partial misses were one section, and fixing it cost precision](#scan-mode-retrieval--one-miss-and-three-fixes-that-did-not-ship) |
 | cost & latency, 76 logged scans (9–15 clauses) | ≈ $0.011/scan · p50 8.1 s · p95 12.0 s · [a real 49-clause lease costs $0.061 / 18.5 s](#what-a-scan-costs) |
+| ask mode, per question | $0.0029 · median 6.5 s — [1.8× the cost of the two-stage pipeline it beat by 1–2 questions](#what-the-extra-stages-cost) |
 
 ## Architecture
 
@@ -34,7 +35,7 @@ Two corpus layers, two query modes:
 | Content | State statutes + official guidance | The lease you upload |
 | Processing | Offline ingestion, evaluated with an ablation suite | Split into clauses on the fly (deterministic, no LLM) |
 
-- **Scan mode** — walks your lease clause by clause, retrieves the governing statute for each, and produces a structured red-flag report with citations. Each clause queries the statutes directly, skipping the query-rewriting stages: those bridge renter vocabulary to statute vocabulary (see the adversarial experiment below), and a lease clause already speaks statute — a hybrid lexical channel was [measured here and rejected](#hybrid-retrieval-bm25--dense--measured-and-not-shipped) too. Clause judgments are independent API calls, so they run concurrently — a 15-clause lease scans in ~10 seconds instead of ~90. A second, negative-space pass checks a hand-curated, statute-cited checklist of required protections and reports what the lease *fails to include* (the LLM only judges presence — it never invents requirements). A document sanity check flags non-leases before any clause is judged — advisory rather than fatal, since a wrong reject used to cost the visitor everything — and scans cap at 60 clauses to bound what one upload can spend — a budget limit, not a claim about leases: [real WA housing agreements run longer](#document-formats--real-published-leases-and-real-numbering)
+- **Scan mode** — walks your lease clause by clause, retrieves the governing statute for each, and produces a structured red-flag report with citations. Each clause queries the statutes directly, skipping the query-rewriting stages: those bridge renter vocabulary to statute vocabulary (see the adversarial experiment below), and a lease clause already speaks statute — a hybrid lexical channel was [measured here and rejected](#hybrid-retrieval-bm25--dense--measured-and-not-shipped) too. Clause judgments are independent API calls, so they run concurrently — a 15-clause lease scans in ~10 seconds instead of ~90. A second, negative-space pass checks a hand-curated, statute-cited checklist of required protections and reports what the lease *fails to include* (the LLM only judges presence — it never invents requirements); because "this lease omits X" is a claim about the whole document, that pass reads the document in 24k windows and merges them, rather than reading the first 24k and inferring the rest. A document sanity check flags non-leases before any clause is judged — advisory rather than fatal, since a wrong reject used to cost the visitor everything. Scans judge at most 60 clauses to bound what one upload can spend; past that the scan is [partial and says so](#when-a-lease-is-longer-than-the-cap) rather than refused, because [real WA housing agreements run to 270 clauses](#document-formats--real-published-leases-and-real-numbering)
 - **Ask mode** — RAG Q&A over the statute corpus ("Can my landlord charge a late fee on day 3?"); once you've scanned a lease, the report joins the chat context so answers are about *your* lease. A session-scoped vector collection for full lease-text retrieval is planned.
 
 Retrieval pipeline: LLM-driven semantic chunking & augmentation (Pydantic structured outputs, parallel ingestion with validation + retry) → query router (greetings and small talk skip retrieval entirely) → dual-query retrieval (original + rewritten) merged with reciprocal rank fusion → self-grading retrieval (CRAG-style) → LLM reranking → grounded generation with source citations.
@@ -95,6 +96,38 @@ The 15-clause sample lease: 17 LLM calls + 15 embeddings, ≈ $0.015, ~9 s. Acro
 Finished scans are cached in process memory, keyed by document **content hash** — not upload path, not browser session — so every visitor who clicks the sample lease after the first gets the saved report at zero API cost (logged as a `cache_hit` with cost 0), and re-uploading a renamed copy of the same file can't trigger a paid rescan. Attach a different lease to watch a live scan.
 
 **Those figures come from 9–15 clause leases, so here is a real one.** The 49-clause HUD model lease from the [format probe](#document-formats--real-published-leases-and-real-numbering): **$0.0613 and 18.5 s** — 5.6× the cost and 2.3× the latency of the headline numbers. Anyone quoting $0.011/scan should know which size it describes.
+
+### When a lease is longer than the cap
+
+One scan judges at most 60 clauses. Real Washington housing agreements run past that — the UW 12-month agreement splits into 270 numbered provisions — so this bound decides what a visitor with a genuine lease actually gets.
+
+It used to decide they got nothing: over the cap, the scan was refused. That was the wrong way to spend nothing extra, because judging 60 clauses and *naming the 210 it skipped* costs exactly the same as judging 60 clauses. The demo's single likeliest visitor action was returning an apology. Now the scan runs on the first 60 and the report opens with the clauses it did not read:
+
+> ⚠️ **Partial scan — clauses 61–270 were not judged.** … The red / caution / clear verdicts below cover clauses 1–60 only; a red flag may well be sitting in the part that wasn't read.
+
+The required-protections pass is deliberately exempt from the cap, and closing that hole was the harder half of this change. It answers what a lease *omits*, so it reads every clause — a prefix cannot support "this lease never says where your deposit is held." It had been sending one 24,000-character prompt, which for a long lease is not a partial answer but a wrong one; the [format probe](#the-same-question-against-documents-nobody-here-wrote) is where that surfaced. The pass now windows the document and merges, with `present` in any window overruling `missing` in another, so absence is only ever claimed after every window has looked. All 48 labelled and example documents fit in a single window, so no published number could move — and the gold set's 6/6 confirmed it after the change.
+
+### What a question costs, and what the extra stages buy
+
+Scan mode is metered to four decimal places; ask mode was not metered at all — which is awkward, because ask mode is where the six-stage pipeline lives, and [hybrid retrieval was rejected](#hybrid-retrieval-bm25--dense--measured-and-not-shipped) on measured evidence while those six stages were kept without their price ever being named. `scripts/measure_ask_cost.py` names it, over six renter-voice questions:
+
+| ask-mode configuration | LLM calls | cost per question | median latency |
+| --- | --- | --- | --- |
+| naive chunks + CRAG (two-stage) | 2.50 | $0.00160 | 4.64 s |
+| **full pipeline (shipped)** | **4.17** | **$0.00288** | **6.54 s** |
+
+<a id="what-the-extra-stages-cost"></a>**So the full pipeline costs 1.8× and adds 1.9 s** for the [+.060 MRR and +5 questions on hit@5](#adversarial-rephrasing--the-same-82-questions-renter-voice) that the reworded set gave it. Stated plainly: that gain is one or two flipped questions per metric, bought at nearly double the price. It is kept because $0.0029 and 6.5 s are both far inside what a renter waiting on a legal answer will tolerate, and because the gain pointed the same way on all four metrics — but the honest version of "we keep the full pipeline" includes the price, and until this was measured it didn't.
+
+One methodological note, since it changed a conclusion. The first run's *mean* latency said the two-stage pipeline was 6 s **slower**, on the strength of a single 54 s outlier against a 3–9 s spread — a provider hiccup, not a property of the configuration. Latency is reported as a median for that reason, and the summaries were recomputed from the saved per-question rows (`--rescore`) rather than re-paying for a cleaner sample.
+
+### What stops a visitor running up the bill
+
+Four bounds, and only the first two live in this repo:
+
+- **Per scan** — 60 clauses judged, so one upload's ceiling is ~60 embeddings + ~62 completions (about $0.07 at the measured rate), no matter how long the document is.
+- **Per document** — finished scans are cached by content hash, so re-uploading the same lease (or a renamed copy) costs $0.
+- **Per instance** — `--max-instances 1` plus a 4-concurrent / 16-queued admission gate, so the fan-out cannot multiply across instances.
+- **Per account** — the actual hard stop is a spend limit set on the OpenAI project. The GCP budget alert is an *alert*: it emails, it does not block. Worth saying out loud, because a queue that turns away visitor 21 bounds concurrency, not the daily total — a patient script could still spend real money, and only the provider-side limit stops that.
 
 ### What happens when more than one person shows up
 
@@ -162,7 +195,7 @@ The scanner is measured first: hand-labeled leases, then a zero-shot baseline (w
 | [40 generated leases](#scaling-past-the-ceiling--40-generated-leases-labels-for-free) | Does it hold past the hand-labeled ceiling? | 60/61 red; found and fixed an evidence-bleed bug |
 | [Prompt injection](#prompt-injection-resistance--the-lease-is-hostile-input) | Can a lease talk to the model? | 5/5 held — after one payload suppressed a whole scan |
 | [Document formats](#document-formats--real-published-leases-and-real-numbering) | Does the pipeline survive documents nobody here wrote? | **6 of 7 conventions failed silently**; fixed, then re-checked on 5 real published leases |
-| [Scan-mode retrieval](#scan-mode-retrieval--one-miss-and-two-fixes-that-did-not-work) | Does the governing statute reach the judge, and do the candidate fixes work? | **all 31 partial misses are one section**; both fixes rejected for $0 |
+| [Scan-mode retrieval](#scan-mode-retrieval--one-miss-and-three-fixes-that-did-not-ship) | Does the governing statute reach the judge, and do the candidate fixes work? | **all 31 partial misses are one section**; the fix that closed them (.492 → .984) [cost a false red](#the-third-fix-worked-and-made-the-product-worse) |
 | [Retrieval ablation](#retrieval-ablation--section-level-n82) | Which pipeline stage actually earns its cost? | naive chunking ties the six-stage pipeline |
 | [Adversarial rephrasing](#adversarial-rephrasing--the-same-82-questions-renter-voice) | Does it hold when renters don't speak statute? | full pipeline wins; the earlier tie was vocabulary leakage |
 | [Hybrid BM25](#hybrid-retrieval-bm25--dense--measured-and-not-shipped) | Does a lexical channel help ask mode? | no — the apparent gain was vocabulary leakage |
@@ -239,7 +272,7 @@ python -m evaluation.eval_scan --manifest evaluation/leases_synthetic/manifest.j
 Scaling the set immediately paid for itself twice — both findings are the eval doing its job, and both are fixed in this repo:
 
 1. **A found bug: evidence bleed between checklist items.** The protections pass scored 32/40 because several checklist items concern the security deposit and a lease packs them into one clause — the model quoted *"held in a trust account at River City Bank"* as evidence that the **withholding terms** were stated. Six leases that genuinely omitted the withholding conditions were scored as compliant. The gold set never showed this: with six leases, the pattern is one data point. Making the prompt score each statutory requirement separately took protections to **40/40**, with no new false "missing" claims and no regression on the gold set.
-2. **The single missed violation turned out not to be a judgment failure at all.** Chasing it produced the [scan-mode retrieval eval](#scan-mode-retrieval--one-miss-and-two-fixes-that-did-not-work), which located the cause and rejected two candidate fixes.
+2. **The single missed violation turned out not to be a judgment failure at all.** Chasing it produced the [scan-mode retrieval eval](#scan-mode-retrieval--one-miss-and-three-fixes-that-did-not-ship), which located the cause and then rejected three candidate fixes — including the one that closed the defect completely.
 
 **Precision on this set is a lower bound, and here's why.** All 7 red flags outside the label set were audited by hand: 6 are genuine violations the generator wrote into clauses it wasn't asked to plant — a late fee starting on day 4 or 5 when [RCW 59.18.170](https://app.leg.wa.gov/RCW/default.aspx?cite=59.18.170) requires five full days, 24 hours' entry notice where two days are required, house rules amendable on two weeks' notice against a 30-day statutory floor. Only one is a real over-flag (a disclosed pet-policy penalty cited to the nonrefundable-fee section). So the mechanical precision of .896 corresponds to an audited **~.985** — and the honest limitation is the dataset's, not the scanner's: the verifier confirms the planted violations are present, it does not prove every *other* clause is compliant. Generated labels are cheap and verifiable, not authoritative; the six hand-labeled leases remain the acceptance bar.
 
@@ -302,8 +335,8 @@ Conventions rendered as text are still my text, so the fix was re-checked agains
 | --- | --- | --- | --- | --- | --- |
 | HUD-90105a model lease | 39,996 | 49 | numbered | 0 | lease ✅ |
 | HUD-52641-A tenancy addendum | 29,100 | 40 | numbered | 0 | lease — but it is an *addendum* |
-| UW 12-month housing agreement | 67,660 | **270** | numbered | 0 | over the clause cap |
-| UW Tacoma housing agreement | 46,955 | **131** | numbered | 0 | over the clause cap |
+| UW 12-month housing agreement | 67,660 | **270** | numbered | 0 | partial: 60/270 judged |
+| UW Tacoma housing agreement | 46,955 | **131** | numbered | 0 | partial: 60/131 judged |
 | WWU housing agreement | 20,685 | 33 | numbered | 0 | **rejected** |
 
 ```bash
@@ -313,13 +346,15 @@ python -m evaluation.eval_real_formats --scan     # + the paid whole-document pa
 
 **Extraction and splitting held: 5/5.** `pypdf` returned usable text from every file, all five split in `numbered` mode, and not one clause exceeded the retrieval window. That is the result the fix above was for, confirmed on documents written by strangers.
 
-**The clause cap is refusing real documents, and the code was lying about why.** Two of the three Washington agreements split into 270 and 131 numbered provisions. The cap's comment, the CLI error, and this README all said "no residential lease is that long" — and a real UW housing agreement disproves it. The cap is a *spend* bound on a public demo, which is a fine reason; claiming long leases don't exist was not. All three now say what the limit actually is.
+**The clause cap was refusing real documents, and the code was lying about why.** Two of the three Washington agreements split into 270 and 131 numbered provisions. The cap's comment, the CLI error, and this README all said "no residential lease is that long" — and a real UW housing agreement disproves it. The cap is a *spend* bound on a public demo, which is a fine reason; claiming long leases don't exist was not. All three now say what the limit actually is, and over the cap the scan is [partial rather than refused](#when-a-lease-is-longer-than-the-cap).
+
+**This table also exposed a silent truncation, which was the worse of the two findings.** Look at the char column: the HUD model lease is 39,996 characters, and the required-protections pass was sending the first 24,000 of the document as one prompt. So the `protections_missing` result this probe published was computed on 28 of that lease's 49 clauses, and the items it called missing may simply never have been read. It failed quietly and in the direction of *more* findings, which is the direction that looks like the tool working. This is the clause-splitter bug in a second costume — partial processing reported as a finished result — and it is [fixed the same way](#when-a-lease-is-longer-than-the-cap), by windowing and merging instead of cutting. The results file now records `protection_windows` per document so a single-window assumption cannot creep back in unnoticed.
 
 **The gate is calibrated on the wrong axis.** It was built to separate leases from obvious non-leases — this README, a scan report, the LICENSE — and it does that. Real boundary documents defeat it in both directions: it accepted a tenancy *addendum* as a lease, and rejected the WWU housing agreement, which is a genuine Washington residential occupancy agreement. The likely mechanism is vocabulary: university agreements charge "housing rates" rather than rent, assign a "space" rather than a dwelling, and often state outright that they are licences and not leases. Whether such an agreement is a lease under RCW 59.18 is a legal question this repo should not answer casually — which is exactly why it is recorded as an open finding rather than patched into a passing number.
 
 Still unmeasured: scanned or photographed leases with no text layer (detected and refused today, OCR is on the roadmap), and per-clause verdict quality on real documents, which would need labels these don't have.
 
-### Scan-mode retrieval — one miss, and two fixes that did not work
+### Scan-mode retrieval — one miss, and three fixes that did not ship
 
 Everything below this point measures *ask* mode. Scan mode — the headline feature — had no retrieval eval at all: its retrieval was only ever observed through whether a verdict came out red. That is a bad instrument, because a missed violation has two very different causes (the governing law never arrived, or it arrived and the judge misread it), and telling them apart took three wrong hypotheses the one time it mattered. The labels already existed: the manifests map each planted violation to the sections that would be an acceptable citation, and a clause is its own query. One embedding per labelled clause, no completions, so this runs before deciding whether anything paid is worth it.
 
@@ -339,7 +374,7 @@ python -m evaluation.eval_scan_retrieval        # gold
 python -m evaluation.eval_scan_retrieval --manifest evaluation/leases_synthetic/manifest.json
 ```
 
-#### Two candidate fixes, both rejected
+#### Three candidate fixes, none shipped
 
 **Hybrid retrieval was the first.** Scan mode looked like its natural home, because there the query *is* legal text — the clause itself. Recall held at 18/18, but **two false reds appeared, one on the fully compliant lease**, dropping precision 1.000 → .900. The mechanism is the same property that makes .230 hard to embed, working in reverse: a catalog of prohibited clause types shares vocabulary with nearly any clause, so handing the judge a list of illegal terms biases it toward finding one, and it produced a plainly wrong reading of a compliant late-fee clause. Down-weighting the channel cannot rescue it either — the sections behind the false reds outrank the target in *both* channels, so any threshold admitting the good case admits the bad ones first (ranks in `bm25.py`'s docstring). The rejected run is kept in `evaluation/hybrid_scan_results.json`; `scan_results.json` stays the shipped configuration, so the canonical artifact never describes a setting the product doesn't use.
 
@@ -354,7 +389,41 @@ python -m evaluation.eval_scan_retrieval --manifest evaluation/leases_synthetic/
 
 **It cannot help, and it costs ranking.** Section completion expands sections that already arrived — but the failure is that .230 never arrives, and a section that was never retrieved cannot be completed. Meanwhile expanding the top sections pushes others down, costing .065 hit@3. This also corrects the earlier diagnosis: chunk granularity was measured *with hybrid on*, where .230 does reach the judge as the wrong chunk. Under the shipped dense configuration it does not reach the judge at all, so granularity was the second problem, not the first.
 
-The point worth keeping is procedural. Both rejections cost **$0 of the $0.70 budgeted** for the gold and generated reruns they would have needed. The free instrument was built first precisely so a roadmap item could be killed before it was paid for.
+Both of those rejections cost **$0**, because the free instrument was built before anything paid.
+
+#### The third fix worked, and made the product worse
+
+If .230's embedding is a smear of ten prohibitions, index the ten prohibitions separately. `split_enumerated_catalog` in `ingest.py` parses the statute's own subsection markers and emits one unit per enumerated item, each carrying the stem that gives it meaning — `(2)(f)` alone reads as a fragment ("Agrees to the exculpation … of any liability of the landlord"); prefixed with "No rental agreement may provide that the tenant:" it is a rule.
+
+It is deliberately a parser and not a prompt. The LLM chunker is **already instructed** to do exactly this — *"If the section enumerates a list of prohibited provisions, remedies, or duties, give each enumerated item its own chunk"* — and returned four length-shaped chunks for .230 anyway. An instruction a model ignores is not a strategy. `scripts/build_enumerated_collection.py` writes the result into a *copy* of the shipped collection, reusing all 355 untouched embeddings, so the whole experiment cost ten embeddings and left the live index alone.
+
+The retrieval defect closed almost completely:
+
+| every acceptable section arrived | gold | generated |
+| --- | --- | --- |
+| dense (shipped) | .500 | .492 |
+| + BM25 (rejected above) | — | .656 |
+| **+ enumerated split** | **1.000** | **.984** |
+
+Thirty-one partial misses became one. hit@1 went .869 → .967, MRR .909 → .984. This is the only one of the three candidates that moved the number it was aimed at, and it beat the rejected hybrid channel by a wide margin — so it earned the paid gold set as a precision gate, exactly the gate that had been named in advance, because ten .230 units are ten more chances for a compliant clause to match one.
+
+**It failed that gate.** Recall held at 18/18, citations at 18/18, protections at 6/6 — and precision went **1.000 → .947, one false red**:
+
+> **2. RENT.** Rent is $2,450 per month, due on the first. Payments may be made by check, money order, or electronic transfer through the resident portal.
+
+Cited as violating RCW 59.18.230(2)(j), *"Agrees to make rent payments through electronic means only."* The clause permits three methods, two of them not electronic — it is the precise opposite of an electronic-only mandate. Reproduced both ways: green under the shipped index where (2)(j) never arrives, red under the split. The judge's own explanation contradicts itself, restating the three permitted methods and then concluding the clause forces one.
+
+So the mechanism is worth stating carefully, because it is not a retrieval failure. **Making the governing prohibition reachable put a crisp, narrow rule in front of the judge, which then over-applied it to a permissive clause on the same topic.** The missing document had been masking a generation weakness.
+
+**Rejected, and the reason generalizes past this section.** The strict retrieval metric turns out to be a *leading indicator, not an outcome*. It was right that .230 never arrived, and closing that gap bought nothing the gold set measures — recall and citation accuracy were already 1.000 — while costing the cleanest claim in this project, zero false reds. For a tool whose output sends someone to argue with their landlord, a false red is the expensive error. Outcome metrics win over the proxy that found the defect, and the same standard that rejected BM25 for two false reds rejects this for one. Kept implemented, measured, and enabled nowhere; the full numbers are in `evaluation/enumerated_split_results.json`.
+
+```bash
+python -m scripts.build_enumerated_collection                                  # ~10 embeddings
+python -m evaluation.eval_scan_retrieval --collection wa_reference_230split     # free
+python -m evaluation.eval_scan --collection wa_reference_230split               # the $0.08 gate
+```
+
+Total across all three candidates: **$0.08 spent, $0.70 budgeted**, and the one that needed paying for was the one the free instrument said was worth paying for.
 
 ### Retrieval ablation — section-level, n=82
 
@@ -381,19 +450,19 @@ Each test question is a colloquial tenant question generated from — and then v
 
 `make_adversarial.py` rewrites every test question as someone who has never read a law ("proper notice" → "do they have to tell me ahead of time?"), keeping the ground truth fixed — an A/B experiment isolating the lexical gap between how renters talk and how statutes are written:
 
-| configuration | MRR standard | MRR reworded | Δ | hit@5 reworded |
-| --- | --- | --- | --- | --- |
-| naive fixed-size chunks | .806 | .737 | −.069 | .829 |
-| LLM semantic chunking | .784 | .690 | −.094 | .817 |
-| + plain-language augmentation | .771 | .708 | −.063 | **.866** |
-| naive + CRAG (two-stage) | .807 | .731 | −.076 | .805 |
-| full pipeline | .808 | **.748** | **−.060** | **.866** |
+| configuration | MRR standard | MRR reworded | Δ | hit@5 reworded | cost/question |
+| --- | --- | --- | --- | --- | --- |
+| naive fixed-size chunks | .806 | .737 | −.069 | .829 | — |
+| LLM semantic chunking | .784 | .690 | −.094 | .817 | — |
+| + plain-language augmentation | .771 | .708 | −.063 | **.866** | — |
+| naive + CRAG (two-stage) | .807 | .731 | −.076 | .805 | [$0.0016](#what-a-question-costs-and-what-the-extra-stages-buy) |
+| full pipeline | .808 | **.748** | **−.060** | **.866** | [$0.0029](#what-a-question-costs-and-what-the-extra-stages-buy) |
 
-Three things the original set could not show: the vocabulary gap is real (every configuration drops); **plain-language augmentation now beats plain chunking by +.018 MRR** (it was −.013 on the leaky set) — its renter-vocabulary summaries buffer exactly this shift; and the **full pipeline is now the leader on every metric with the smallest degradation**, while the two-stage system falls five questions behind on hit@5. At the generation layer the reworded set also breaks the ceiling: full pipeline 80/82 consistent · 81/82 grounded vs 79/82 · 79/82 for two-stage. No single gap is huge, but every metric now points the same way — **ask mode keeps the full pipeline**.
+Three things the original set could not show: the vocabulary gap is real (every configuration drops); **plain-language augmentation now beats plain chunking by +.018 MRR** (it was −.013 on the leaky set) — its renter-vocabulary summaries buffer exactly this shift; and the **full pipeline is now the leader on every metric with the smallest degradation**, while the two-stage system falls five questions behind on hit@5. At the generation layer the reworded set also breaks the ceiling: full pipeline 80/82 consistent · 81/82 grounded vs 79/82 · 79/82 for two-stage. No single gap is huge, but every metric now points the same way — **ask mode keeps the full pipeline**, at [1.8× the cost and +1.9 s](#what-a-question-costs-and-what-the-extra-stages-buy) of the two-stage alternative. That price went unmeasured far longer than it should have, given that a pipeline was rejected here on measured evidence.
 
 ### Hybrid retrieval (BM25 + dense) — measured, and not shipped
 
-A lexical channel was the roadmap's answer to [the violation the scanner missed](#scaling-past-the-ceiling--40-generated-leases-labels-for-free). `bm25.py` implements BM25 in-repo — ~30 lines of transparent scoring, no new dependency, and a tokenizer that keeps `59.18.230` as one token rather than three numbers — merged through the RRF stage dual-query retrieval already uses. It sits behind `PipelineConfig(bm25=True)` and is **enabled nowhere**. Ask mode's half of the argument is below; [scan mode's is with the rest of the scanner's retrieval](#scan-mode-retrieval--one-miss-and-two-fixes-that-did-not-work).
+A lexical channel was the roadmap's answer to [the violation the scanner missed](#scaling-past-the-ceiling--40-generated-leases-labels-for-free). `bm25.py` implements BM25 in-repo — ~30 lines of transparent scoring, no new dependency, and a tokenizer that keeps `59.18.230` as one token rather than three numbers — merged through the RRF stage dual-query retrieval already uses. It sits behind `PipelineConfig(bm25=True)` and is **enabled nowhere**. Ask mode's half of the argument is below; [scan mode's is with the rest of the scanner's retrieval](#scan-mode-retrieval--one-miss-and-three-fixes-that-did-not-ship).
 
 | retrieval, all LLM stages off | MRR | nDCG | hit@5 | hit@10 |
 | --- | --- | --- | --- | --- |
@@ -430,10 +499,10 @@ This closes the question the ablation opened: the augmented six-stage pipeline s
 
 ## Roadmap
 
-- Make RCW 59.18.230 retrievable — it is the section that prohibits ten provision types and [the only section that ever fails to arrive](#scan-mode-retrieval--one-miss-and-two-fixes-that-did-not-work) (31 of 31 partial misses). As one long enumerated catalog its embedding smears ten unrelated prohibitions together. The candidate fix is to index each enumerated prohibition as its own retrievable unit rather than chunking the section by length. Predicted risk, stated in advance: ten separate .230 units are ten more chances for a compliant clause to match one, which is the mechanism that gave both BM25 and this section their false reds — so this needs the paid gold set as a precision gate, not just the free retrieval eval. (Two previous candidates were implemented, measured, and rejected here: [hybrid retrieval](#hybrid-retrieval-bm25--dense--measured-and-not-shipped) and [section completion](#two-candidate-fixes-both-rejected).)
+- **Teach the judge that a permissive clause is not a prohibited one** — the single false red from the [enumerated-split experiment](#the-third-fix-worked-and-made-the-product-worse) is the live blocker on a retrieval fix that otherwise takes strict retrieval .492 → .984. A clause listing three payment methods was read as violating a ban on electronic-*only* payment. Doing this honestly means a labelled set of permissive-vs-mandatory clause pairs, not a prompt rule written against the one failure this repo has seen — that would be buying a passing number, the same trap the gate calibration below is parked for. If the judge holds on such a set, the split ships and .230 becomes reachable.
 - False-premise and unanswerable question sets — the remaining adversarial categories (testing premise correction and honest refusal, not just retrieval)
 - Recalibrate the is-this-a-lease gate on boundary documents — the [real-document probe](#document-formats--real-published-leases-and-real-numbering) found it accepts a tenancy addendum and rejects a genuine WA university housing agreement. Needs a labelled set of boundary cases, and a decision on whether such agreements fall under RCW 59.18 at all, before touching the prompt
-- Revisit the 60-clause cap now that it is known to refuse real long-form agreements (270 and 131 clauses) — raising it is a spend decision, so it wants a per-scan budget rather than a clause count
+- Replace the 60-clause cap with a per-scan dollar budget — the cap now [degrades instead of refusing](#when-a-lease-is-longer-than-the-cap), but a clause count is a proxy for spend, and clauses vary in length by 10×. A budget would let a 270-clause agreement of short provisions finish where a cap of 60 stops it arbitrarily
 - OCR for scanned/photo leases (Tesseract) — today a no-text-layer PDF is detected and refused with an explanation
 - Session-scoped vector collection for full lease-text retrieval in ask mode
 - Fairness grade for the whole lease — derived mechanically from verdict counts, never model-invented

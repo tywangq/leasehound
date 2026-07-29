@@ -21,8 +21,9 @@ them.
     python -m evaluation.eval_real_formats --scan          # + the paid LLM passes
 
 Splitting costs nothing, so it is the default. --scan adds the is-this-a-lease
-gate and the required-protections pass per document, and skips any document over
-the clause cap rather than quietly spending on a book.
+gate and the required-protections pass per document. Neither is capped by clause
+count: the gate reads the opening, and the protections pass reads every clause in
+24k windows because "this lease omits X" is a claim about the whole document.
 """
 
 import argparse
@@ -32,7 +33,12 @@ from pathlib import Path
 
 from evaluation.provenance import stamp
 from leasehound.metrics import ScanMeter
-from leasehound.scan import MAX_CLAUSES, check_protections, looks_like_lease
+from leasehound.scan import (
+    MAX_CLAUSES,
+    check_protections,
+    looks_like_lease,
+    protection_windows,
+)
 from leasehound.upload import MAX_CLAUSE_CHARS, read_document, split_clauses_with_mode
 
 DOCS_DIR = Path(__file__).parent / "leases_real"
@@ -79,10 +85,13 @@ def measure(entry: dict, scan: bool) -> dict:
         over_clause_cap=len(clauses) > MAX_CLAUSES,
     )
 
+    # How many prompts the protections pass needs. This was 1 by assumption and the
+    # assumption was wrong: at 39,996 characters the HUD model lease overflowed the
+    # single 24k prompt, so the protections result published here previously described
+    # 28 of its 49 clauses and reported the rest missing without reading them.
+    result["protection_windows"] = len(protection_windows(clauses))
+
     if not scan:
-        return result
-    if result["over_clause_cap"]:
-        result["scan"] = f"skipped — {len(clauses)} clauses is over the {MAX_CLAUSES} cap"
         return result
 
     meter = ScanMeter()
@@ -123,7 +132,9 @@ def main() -> None:
                 f"clauses={r['clauses']:3} median={r['median_clause_chars']:5} "
                 f"over_window={r['clauses_over_retrieval_window']}")
         if r.get("over_clause_cap"):
-            line += f"  OVER {MAX_CLAUSES}-CLAUSE CAP"
+            line += f"  partial: {MAX_CLAUSES}/{r['clauses']} judged"
+        if r.get("protection_windows", 1) > 1:
+            line += f"  protections in {r['protection_windows']} windows"
         if "gate_accepted_as_lease" in r:
             line += f"  gate={'lease' if r['gate_accepted_as_lease'] else 'REJECTED'}"
         print(line)

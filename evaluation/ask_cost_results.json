@@ -1,0 +1,182 @@
+{
+  "questions": 6,
+  "test_set": "tests_adversarial.jsonl",
+  "provenance": {
+    "generation_model": "openai/gpt-4.1-mini",
+    "utility_model": "openai/gpt-4.1-nano",
+    "embedding_model": "text-embedding-3-large",
+    "corpus_snapshot": "2026-07-25",
+    "commit": "bb0243e",
+    "run_at": "2026-07-29"
+  },
+  "configs": {
+    "full pipeline": {
+      "mean_total_llm_calls": 4.166667,
+      "mean_retrieval_llm_calls": 3.166667,
+      "mean_embedding_calls": 2.166667,
+      "mean_answer_prompt_tokens": 3890,
+      "mean_cost_usd": 0.002877,
+      "mean_retrieval_cost_usd": 0.000881,
+      "median_seconds": 6.535,
+      "median_retrieval_seconds": 2.735,
+      "mean_seconds": 6.855,
+      "slowest_seconds": 9.53,
+      "per_question": [
+        {
+          "retrieval_llm_calls": 3,
+          "retrieval_embedding_calls": 2,
+          "retrieval_cost_usd": 0.000797,
+          "retrieval_seconds": 2.99,
+          "answer_prompt_tokens": 3187,
+          "answer_seconds": 2.94,
+          "total_llm_calls": 4,
+          "total_cost_usd": 0.00241,
+          "total_seconds": 5.93
+        },
+        {
+          "retrieval_llm_calls": 3,
+          "retrieval_embedding_calls": 2,
+          "retrieval_cost_usd": 0.000907,
+          "retrieval_seconds": 2.15,
+          "answer_prompt_tokens": 3264,
+          "answer_seconds": 5.33,
+          "total_llm_calls": 4,
+          "total_cost_usd": 0.002901,
+          "total_seconds": 7.48
+        },
+        {
+          "retrieval_llm_calls": 3,
+          "retrieval_embedding_calls": 2,
+          "retrieval_cost_usd": 0.000936,
+          "retrieval_seconds": 2.5,
+          "answer_prompt_tokens": 5526,
+          "answer_seconds": 4.05,
+          "total_llm_calls": 4,
+          "total_cost_usd": 0.003391,
+          "total_seconds": 6.55
+        },
+        {
+          "retrieval_llm_calls": 3,
+          "retrieval_embedding_calls": 2,
+          "retrieval_cost_usd": 0.001084,
+          "retrieval_seconds": 2.97,
+          "answer_prompt_tokens": 2668,
+          "answer_seconds": 6.56,
+          "total_llm_calls": 4,
+          "total_cost_usd": 0.002934,
+          "total_seconds": 9.53
+        },
+        {
+          "retrieval_llm_calls": 4,
+          "retrieval_embedding_calls": 3,
+          "retrieval_cost_usd": 0.001252,
+          "retrieval_seconds": 3.36,
+          "answer_prompt_tokens": 5408,
+          "answer_seconds": 3.15,
+          "total_llm_calls": 5,
+          "total_cost_usd": 0.003727,
+          "total_seconds": 6.52
+        },
+        {
+          "retrieval_llm_calls": 3,
+          "retrieval_embedding_calls": 2,
+          "retrieval_cost_usd": 0.000309,
+          "retrieval_seconds": 2.42,
+          "answer_prompt_tokens": 3289,
+          "answer_seconds": 2.71,
+          "total_llm_calls": 4,
+          "total_cost_usd": 0.001898,
+          "total_seconds": 5.12
+        }
+      ]
+    },
+    "naive + CRAG (two-stage)": {
+      "mean_total_llm_calls": 2.5,
+      "mean_retrieval_llm_calls": 1.5,
+      "mean_embedding_calls": 1.5,
+      "mean_answer_prompt_tokens": 2481,
+      "mean_cost_usd": 0.001598,
+      "mean_retrieval_cost_usd": 0.00012,
+      "median_seconds": 4.64,
+      "median_retrieval_seconds": 1.395,
+      "mean_seconds": 12.945,
+      "slowest_seconds": 54.06,
+      "per_question": [
+        {
+          "retrieval_llm_calls": 2,
+          "retrieval_embedding_calls": 2,
+          "retrieval_cost_usd": 0.000134,
+          "retrieval_seconds": 1.78,
+          "answer_prompt_tokens": 2556,
+          "answer_seconds": 2.86,
+          "total_llm_calls": 3,
+          "total_cost_usd": 0.001502,
+          "total_seconds": 4.64
+        },
+        {
+          "retrieval_llm_calls": 2,
+          "retrieval_embedding_calls": 2,
+          "retrieval_cost_usd": 0.000156,
+          "retrieval_seconds": 2.42,
+          "answer_prompt_tokens": 2407,
+          "answer_seconds": 4.22,
+          "total_llm_calls": 3,
+          "total_cost_usd": 0.001722,
+          "total_seconds": 6.63
+        },
+        {
+          "retrieval_llm_calls": 1,
+          "retrieval_embedding_calls": 1,
+          "retrieval_cost_usd": 9.5e-05,
+          "retrieval_seconds": 0.89,
+          "answer_prompt_tokens": 2188,
+          "answer_seconds": 2.51,
+          "total_llm_calls": 2,
+          "total_cost_usd": 0.001249,
+          "total_seconds": 3.4
+        },
+        {
+          "retrieval_llm_calls": 1,
+          "retrieval_embedding_calls": 1,
+          "retrieval_cost_usd": 0.000102,
+          "retrieval_seconds": 1.01,
+          "answer_prompt_tokens": 2596,
+          "answer_seconds": 53.05,
+          "total_llm_calls": 2,
+          "total_cost_usd": 0.002229,
+          "total_seconds": 54.06
+        },
+        {
+          "retrieval_llm_calls": 2,
+          "retrieval_embedding_calls": 2,
+          "retrieval_cost_usd": 0.000131,
+          "retrieval_seconds": 2.87,
+          "answer_prompt_tokens": 2555,
+          "answer_seconds": 1.77,
+          "total_llm_calls": 3,
+          "total_cost_usd": 0.001318,
+          "total_seconds": 4.64
+        },
+        {
+          "retrieval_llm_calls": 1,
+          "retrieval_embedding_calls": 1,
+          "retrieval_cost_usd": 0.0001,
+          "retrieval_seconds": 0.59,
+          "answer_prompt_tokens": 2582,
+          "answer_seconds": 3.71,
+          "total_llm_calls": 2,
+          "total_cost_usd": 0.001566,
+          "total_seconds": 4.3
+        }
+      ]
+    }
+  },
+  "comparison": {
+    "extra_llm_calls": 1.67,
+    "cost_ratio": 1.8,
+    "latency_ratio_median": 1.41,
+    "extra_cost_usd": 0.001279,
+    "extra_seconds_median": 1.9
+  },
+  "measurement_cost_usd": 0.02685
+}

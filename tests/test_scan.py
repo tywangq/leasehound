@@ -3,8 +3,6 @@
 import time
 from unittest.mock import patch
 
-import pytest
-
 import leasehound.scan as scan
 from leasehound.scan import base_section, count_verdicts, render_report
 
@@ -85,20 +83,49 @@ def test_missing_protections_section_lists_only_missing():
     assert "Deposit terms" not in report.split("Missing protections")[1]
 
 
-def test_scan_refuses_oversized_documents_before_any_llm_call():
-    # The cap bounds what one upload can spend: past it the document gets
-    # refused before even the is-this-a-lease check.
-    def no_llm(clauses):
-        raise AssertionError("the cap must refuse before any LLM call")
+def test_an_oversized_document_is_scanned_to_the_cap_rather_than_refused():
+    # The cap bounds SPEND, so it must judge exactly MAX_CLAUSES clauses and no
+    # more — but refusing outright was the wrong way to spend nothing extra. A
+    # real WA housing agreement is 270 clauses, so refusal meant the demo's most
+    # likely visitor action returned nothing at all.
+    clauses = [f"{i}. CLAUSE. Ordinary terms." for i in range(scan.MAX_CLAUSES + 25)]
+    judged_clauses = []
 
-    clauses = [f"{i}. CLAUSE. Ordinary terms." for i in range(scan.MAX_CLAUSES + 1)]
+    def judged(clause, index, config, meter=None):
+        judged_clauses.append(index)
+        return {"index": index, "clause": clause, "verdict": "green",
+                "citations": [], "urls": {}, "explanation": "fine"}
+
+    seen_by_protections = []
     with (
         patch.object(scan, "read_document", lambda path: ""),
         patch.object(scan, "split_clauses_with_mode", lambda text: (clauses, "numbered")),
-        patch.object(scan, "looks_like_lease", no_llm),
+        patch.object(scan, "looks_like_lease", lambda c, meter=None: True),
+        patch.object(scan, "scan_clause", judged),
+        patch.object(scan, "check_protections",
+                     lambda c, meter=None: seen_by_protections.extend(c) or []),
+        patch.object(scan, "log_scan", lambda *a, **k: {}),
+        patch.object(scan, "cost_line", lambda record: ""),
     ):
-        with pytest.raises(SystemExit, match=f"{scan.MAX_CLAUSES}-clause cap"):
-            scan.scan_lease("giant.pdf")
+        result = scan.scan_lease("giant.pdf")
+
+    assert len(judged_clauses) == scan.MAX_CLAUSES, "spend must stay bounded by the cap"
+    assert result.clauses_judged == scan.MAX_CLAUSES
+    assert result.clauses_total == len(clauses)
+    assert result.partial is True
+    # The negative-space pass is the exception: "this lease omits X" is a claim
+    # about the whole document, so it must see the clauses past the cap too.
+    assert len(seen_by_protections) == len(clauses)
+
+
+def test_a_partial_report_names_the_clauses_it_did_not_judge():
+    findings = [finding(i, "green") for i in range(1, 61)]
+    report = scan.render_report(findings, "long.pdf", "wa", clauses_total=270)
+    assert "Partial scan" in report
+    assert "clauses 61–270 were not judged" in report.lower()
+    # A complete scan must not carry the notice, whether or not the count is passed.
+    assert "Partial scan" not in scan.render_report(findings, "l.pdf", "wa", clauses_total=60)
+    assert "Partial scan" not in scan.render_report(findings, "l.pdf", "wa")
 
 
 def test_closing_scan_generator_cancels_queued_clauses():
@@ -145,10 +172,11 @@ def test_a_document_that_fails_the_gate_is_scanned_anyway_and_flagged():
         patch.object(scan, "log_scan", lambda *a, **k: {}),
         patch.object(scan, "cost_line", lambda record: ""),
     ):
-        findings, protections, gate_flagged = scan.scan_lease("not_a_lease.md")
+        result = scan.scan_lease("not_a_lease.md")
 
-    assert gate_flagged is True
-    assert len(findings) == len(clauses)  # the scan ran rather than being suppressed
+    assert result.gate_flagged is True
+    # The scan ran rather than being suppressed.
+    assert result.clauses_judged == len(clauses)
 
 
 def test_the_report_warns_when_the_document_did_not_read_as_a_lease():

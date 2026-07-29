@@ -110,6 +110,7 @@ def evaluate(manifest_path: Path, config) -> dict:
         "all_acceptable_arrived": round(
             sum(1 for c in scored if c["all_acceptable_arrived"]) / n, 4) if n else None,
         "k": config.retrieval_k,
+        "collection": config.collection,
         "section_completion": config.section_completion,
         "bm25": config.bm25,
         "misses": [f"{c['file']} clause {c['clause']}" for c in scored if c["rank"] is None],
@@ -126,11 +127,16 @@ def main() -> None:
     parser.add_argument("--section-completion", action="store_true",
                         help="Expand each hit section to all of its chunks")
     parser.add_argument("--bm25", action="store_true", help="Add the lexical channel")
+    parser.add_argument("--collection",
+                        help="Retrieve from a different collection, e.g. wa_reference_230split "
+                             "from scripts/build_enumerated_collection.py")
     args = parser.parse_args()
 
     config = scan_config("wa")
     config.section_completion = args.section_completion
     config.bm25 = args.bm25
+    if args.collection:
+        config.collection = args.collection
     output = evaluate(Path(args.manifest), config)
 
     print(json.dumps(output["summary"], indent=2))
