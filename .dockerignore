@@ -1,0 +1,25 @@
+# Build context for `docker build`. Without this the daemon receives ~790 MB,
+# almost all of it .venv, to build a ~10 MB store into an image.
+#
+# vector_db/ is excluded on purpose: the image ships the runtime export instead
+# (see Dockerfile), and leaving it in the context would upload the ablation
+# collections the container never opens.
+.git
+.venv
+.env
+vector_db/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+.github/
+corpus/
+docs/
+evaluation/
+scripts/
+tests/
+logs/
+uploads/
+preprocessed_db/
+.DS_Store

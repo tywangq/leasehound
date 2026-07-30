@@ -3,6 +3,8 @@ __pycache__/
 *.pyc
 .venv/
 vector_db/
+# The image's store, written from vector_db/ by scripts/export_runtime_db.py.
+vector_db_runtime/
 logs/
 preprocessed_db/
 uploads/

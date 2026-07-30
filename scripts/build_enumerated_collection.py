@@ -2,7 +2,8 @@
 
 The roadmap's top item, made measurable. RCW 59.18.230 enumerates ten prohibited
 lease provisions in subsection (2), and it is the only section that never reaches
-the judge in scan mode (31 of 31 partial misses in eval_scan_retrieval). The
+the judge in scan mode (40 of 40 partial misses in eval_scan_retrieval, across both
+the gold and the generated label sets). The
 hypothesis: one embedding covering ten unrelated prohibitions is a smear, so no
 single lease clause matches it strongly.
 

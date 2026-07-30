@@ -11,8 +11,9 @@
 # - Scores are REPORTED (job summary), not gated: temperature-0 API calls
 #   still drift, and a hard threshold would flake. A crash still fails.
 # - Skips gracefully when the OPENAI_API_KEY secret isn't configured.
-# - The vector store isn't in git (42MB artifact); it's rebuilt from corpus/
-#   on first run (~$0.10 in embedding/augmentation calls) and cached.
+# - The vector store isn't in git; it's rebuilt from corpus/ on first run
+#   (~$0.10 in embedding/augmentation calls) and cached. No size quoted here on
+#   purpose: three places used to claim 42 MB and all three had gone stale.
 name: Eval
 
 on:
@@ -65,6 +66,21 @@ jobs:
       - name: Build vector store (cache miss)
         if: steps.gate.outputs.skip != 'true' && steps.vector-cache.outputs.cache-hit != 'true'
         run: python -m leasehound.ingest
+      - name: Scan-mode retrieval eval
+        # First because it is the cheapest thing here by two orders of magnitude:
+        # one embedding per labelled clause and no completions at all (~$0.0002).
+        # It answers "did the governing statute reach the judge", which is the
+        # question the paid scan eval cannot separate from "did the judge misread
+        # it" — so when the gold set regresses, this says which half broke.
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          python -m evaluation.eval_scan_retrieval | tee scan_retrieval_eval.txt
+          {
+            echo "## Scan-mode retrieval — governing section reaches the judge"
+            echo '```'
+            head -25 scan_retrieval_eval.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Scan eval (gold set)
         if: steps.gate.outputs.skip != 'true'
         run: |

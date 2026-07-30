@@ -22,7 +22,7 @@ Residential leases routinely contain clauses that are void and unenforceable und
 | the same leases, same model, zero-shot | 14/18 flagged · **3/14 citations correct** · 0/6 protection sets |
 | 40 generated leases · 61 planted violations | 60/61 flagged red · 60/60 cited correctly · [precision is an audited lower bound](evaluation/README.md#scaling-past-the-ceiling--40-generated-leases-labels-for-free) |
 | 5 prompt-injection payloads inside hostile leases | **5/5 held** — every planted violation still red, no scan suppressed, and 5/5 clean on the report → ask-mode carryover path |
-| scan-mode retrieval, 61 labelled clauses | governing section arrives 61/61 — [all 31 partial misses were one section, and fixing it cost precision](evaluation/README.md#scan-mode-retrieval--one-miss-and-three-fixes-that-did-not-ship) |
+| scan-mode retrieval, 79 labelled clauses | governing section arrives 79/79 — [all 40 partial misses were one section, and fixing it cost precision](evaluation/README.md#scan-mode-retrieval--one-miss-and-three-fixes-that-did-not-ship) |
 | cost & latency, 120 logged scans (9–15 clauses) | ≈ $0.0112/scan · p50 8.7 s · [p95 21.8 s is the provider, not the pipeline](#what-a-scan-costs) · [a real 49-clause lease costs $0.061 / 18.5 s](#what-a-scan-costs) |
 | ask mode, per question | $0.0029 · median 6.5 s — [1.8× the cost of the two-stage pipeline it beat by 1–2 questions](#what-the-extra-stages-cost) |
 
@@ -83,7 +83,18 @@ The web UI is a single chat with an artifact-style side panel: attach a lease (o
 
 ![The finished state, readable: a question about the late-fee clause, its cited answer, and the pinned scan report](docs/screenshot.png)
 
-No setup at all: the **[hosted demo](https://leasehound-671004460975.us-west1.run.app)** runs the same code on Cloud Run — the repo's `Dockerfile` bakes the vector DB into the image, so the container is stateless and scales to zero between visitors. Cold starts cost ~25 s (loading Chroma, Gradio, and a 42 MB vector store), a bad first impression for the one visitor who matters, so a Cloud Monitoring uptime check probes every five minutes: it keeps an instance warm, alerts me on failure, and stays inside the free tier at 288 requests/day — `min-instances=1` would have solved the same problem for about $15/month.
+No setup at all: the **[hosted demo](https://leasehound-671004460975.us-west1.run.app)** runs the same code on Cloud Run — the `Dockerfile` bakes the vector store into the image, so the container is stateless and scales to zero between visitors. Cold starts are the cost of that, a bad first impression for the one visitor who matters, so a Cloud Monitoring uptime check probes every five minutes: it keeps an instance warm, alerts me on failure, and stays inside the free tier at 288 requests/day — `min-instances=1` would have solved the same problem for about $15/month.
+
+<a id="what-the-image-ships"></a>**What the image actually ships**, since the cold start is what visitors feel. The container is **868 MB**, of which the vector store is **9.8 MB** — so the store was never the interesting number, and this README used to imply otherwise by listing "a 42 MB vector store" beside Chroma and Gradio as if they were peers. Two things were wrong underneath that:
+
+| | before | now |
+|---|---|---|
+| vector store in the image | 49 MB · 4 collections · 1655 chunks | **9.8 MB · 1 collection · 359 chunks** |
+| image | 998 MB | **868 MB** |
+
+`COPY vector_db` shipped the whole *development* store — the three ablation collections the [evaluation](evaluation/README.md) needs and the app never queries, including `_230split`, an experiment that was [measured and rejected](evaluation/README.md#scan-mode-retrieval--one-miss-and-three-fixes-that-did-not-ship). `scripts/export_runtime_db.py` now writes a purpose-built store holding only the collection the app serves; it costs nothing, because every chunk's embedding already exists and is copied rather than recomputed. Separately, chromadb declares `kubernetes` (for running Chroma as a server) and `onnxruntime` (for its built-in local embedder) — 133 MB for two features a `PersistentClient` embedding through the OpenAI API cannot use. Neither is in `sys.modules` after the app boots, which is what makes dropping them safe and what CI now re-checks on every commit.
+
+The honest limit: **~25 s was measured on Cloud Run before these changes and has not been re-measured.** Locally the slimmed image serves HTTP 200 about five seconds after `docker run`, but that is a warm daemon on a laptop, not a cold Cloud Run instance pulling an image, so quoting it as the new cold start would be quoting the wrong machine.
 
 `examples/sample_lease.md` is a synthetic lease with **seven deliberately planted violations** (late fees inside the grace period, landlord attorney-fee clause, no-notice entry, rent NDA, rights waiver, electronic-payment-only, exculpation) — it doubles as the scanner's acceptance test. Current result: **7/7 planted violations flagged red with statute citations, zero false reds** among the ordinary clauses; the security-deposit clause comes back yellow (fact-dependent), which is the intended behavior. See `examples/README.md` for the expected-flags table and `examples/scan_report.md` for the full output.
 
@@ -161,15 +172,22 @@ A lease is sensitive: names, address, rent. LeaseHound keeps handling minimal �
 
 ```bash
 pip install -e ".[dev]"
-pytest          # 136 unit tests: clause splitting across seven real numbering conventions, the judge-window invariant, protections windowing + merge precedence, the partial-scan contract, RRF merge + hybrid wiring, BM25 scoring, enumerated-catalog parsing and chunk-id ordering, ask-mode prompt assembly + stream unwrapping, statute-drift comparison, section completion, the injection scorer's negation handling, eval artifacts surviving a cheap re-run, report rendering, cancellation, per-scan metrics, scan cache, the synthetic-dataset verifier, prompts that must treat lease text as data, cited-sources footer, privacy cleanup
+pytest          # 140 unit tests: clause splitting across seven real numbering conventions, the judge-window invariant, protections windowing + merge precedence, the partial-scan contract, RRF merge + hybrid wiring, BM25 scoring, enumerated-catalog parsing and chunk-id ordering, ask-mode prompt assembly + stream unwrapping, statute-drift comparison, section completion, the injection scorer's negation handling, eval artifacts surviving a cheap re-run, the documented artifact inventory matching the directory, report rendering, cancellation, per-scan metrics, scan cache, the synthetic-dataset verifier, prompts that must treat lease text as data, cited-sources footer, privacy cleanup
 ruff check leasehound evaluation scripts tests
 ```
 
-CI (GitHub Actions) runs both on every push. Tests cover the deterministic core only — no API calls, no vector DB.
+CI (GitHub Actions) runs both on every push, plus a third job that **builds the container and boots it**. That job exists because the deployed artifact was the least-tested thing here: the test job installs `pyproject`'s version ranges and is the canary for upstream drift, while the image installs the pinned `requirements-lock.txt` it actually ships and proves those pins still resolve and import together. It builds against a placeholder store — the real one isn't in git, and re-embedding the corpus per commit would spend money re-proving something no commit changes. Tests themselves cover the deterministic core only: no API calls, no vector DB.
 
-The experiment write-ups live in [`evaluation/README.md`](evaluation/README.md) next to the artifacts they describe; `scripts/` holds the one-off measurement tools (`measure_concurrency.py`, `measure_ask_cost.py`, `build_enumerated_collection.py`, `check_corpus_drift.py`), each of which prints what it costs before it costs it.
+Deploying is two steps, because the image ships a different store than development uses:
 
-Two more workflows sit alongside it. `corpus.yml` watches the statute snapshot for drift — free, no secret, [described above](#keeping-the-snapshot-honest). `eval.yml` runs the paid evaluations: the gold-set scan eval and the retrieval eval on every push to `main` that touches pipeline code (≈ $0.15/run — path-filtered so docs commits cost nothing), with the pricier generation eval and the 40-lease synthetic set on manual dispatch. Scores land in the job summary as a report, not a gate: temperature-0 API calls still drift a flag's worth between runs, and a hard threshold would flake. Forks never see the API key (main-only triggers), and the workflow skips gracefully when the secret isn't configured.
+```bash
+python -m scripts.export_runtime_db     # vector_db/ → vector_db_runtime/, one collection, $0
+docker build -t leasehound .            # see "What the image ships" above
+```
+
+The experiment write-ups live in [`evaluation/README.md`](evaluation/README.md) next to the artifacts they describe; `scripts/` holds the one-off measurement tools (`measure_concurrency.py`, `measure_ask_cost.py`, `build_enumerated_collection.py`, `check_corpus_drift.py`), each of which prints what it costs before it costs it, plus the two deployment tools above (`export_runtime_db.py`, `image_smoke_test.py`).
+
+Two more workflows sit alongside it. `corpus.yml` watches the statute snapshot for drift — free, no secret, [described above](#keeping-the-snapshot-honest). `eval.yml` runs the paid evaluations: the gold-set scan eval, the ask-mode retrieval eval, and the scan-mode retrieval eval — that last one first, since at ~$0.0002 it says whether a regression is retrieval or judgment before anything expensive runs — on every push to `main` that touches pipeline code (≈ $0.15/run — path-filtered so docs commits cost nothing), with the pricier generation eval and the 40-lease synthetic set on manual dispatch. Scores land in the job summary as a report, not a gate: temperature-0 API calls still drift a flag's worth between runs, and a hard threshold would flake. Forks never see the API key (main-only triggers), and the workflow skips gracefully when the secret isn't configured.
 
 ## Corpus status
 
@@ -206,7 +224,7 @@ kept on purpose, because they are how the architecture earned its shape.
 | [40 generated leases](evaluation/README.md#scaling-past-the-ceiling--40-generated-leases-labels-for-free) | Does it hold past the hand-labeled ceiling? | 60/61 red; found and fixed an evidence-bleed bug |
 | [Prompt injection](evaluation/README.md#prompt-injection-resistance--the-lease-is-hostile-input) | Can a lease talk to the model? | 5/5 held — after one payload suppressed a whole scan |
 | [Document formats](evaluation/README.md#document-formats--real-published-leases-and-real-numbering) | Does the pipeline survive documents nobody here wrote? | **6 of 7 conventions failed silently**, and a silent truncation invented two missing protections |
-| [Scan-mode retrieval](evaluation/README.md#scan-mode-retrieval--one-miss-and-three-fixes-that-did-not-ship) | Does the governing statute reach the judge, and do the candidate fixes work? | **all 31 partial misses are one section**; the fix that closed them (.492 → .984) [cost a false red](evaluation/README.md#the-third-fix-worked-and-made-the-product-worse) |
+| [Scan-mode retrieval](evaluation/README.md#scan-mode-retrieval--one-miss-and-three-fixes-that-did-not-ship) | Does the governing statute reach the judge, and do the candidate fixes work? | **all 40 partial misses are one section**; the fix that closed them (.492 → .984) [cost a false red](evaluation/README.md#the-third-fix-worked-and-made-the-product-worse) |
 | [Retrieval ablation](evaluation/README.md#retrieval-ablation--section-level-n82) | Which pipeline stage actually earns its cost? | naive chunking ties the six-stage pipeline |
 | [Adversarial rephrasing](evaluation/README.md#adversarial-rephrasing--the-same-82-questions-renter-voice) | Does it hold when renters don't speak statute? | full pipeline wins; the earlier tie was vocabulary leakage |
 | [Hybrid BM25](evaluation/README.md#hybrid-retrieval-bm25--dense--measured-and-not-shipped) | Does a lexical channel help ask mode? | no — the apparent gain was vocabulary leakage |
@@ -226,6 +244,7 @@ One caveat applies everywhere: a table is one run, `temperature=0` is not determ
 - False-premise and unanswerable question sets — the remaining adversarial categories (testing premise correction and honest refusal, not just retrieval)
 - Recalibrate the is-this-a-lease gate on boundary documents — the [real-document probe](evaluation/README.md#document-formats--real-published-leases-and-real-numbering) found it accepts a tenancy addendum and rejects a genuine WA university housing agreement. Needs a labelled set of boundary cases, and a decision on whether such agreements fall under RCW 59.18 at all, before touching the prompt
 - Replace the 60-clause cap with a per-scan dollar budget — the cap now [degrades instead of refusing](#when-a-lease-is-longer-than-the-cap), but a clause count is a proxy for spend, and clauses vary in length by 10×. A budget would let a 270-clause agreement of short provisions finish where a cap of 60 stops it arbitrarily
+- Re-measure the Cloud Run cold start — the image lost 130 MB and four fifths of its vector store, and the ~25 s figure [quoted above](#what-the-image-ships) predates that. It stays as-is until a deploy replaces it with a measurement, because the local five seconds is the wrong machine
 - OCR for scanned/photo leases (Tesseract) — today a no-text-layer PDF is detected and refused with an explanation
 - Session-scoped vector collection for full lease-text retrieval in ask mode
 - Fairness grade for the whole lease — derived mechanically from verdict counts, never model-invented

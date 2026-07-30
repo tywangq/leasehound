@@ -8,16 +8,21 @@ version = "0.1.0"
 description = "Tenant-side lease red-flag scanner and Q&A, grounded in state statutes"
 license = {file = "LICENSE"}
 requires-python = ">=3.11"
+# Capped at the next major everywhere. The chromadb floor is the one that is not
+# cosmetic: the vector store is an on-disk artifact written by 1.x, and 0.5 —
+# which this file used to allow — cannot read it. The image does not rely on
+# these ranges at all; it installs requirements-lock.txt (see Dockerfile), which
+# leaves this set free to float so CI notices upstream breakage early.
 dependencies = [
-    "chromadb>=0.5",
+    "chromadb>=1.0,<2",
     "gradio>=5.0,<6",
-    "litellm>=1.40",
-    "openai>=1.30",
-    "pydantic>=2.7",
-    "pypdf>=4.0",
-    "python-dotenv>=1.0",
-    "tenacity>=8.3",
-    "tqdm>=4.66",
+    "litellm>=1.40,<2",
+    "openai>=2.0,<3",
+    "pydantic>=2.7,<3",
+    "pypdf>=4.0,<7",
+    "python-dotenv>=1.0,<2",
+    "tenacity>=8.3,<10",
+    "tqdm>=4.66,<5",
 ]
 
 [project.optional-dependencies]

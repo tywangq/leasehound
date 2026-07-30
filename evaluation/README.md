@@ -16,7 +16,7 @@ architecture earned its shape rather than accumulating it.
 | [40 generated leases](#scaling-past-the-ceiling--40-generated-leases-labels-for-free) | Does it hold past the hand-labeled ceiling? | 60/61 red; found and fixed an evidence-bleed bug |
 | [Prompt injection](#prompt-injection-resistance--the-lease-is-hostile-input) | Can a lease talk to the model? | 5/5 held — after one payload suppressed a whole scan |
 | [Document formats](#document-formats--real-published-leases-and-real-numbering) | Does the pipeline survive documents nobody here wrote? | **6 of 7 conventions failed silently**, and a silent truncation invented two missing protections |
-| [Scan-mode retrieval](#scan-mode-retrieval--one-miss-and-three-fixes-that-did-not-ship) | Does the governing statute reach the judge, and do the candidate fixes work? | **all 31 partial misses are one section**; the fix that closed them (.492 → .984) [cost a false red](#the-third-fix-worked-and-made-the-product-worse) |
+| [Scan-mode retrieval](#scan-mode-retrieval--one-miss-and-three-fixes-that-did-not-ship) | Does the governing statute reach the judge, and do the candidate fixes work? | **all 40 partial misses are one section**; the fix that closed them (.492 → .984) [cost a false red](#the-third-fix-worked-and-made-the-product-worse) |
 | [Retrieval ablation](#retrieval-ablation--section-level-n82) | Which pipeline stage actually earns its cost? | naive chunking ties the six-stage pipeline |
 | [Adversarial rephrasing](#adversarial-rephrasing--the-same-82-questions-renter-voice) | Does it hold when renters don't speak statute? | full pipeline wins; the earlier tie was vocabulary leakage |
 | [Hybrid BM25](#hybrid-retrieval-bm25--dense--measured-and-not-shipped) | Does a lexical channel help ask mode? | no — the apparent gain was vocabulary leakage |
@@ -24,20 +24,36 @@ architecture earned its shape rather than accumulating it.
 
 **How to read these numbers.** Every table here is one run, and `temperature=0` is not determinism — one baseline row moved by a clause between two runs, and borderline verdicts can flip. Treat a gap of one or two questions as a tie. The six hand-labeled leases are the acceptance bar; the generated set's labels are verified by construction rather than authoritative; and the LLM judges share a model family with the systems they grade, mitigated by grading against reference statute text instead of taste. Each section adds only the caveats specific to it.
 
-Artifacts live beside this file — `scan_results.json`, `synthetic_results.json`,
-`injection_results.json`, `real_format_results.json`, `scan_retrieval_results.json`,
-`enumerated_split_results.json`, `ask_cost_results.json`, `scan_cost_summary.json`,
-`hybrid_scan_results.json`, `results.jsonl`, `generation_results.jsonl`.
+Artifacts live beside this file: 13 `.json` results, of which 7 carry a `provenance`
+stamp — generation, utility and embedding model, corpus snapshot, commit, run date.
+Stamped: `ask_cost_results.json`, `enumerated_split_results.json`,
+`injection_results.json`, `real_format_results.json`, `scan_cost_summary.json`,
+`scan_retrieval_results.json` (gold manifest) and `scan_retrieval_silver.json` (the
+40-lease one). These 6 do not:
 
-Eight of them carry a `provenance` stamp — generation, utility and embedding model,
-corpus snapshot, commit, run date. **Five do not, including `scan_results.json`, the
-gold set that is the acceptance bar.** Those predate the stamping, and re-running a
-paid eval purely to add a header is the kind of spend this project declines: the
-numbers are unchanged, and a stamp would document the re-run rather than the result.
-So the rule is: an unstamped artifact was produced before commit `4af5acf`, on the
-same models named in `retrieval.py`, against corpus snapshot 2026-07-25. Stated here
-rather than implied, because the first draft of this paragraph claimed all of them
-were stamped.
+- `baseline_results.json`
+- `concurrency_results.json`
+- `enumerated_index.json`
+- `hybrid_scan_results.json`
+- `scan_results.json` — **the gold set that is the acceptance bar**
+- `synthetic_results.json`
+
+Nor do the three append-style logs, `results.jsonl`, `generation_results.jsonl` and
+`results_v1_append_merge.jsonl`, where the stamp would have to sit on every row and
+none does. (`tests.jsonl` and `tests_adversarial.jsonl` are question sets the evals
+read, not results they write.)
+
+The unstamped ones predate the stamping, and re-running a paid eval purely to add a
+header is the kind of spend this project declines: the numbers are unchanged, and a
+stamp would document the re-run rather than the result. So the rule is: an unstamped
+artifact was produced before commit `4af5acf`, on the same models named in
+`retrieval.py`, against corpus snapshot 2026-07-25.
+
+`tests/test_eval_artifacts.py` derives that list by reading the directory and fails
+if this section disagrees with it — which is why the counts above are digits rather
+than words. The guard exists because the claim has now been wrong twice: the first
+version of this paragraph said every artifact was stamped, and the correction that
+replaced it miscounted by one and left `synthetic_results.json` unnamed.
 
 ## Scan-layer evaluation — red-flag precision & recall, 6 labeled leases
 
@@ -212,11 +228,13 @@ Everything below this point measures *ask* mode. Scan mode — the headline feat
 | hit@1 | .833 | .869 |
 | hit@5 · hit@k | **1.000** | **1.000** |
 | MRR | .886 | .909 |
-| **every acceptable section arrived** | 1.000 | **.492** |
+| **every acceptable section arrived** | **.500** | **.492** |
 
 The first three rows say retrieval is flawless and the fourth says it is not, and the gap between them is the whole point. A manifest usually accepts more than one citation — the exculpation clause accepts either RCW 59.18.060 (landlord duties) or RCW 59.18.230 (the prohibition itself). Scoring "did *an* acceptable section arrive" calls that a hit when .060 shows up and .230 never does, which is exactly the clause the scanner missed. So both readings get reported, and the strict one is the informative one.
 
-**Then the strict reading produced the cleanest single finding in this project: all 31 partial misses are the same section.** Not a scattered pattern — RCW 59.18.230, thirty-one times. That is the most load-bearing section in the corpus, the one enumerating the ten prohibited provision types, and dense retrieval fails to surface it for half of all planted violations. It is a long enumerated catalog, so its embedding is a smear of ten unrelated prohibitions, while the offending clause talks about insurance or attorney fees.
+That gold `.500` is a correction. This table used to print `1.000` there, and it was never measured: the strict metric was added while investigating the generated set, the gold artifact on disk predated the field entirely, and `1.000` got carried across from the row above it. Re-running is one embedding per clause, so the cell was inferred where measuring it cost $0.0002 — the cheapest wrong number in the project.
+
+**Measured, the strict reading gives the cleanest single finding here: all 40 partial misses are the same section.** Thirty-one on the generated set, nine on the gold set, and not one instance of anything else — RCW 59.18.230 every time. That is the most load-bearing section in the corpus, the one enumerating the ten prohibited provision types, and dense retrieval fails to surface it for half of all planted violations on *both* sets. It is a long enumerated catalog, so its embedding is a smear of ten unrelated prohibitions, while the offending clause talks about insurance or attorney fees.
 
 ```bash
 python -m evaluation.eval_scan_retrieval        # gold

@@ -1,9 +1,12 @@
 # Upload set for `gcloud run deploy --source`. Written explicitly because the
-# default falls back to .gitignore — which excludes vector_db/, and the image
-# must contain it.
+# default falls back to .gitignore, which excludes both vector stores — and the
+# image must contain one of them: vector_db_runtime/, the export the Dockerfile
+# copies. The development store is excluded here for the same reason it is
+# excluded from the image; see .dockerignore.
 .git
 .venv
 .env
+vector_db/
 __pycache__/
 *.pyc
 .pytest_cache/
