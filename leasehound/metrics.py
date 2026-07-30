@@ -25,6 +25,21 @@ LOG_PATH = Path(__file__).parent.parent / "logs" / "scan_metrics.jsonl"
 SUMMARY_PATH = Path(__file__).parent.parent / "evaluation" / "scan_cost_summary.json"
 
 
+def cached_prompt_tokens(response) -> int:
+    """Input tokens the provider served from its prompt cache, or 0 if not reported.
+
+    Defensive on every hop: the field is provider-specific, arrives as an object on
+    some responses and a dict on others, and is absent entirely on a cold prompt. A
+    metrics helper must never be the thing that breaks a scan.
+    """
+    details = getattr(response.usage, "prompt_tokens_details", None)
+    if details is None:
+        return 0
+    if isinstance(details, dict):
+        return int(details.get("cached_tokens") or 0)
+    return int(getattr(details, "cached_tokens", 0) or 0)
+
+
 class ScanMeter:
     """Thread-safe usage accumulator for one scan.
 
@@ -38,6 +53,7 @@ class ScanMeter:
         self.llm_calls = 0
         self.embedding_calls = 0
         self.prompt_tokens = 0
+        self.cached_prompt_tokens = 0
         self.completion_tokens = 0
         self.embedding_tokens = 0
         self.cost_usd = 0.0
@@ -50,6 +66,12 @@ class ScanMeter:
         with self._lock:
             self.llm_calls += 1
             self.prompt_tokens += response.usage.prompt_tokens
+            # Input tokens the provider served from its own prompt cache, billed at a
+            # discount. Recorded because it is the difference between two scans of the
+            # same document costing $0.0149 and $0.0075 with byte-identical token
+            # counts: same work, different rate. Without this field the cost log looks
+            # like the pipeline became cheaper.
+            self.cached_prompt_tokens += cached_prompt_tokens(response)
             self.completion_tokens += response.usage.completion_tokens
             self.cost_usd += cost
 
@@ -69,6 +91,7 @@ class ScanMeter:
                 "llm_calls": self.llm_calls,
                 "embedding_calls": self.embedding_calls,
                 "prompt_tokens": self.prompt_tokens,
+                "cached_prompt_tokens": self.cached_prompt_tokens,
                 "completion_tokens": self.completion_tokens,
                 "embedding_tokens": self.embedding_tokens,
                 "cost_usd": round(self.cost_usd, 6),

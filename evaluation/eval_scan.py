@@ -77,12 +77,20 @@ def evaluate_lease(entry: dict, leases_dir: Path, keep_raw: bool = False,
         }
 
     strict, lenient_only, missed, false_reds, citation_hits = [], [], [], [], 0
+    # The evidence behind the two scores that get quoted. citation_accuracy used to
+    # be a bare count in the artifact, so "18/18 cited correctly" could not be
+    # checked without paying for a re-run; and false_reds held printed clause
+    # NUMBERS with no text, which is how a false red once got diagnosed against the
+    # wrong clause — printed numbers and indexes disagree by one in some leases.
+    citations: dict[str, list[str]] = {}
+    false_red_clauses: dict[str, str] = {}
     for finding in findings:
         number = printed_number(finding["clause"])
         if number in expected_red:
             if finding["verdict"] == "red":
                 strict.append(number)
                 cited = {base_section(c) for c in finding["citations"]}
+                citations[str(number)] = sorted(cited)
                 if cited & set(expected_red[number]):
                     citation_hits += 1
             elif finding["verdict"] == "yellow":
@@ -91,6 +99,7 @@ def evaluate_lease(entry: dict, leases_dir: Path, keep_raw: bool = False,
                 missed.append(number)
         elif finding["verdict"] == "red":
             false_reds.append(number)
+            false_red_clauses[str(number)] = finding["clause"][:300]
 
     reported_missing = {p["name"] for p in protections if p["status"] == "missing"}
     result["gate_flagged"] = gate_flagged
@@ -110,6 +119,12 @@ def evaluate_lease(entry: dict, leases_dir: Path, keep_raw: bool = False,
         "missed": sorted(missed),
         "false_reds": sorted(f for f in false_reds if f is not None),
         "citation_hits": citation_hits,
+        # Recorded so the two scores above are auditable from the artifact rather
+        # than only from a re-run. Not backfilled: re-running a paid eval to add
+        # evidence for numbers that did not change is the kind of spend this
+        # project declines, so these appear from the next legitimate run onward.
+        "citations_by_clause": {k: citations[k] for k in sorted(citations)},
+        "false_red_clauses": {k: false_red_clauses[k] for k in sorted(false_red_clauses)},
         "protections_expected": sorted(expected_missing),
         "protections_reported": sorted(reported_missing),
         "protections_exact": reported_missing == expected_missing,

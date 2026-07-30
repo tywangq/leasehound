@@ -17,6 +17,7 @@ Usage:
 """
 
 import hashlib
+import os
 import re
 import tempfile
 import threading
@@ -672,7 +673,25 @@ QUEUE_MAX_SIZE = 16
 QUEUE_CONCURRENCY = 4
 demo.queue(max_size=QUEUE_MAX_SIZE, default_concurrency_limit=QUEUE_CONCURRENCY)
 
+def serve() -> None:
+    """One process, two surfaces: the UI at / and the HTTP API at /v1.
+
+    Mounted rather than launched, so `python -m leasehound.app` stays the single
+    serving command — the container's CMD, the README, and .claude/launch.json all
+    keep working, and there is no second entry point to remember which of the two
+    a given environment runs. The env vars are Gradio's own names because that is
+    what the Dockerfile already sets.
+    """
+    import uvicorn
+
+    from leasehound.api import api
+
+    uvicorn.run(
+        gr.mount_gradio_app(api, demo, path="/", **UI_STYLE),
+        host=os.environ.get("GRADIO_SERVER_NAME", "127.0.0.1"),
+        port=int(os.environ.get("GRADIO_SERVER_PORT", "7860")),
+    )
+
+
 if __name__ == "__main__":
-    # No explicit host/port: gradio falls back to GRADIO_SERVER_NAME /
-    # GRADIO_SERVER_PORT (set by the container), else 127.0.0.1:7860 locally.
-    demo.launch(inbrowser=False, **UI_STYLE)
+    serve()

@@ -23,7 +23,7 @@ Residential leases routinely contain clauses that are void and unenforceable und
 | 40 generated leases · 61 planted violations | 60/61 flagged red · 60/60 cited correctly · [precision is an audited lower bound](evaluation/README.md#scaling-past-the-ceiling--40-generated-leases-labels-for-free) |
 | 5 prompt-injection payloads inside hostile leases | **5/5 held** — every planted violation still red, no scan suppressed, and 5/5 clean on the report → ask-mode carryover path |
 | scan-mode retrieval, 79 labelled clauses | governing section arrives 79/79 — [all 40 partial misses were one section, and fixing it cost precision](evaluation/README.md#scan-mode-retrieval--one-miss-and-three-fixes-that-did-not-ship) |
-| cost & latency, 120 logged scans (9–15 clauses) | ≈ $0.0112/scan · p50 8.7 s · [p95 21.8 s is the provider, not the pipeline](#what-a-scan-costs) · [a real 49-clause lease costs $0.061 / 18.5 s](#what-a-scan-costs) |
+| cost & latency, 124 logged scans (9–15 clauses) | ≈ $0.0112/scan · p50 8.8 s · [p95 21.8 s is the provider, not the pipeline](#what-a-scan-costs) · [and that mean is a warm-cache number](#what-a-scan-costs) |
 | ask mode, per question | $0.0029 · median 6.5 s — [1.8× the cost of the two-stage pipeline it beat by 1–2 questions](#what-the-extra-stages-cost) |
 
 ## Architecture
@@ -49,8 +49,12 @@ graph TD
     INGEST --> DB[("vector_db<br>Chroma, one collection per variant")]
     NAIVE --> DB
 
-    APP["app.py<br>Gradio UI + scan cache"] --> SCAN["scan.py<br>clause-by-clause judge"]
+    CLI["python -m leasehound.scan<br>command line"] --> SCAN["scan.py<br>scan_steps: the one orchestration<br>+ clause-by-clause judge"]
+    APP["app.py<br>Gradio UI + scan cache"] --> SCAN
+    API["api.py<br>FastAPI /v1, typed contract"] --> SCAN
+    APP -.->|mounts| API
     APP --> ANSWER["answer.py<br>grounded Q&A"]
+    API --> ANSWER
     UPLOAD["upload.py<br>split lease into clauses"] --> SCAN
     SCAN --> METRICS["metrics.py<br>per-scan cost & latency log"]
     SCAN --> RETRIEVAL["retrieval.py<br>shared retrieval layer"]
@@ -61,7 +65,7 @@ graph TD
     RETRIEVAL --> DB
 ```
 
-Top half runs offline (build the statute library); bottom half is runtime. Both query modes and the evaluation suite sit on the same `retrieval.py`, so an ablation result measures exactly the code the product runs.
+Top half runs offline (build the statute library); bottom half is runtime. Three clients — command line, browser, HTTP — enter through the same `scan_steps`, and both query modes and the evaluation suite sit on the same `retrieval.py`, so an ablation result measures exactly the code the product runs. `app.py` mounts `api.py` so one process and one command serve both surfaces.
 
 ## Setup
 
@@ -76,8 +80,19 @@ python -m leasehound.ingest        # chunk + embed → vector_db/ (one-time, a f
 
 ```bash
 python -m leasehound.scan examples/sample_lease.md   # CLI
-python -m leasehound.app                             # web UI at localhost:7860
+python -m leasehound.app                             # web UI at / , HTTP API at /v1 , docs at /docs
 ```
+
+<a id="three-clients-one-pipeline"></a>**Three clients, one pipeline.** The CLI, the web UI and the HTTP API are all callers of `scan.scan_steps`, which yields the scan as events — split, gate, each clause, protections, done — and says nothing about how they should look. The CLI prints them, the UI streams them into chat, the API ignores them and returns the outcome. That shape exists because the first two used to be *separate copies* of the same sequence, assembled from the same primitives, and had already drifted: the UI hard-coded the jurisdiction the CLI took as an argument. Adding a third caller is what made the duplication untenable rather than merely untidy.
+
+The API is FastAPI with a typed contract and generated docs, and it added **no dependency** — Gradio already ships FastAPI, uvicorn and httpx, so `/v1` cost 0 MB in the image. `POST /v1/scan` returns the verdicts, the protections, the same rendered report, and **what the request spent**; `summary.partial` tells a caller whether the clause cap left anything unjudged, because 60-of-270 and 60-of-60 are different answers.
+
+```bash
+LEASEHOUND_API_TOKEN=dev python -m leasehound.app
+curl -s -H "X-API-Token: dev" -F file=@examples/sample_lease.md localhost:7860/v1/scan | jq .summary
+```
+
+**The paid routes are shut unless that variable is set, and the hosted demo does not set it.** Gradio's queue bounds what browser visitors can start and bounds nothing at all about `curl` in a loop, so an open unauthenticated `/v1/scan` is an unmetered hole straight into the API key — the same reasoning as [the clause cap](#what-a-scan-costs). Unset, the routes answer 503 and say why, while `/docs` and `/v1/health` stay open, which is the part worth showing anyway.
 
 The web UI is a single chat with an artifact-style side panel: attach a lease (or one-click the sample) to scan it, or just type to ask questions. Scan progress streams into the chat clause by clause, and the finished red-flag report pins to the panel so it stays visible while you ask follow-ups — answered token-by-token with the report in context and statute citations.
 
@@ -107,7 +122,9 @@ The honest limit: **~25 s was measured on Cloud Run before these changes and has
 
 Every scan is metered: one JSON line per scan (API calls, token usage, estimated cost, latency, verdict counts, clause-split mode — the file name, never lease text) appends to `logs/scan_metrics.jsonl` *and* stdout, so Cloud Logging keeps the records that the container's ephemeral filesystem doesn't. `python -m leasehound.metrics` summarizes the log.
 
-The 15-clause sample lease: 17 LLM calls + 15 embeddings, ≈ $0.015, ~9 s. Across the 120 scans logged while building the evaluation sets (9–15 clauses each): **mean ≈ $0.0112/scan, p50 8.7 s, p95 21.8 s, max 71.4 s** — latency is dominated by the slowest clause in the pool, not by clause count, which is why the eight-way pool matters more than prompt size.
+The 15-clause sample lease: 17 LLM calls + 15 embeddings, ≈ $0.015, ~9 s. Across the 124 scans logged while building the evaluation sets (9–15 clauses each): **mean ≈ $0.0112/scan, p50 8.8 s, p95 21.8 s, max 71.4 s** — latency is dominated by the slowest clause in the pool, not by clause count, which is why the eight-way pool matters more than prompt size.
+
+**That mean is optimistic, and it took building the HTTP API to notice.** Two scans of the identical document reported byte-identical usage — 17 calls, 31k prompt tokens — and cost **$0.0149 and $0.0087**. Same work, different rate: the provider serves recently-seen prompts from its own cache at a discount, and on the warm run **20,480 of 31,294 input tokens (65%) came from that cache**. Every number above was measured while scanning the same small set of documents over and over, so it sits nearer the warm end than the cold one. `cached_prompt_tokens` is in the metrics log now, because without it a cost log shows the pipeline getting cheaper when nothing about the pipeline changed. **Budget from $0.015, not $0.011, for a lease nobody has scanned before.**
 
 Those figures are regenerated from the log by `python -m leasehound.metrics --write` into [`evaluation/scan_cost_summary.json`](evaluation/scan_cost_summary.json). The log itself is gitignored because it records a file name per scan; the summary is the shareable projection — counts and percentiles, no documents. This matters because the numbers above are the most-quoted in the project and were, until recently, reproducible from nothing.
 
@@ -177,11 +194,11 @@ A lease is sensitive: names, address, rent. LeaseHound keeps handling minimal �
 
 ```bash
 pip install -e ".[dev]"
-pytest          # 140 unit tests: clause splitting across seven real numbering conventions, the judge-window invariant, protections windowing + merge precedence, the partial-scan contract, RRF merge + hybrid wiring, BM25 scoring, enumerated-catalog parsing and chunk-id ordering, ask-mode prompt assembly + stream unwrapping, statute-drift comparison, section completion, the injection scorer's negation handling, eval artifacts surviving a cheap re-run, the documented artifact inventory matching the directory, report rendering, cancellation, per-scan metrics, scan cache, the synthetic-dataset verifier, prompts that must treat lease text as data, cited-sources footer, privacy cleanup
+pytest          # 151 unit tests: clause splitting across seven real numbering conventions, the judge-window invariant, protections windowing + merge precedence, the partial-scan contract, RRF merge + hybrid wiring, BM25 scoring, enumerated-catalog parsing and chunk-id ordering, ask-mode prompt assembly + stream unwrapping, statute-drift comparison, section completion, the injection scorer's negation handling, eval artifacts surviving a cheap re-run, the documented artifact inventory matching the directory, the HTTP contract and its spend gate, one orchestration serving all three clients, report rendering, cancellation, per-scan metrics, scan cache, the synthetic-dataset verifier, prompts that must treat lease text as data, cited-sources footer, privacy cleanup
 ruff check leasehound evaluation scripts tests
 ```
 
-CI (GitHub Actions) runs both on every push, plus a third job that **builds the container and boots it**. That job exists because the deployed artifact was the least-tested thing here: the test job installs `pyproject`'s version ranges and is the canary for upstream drift, while the image installs the pinned `requirements-lock.txt` it actually ships and proves those pins still resolve and import together. It builds against a placeholder store — the real one isn't in git, and re-embedding the corpus per commit would spend money re-proving something no commit changes. Tests themselves cover the deterministic core only: no API calls, no vector DB.
+CI (GitHub Actions) runs both on every push, plus a third job that **builds the container and boots it**. That job exists because the deployed artifact was the least-tested thing here: the test job installs `pyproject`'s version ranges and is the canary for upstream drift, while the image installs the pinned `requirements-lock.txt` it actually ships and proves those pins still resolve and import together. It builds against a placeholder store — the real one isn't in git, and re-embedding the corpus per commit would spend money re-proving something no commit changes. That job also **audits `requirements-lock.txt` with `pip-audit`**, because a lockfile with no audit step is a promise to keep shipping a fixed set of versions including their known holes; it found 44 advisories the first time it ran. Tests themselves cover the deterministic core only: no API calls, no vector DB.
 
 Deploying is two steps, because the image ships a different store than development uses:
 
