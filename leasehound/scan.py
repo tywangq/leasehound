@@ -394,6 +394,11 @@ class ScanResult:
     gate_flagged: bool
     clauses_total: int  # after splitting, BEFORE the cap
     split_mode: str
+    # The metrics row this scan logged: tokens, cost, seconds. Carried here because
+    # all three callers want it — the CLI prints a cost line, the HTTP API returns
+    # it so a caller knows what the request spent, and it is the same number the
+    # published cost figures come from.
+    record: dict | None = None
 
     @property
     def clauses_judged(self) -> int:
@@ -404,17 +409,65 @@ class ScanResult:
         return self.clauses_total > self.clauses_judged
 
 
-def scan_lease(path: str | Path, state: str = "wa", collection: str | None = None) -> ScanResult:
+class NoTextExtracted(Exception):
+    """Nothing to scan: a scanned or photo PDF has no text layer.
+
+    Raised rather than exited. This used to be `raise SystemExit` inside the scan,
+    which is a command-line gesture — under a web server it is the wrong exception
+    entirely, and it was one of three reasons the UI could not call this code and
+    grew a second copy of the orchestration instead.
+    """
+
+
+@dataclass
+class ScanStep:
+    """One step of a scan in progress, so callers can show it happening.
+
+    A scan is a sequence of events — some clauses are over the cap, the gate had
+    an opinion, a clause came back, the protections pass started — and the three
+    callers want to present them differently: the CLI prints, the web UI streams
+    chat messages, the HTTP API only wants the outcome. So the core yields the
+    events and says nothing about how they look. The final step carries `result`,
+    which is what makes one plain loop enough for every caller.
+    """
+
+    kind: Literal["split", "gate_flagged", "clause", "protections", "done"]
+    finding: dict | None = None
+    judged: int = 0  # clauses that will be judged, i.e. after the cap
+    total: int = 0  # clauses the document splits into, before the cap
+    result: ScanResult | None = None
+
+    @property
+    def partial(self) -> bool:
+        """Whether the cap left clauses unjudged — `total` and `judged` disagree."""
+        return self.total > self.judged
+
+
+def scan_steps(text: str, source: str, state: str = "wa",
+               collection: str | None = None) -> Iterator[ScanStep]:
+    """Scan already-extracted text, yielding progress. No printing, no I/O.
+
+    This is the one orchestration. It used to exist twice — `scan_lease` for the
+    CLI and `scan_flow` for the web UI — assembled from the same primitives in the
+    same order, with the differences being tqdm versus streamed chat messages. Two
+    copies of a sequence that spends money stay in step only by luck; the pair had
+    already drifted to where the UI hard-coded `state="wa"` while the CLI took it
+    as an argument.
+    """
     config = scan_config(state, collection)
-    clauses, split_mode = split_clauses_with_mode(read_document(Path(path)))
+    clauses, split_mode = split_clauses_with_mode(text)
     if not clauses:
-        raise SystemExit(
-            f"No text could be extracted from {path} — "
-            "a scanned/photo PDF has no text layer; try a text-based .pdf, .md, or .txt."
-        )
+        raise NoTextExtracted(source)
+
     judged = clauses[:MAX_CLAUSES]
-    meter = ScanMeter()  # the sanity check below is the scan's first API call
-    # Advisory, not fatal. The gate used to raise here, which made a wrong reject a
+    # Announced before anything is spent, because every caller needs the two counts
+    # up front: to size a progress bar, and to decide whether to say that the cap
+    # left clauses unjudged. The CLI used to report the cap *after* the gate, which
+    # is an API call, so the cheap news arrived second.
+    yield ScanStep("split", judged=len(judged), total=len(clauses))
+
+    meter = ScanMeter()  # the gate below is the scan's first API call
+    # Advisory, not fatal. The gate used to raise, which made a wrong reject a
     # total failure — and the real-document probe found it rejecting a genuine WA
     # housing agreement (evaluation/eval_real_formats.py). Warning and continuing
     # also closes the injection suite's most effective attack by construction: a
@@ -422,26 +475,68 @@ def scan_lease(path: str | Path, state: str = "wa", collection: str | None = Non
     # The 60-clause cap, not this call, is what bounds spend.
     gate_flagged = not looks_like_lease(clauses, meter)
     if gate_flagged:
-        print(f"⚠️  {path} doesn't read as a residential lease — scanning anyway; "
-              "verdicts against landlord-tenant law will be unreliable.")
-    if len(judged) < len(clauses):
-        print(f"⚠️  {path} splits into {len(clauses)} clauses; judging the first "
-              f"{len(judged)} — the {MAX_CLAUSES}-clause cap bounds what one scan spends.")
-    print(f"Scanning {len(judged)} clauses from {path}")
-    findings = list(tqdm(scan_clauses(judged, config, meter), total=len(judged),
-                         desc="🐕 sniffing clauses"))
+        yield ScanStep("gate_flagged", total=len(clauses))
+
+    findings: list[dict] = []
+    for finding in scan_clauses(judged, config, meter):
+        findings.append(finding)
+        yield ScanStep("clause", finding=finding, judged=len(findings), total=len(judged))
     findings.sort(key=lambda f: f["index"])
+
     # Every clause, not just the judged ones: this pass reports what the lease
     # omits, so it has to read the parts the clause cap skipped.
-    print("🐕 Checking required protections…")
+    yield ScanStep("protections", total=len(clauses))
     protections = check_protections(clauses, meter)
-    record = log_scan(meter, str(path), len(judged),
+
+    record = log_scan(meter, source, len(judged),
                       verdicts=count_verdicts(findings),
                       missing=sum(1 for p in protections if p["status"] == "missing"),
                       split_mode=split_mode, gate_flagged=gate_flagged,
                       clauses_total=len(clauses))
-    print(f"{cost_line(record)} — logged to logs/scan_metrics.jsonl")
-    return ScanResult(findings, protections, gate_flagged, len(clauses), split_mode)
+    yield ScanStep("done", result=ScanResult(
+        findings, protections, gate_flagged, len(clauses), split_mode, record))
+
+
+def run_scan(text: str, source: str, state: str = "wa",
+             collection: str | None = None) -> ScanResult:
+    """Drain `scan_steps` for callers that only want the outcome."""
+    for step in scan_steps(text, source, state, collection):
+        if step.kind == "done":
+            return step.result
+    raise AssertionError("scan_steps ended without a result")  # pragma: no cover
+
+
+def scan_lease(path: str | Path, state: str = "wa", collection: str | None = None) -> ScanResult:
+    """Command-line scan: read the file, then narrate the steps to a terminal."""
+    path = Path(path)
+    progress = None
+    try:
+        for step in scan_steps(read_document(path), str(path), state, collection):
+            if step.kind == "split":
+                if step.partial:
+                    print(f"⚠️  {path} splits into {step.total} clauses; judging the first "
+                          f"{step.judged} — the {MAX_CLAUSES}-clause cap bounds what one "
+                          f"scan spends.")
+                print(f"Scanning {step.judged} clauses from {path}")
+            elif step.kind == "gate_flagged":
+                print(f"⚠️  {path} doesn't read as a residential lease — scanning anyway; "
+                      "verdicts against landlord-tenant law will be unreliable.")
+            elif step.kind == "clause":
+                if progress is None:
+                    progress = tqdm(total=step.total, desc="🐕 sniffing clauses")
+                progress.update(1)
+            elif step.kind == "protections":
+                if progress is not None:
+                    progress.close()
+                    progress = None
+                print("🐕 Checking required protections…")
+            else:
+                print(f"{cost_line(step.result.record)} — logged to logs/scan_metrics.jsonl")
+                return step.result
+    finally:
+        if progress is not None:
+            progress.close()
+    raise AssertionError("scan_steps ended without a result")  # pragma: no cover
 
 
 BADGE = {"red": "🚩", "yellow": "⚠️", "green": "✅"}

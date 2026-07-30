@@ -31,17 +31,20 @@ from leasehound.answer import answer_question
 from leasehound.metrics import ScanMeter, log_scan
 from leasehound.scan import (
     MAX_CLAUSES,
-    check_protections,
+    NoTextExtracted,
+    ScanResult,
     count_verdicts,
-    looks_like_lease,
     render_report,
-    scan_clauses,
-    scan_config,
+    scan_steps,
 )
-from leasehound.upload import read_document, split_clauses_with_mode
+from leasehound.upload import read_document
 
 REPO_ROOT = Path(__file__).parent.parent
 SAMPLE_LEASE = REPO_ROOT / "examples" / "sample_lease.md"
+# The hosted demo serves one jurisdiction. Named once: the scan and the report used
+# to be handed the string "wa" separately, and the scan path took it as a default
+# argument while this file hard-coded it, so they could disagree silently.
+DEMO_STATE = "wa"
 ICONS = Path(__file__).parent / "assets"
 
 HERO = """
@@ -123,6 +126,10 @@ LAW_ONLY_CONTEXT = (
     "Scan a lease and it will know your report too."
 )
 ALREADY_SNIFFED = "🐕 Already sniffed this one — the report is still on the right."
+# Shown between the upload and the first clause count. The scan knows how many
+# clauses there are only after splitting, so there is a real moment with nothing
+# to count, and "0/0 clauses sniffed" would be a worse way to fill it.
+SNIFF_STARTING = "🐕 Reading the document…"
 CACHED_SNIFF = (
     "🐕 The hound has sniffed this exact lease before — here's the saved report, "
     "no fresh API calls. Attach a different lease to watch a live scan."
@@ -320,52 +327,23 @@ def scan_flow(path, key, history, report, scanned, context_base, question=""):
 
     text = read_document(path)
     cleanup_upload(path)
-    clauses, split_mode = split_clauses_with_mode(text)
-    if not clauses:
-        history.append({"role": "assistant", "content": NOTHING_EXTRACTED})
-        yield _out(history, stop=gr.update(visible=False))
-        return
-    # Over the cap the scan goes ahead on a prefix. Refusing here meant a visitor
-    # who uploaded a real WA housing agreement (270 clauses) got nothing at all,
-    # which is a worse answer than 60 judged clauses that say which 210 they aren't.
-    judged = clauses[:MAX_CLAUSES]
-    if len(judged) < len(clauses):
-        history.append({"role": "assistant", "content": PARTIAL_SCAN.format(
-            count=len(clauses), limit=MAX_CLAUSES,
-            rest=f"{len(judged) + 1}–{len(clauses)}")})
-        yield _out(history)
 
     digest = cache_key(text)
-    cached = cache_get(digest)
-    if cached:
-        findings, protections = cached["findings"], cached["protections"]
-        new_report = render_report(findings, name, "wa", protections,
-                                  cached.get("gate_flagged", False), len(clauses))
-        counts = count_verdicts(findings)
-        missing = sum(1 for p in protections if p["status"] == "missing")
-        log_scan(ScanMeter(), name, len(judged), verdicts=counts, missing=missing,
-                 split_mode=split_mode, cache_hit=True, clauses_total=len(clauses))
+    result = cache_get(digest)
+    if result is not None:
+        log_scan(ScanMeter(), name, result.clauses_judged,
+                 verdicts=count_verdicts(result.findings),
+                 missing=missing_protections(result), split_mode=result.split_mode,
+                 cache_hit=True, clauses_total=result.clauses_total)
         history.append({"role": "assistant", "content": CACHED_SNIFF})
-        yield _out(history, report=new_report, state=new_report,
-                   context=report_context(name), source=key,
-                   stop=gr.update(visible=False), col=gr.update(visible=True),
-                   download=gr.update(value=report_file(new_report, name)),
-                   actions=gr.update(visible=True))
-        if question:
-            yield from answer_flow(question, history, new_report, context_base)
+        yield from finished_scan(result, name, key, history, context_base, question)
         return
 
-    meter = ScanMeter()  # the sanity check below is the scan's first API call
-    # Advisory, not a stop: a wrong reject used to cost the visitor everything, and
-    # the real-document probe caught it rejecting a genuine WA housing agreement.
-    gate_flagged = not looks_like_lease(clauses, meter)
-    if gate_flagged:
-        history.append({"role": "assistant", "content": NOT_A_LEASE})
-        yield _out(history)
-
-    total = len(judged)
-    config = scan_config("wa")
-    history.append({"role": "assistant", "content": progress_line(0, total)})
+    # Everything below is `scan.scan_steps` narrating itself into chat. The steps —
+    # split, gate, each clause, protections — are the pipeline's, not this file's:
+    # this function used to re-assemble them from the same primitives the CLI uses,
+    # and two copies of a sequence that spends money stay in step only by luck.
+    history.append({"role": "assistant", "content": SNIFF_STARTING})
     # A fresh scan makes any previous report stale immediately: law-only context
     # until the new report lands.
     yield _out(history, box=gr.update(interactive=False),
@@ -373,40 +351,72 @@ def scan_flow(path, key, history, report, scanned, context_base, question=""):
                state="", context=LAW_ONLY_CONTEXT, source="",
                stop=gr.update(visible=True), col=gr.update(visible=True),
                actions=gr.update(visible=False))
-    findings = []
-    for finding in scan_clauses(judged, config, meter):
-        findings.append(finding)
-        history[-1]["content"] = progress_line(len(findings), total)
-        yield _out(history)
-    findings.sort(key=lambda f: f["index"])
+    try:
+        for step in scan_steps(text, name, state=DEMO_STATE):
+            if step.kind == "split":
+                # Over the cap the scan goes ahead on a prefix. Refusing meant a
+                # visitor who uploaded a real WA housing agreement (270 clauses) got
+                # nothing at all, which is worse than 60 judged clauses that say
+                # which 210 they aren't.
+                if step.partial:
+                    history.insert(-1, {"role": "assistant", "content": PARTIAL_SCAN.format(
+                        count=step.total, limit=MAX_CLAUSES,
+                        rest=f"{step.judged + 1}–{step.total}")})
+                history[-1]["content"] = progress_line(0, step.judged)
+                yield _out(history)
+            elif step.kind == "gate_flagged":
+                history.insert(-1, {"role": "assistant", "content": NOT_A_LEASE})
+                yield _out(history)
+            elif step.kind == "clause":
+                history[-1]["content"] = progress_line(step.judged, step.total)
+                yield _out(history)
+            elif step.kind == "protections":
+                history[-1]["content"] = (
+                    "🐕 One more pass — checking the protections the law requires…")
+                yield _out(history)
+            else:
+                cache_put(digest, step.result)
+                history[-1]["content"] = scan_summary(step.result)
+                yield from finished_scan(step.result, name, key, history,
+                                         context_base, question)
+    except NoTextExtracted:
+        history[-1]["content"] = NOTHING_EXTRACTED
+        yield _out(history, box=gr.update(interactive=True),
+                   report="", state="", context=LAW_ONLY_CONTEXT, source="",
+                   stop=gr.update(visible=False), col=gr.update(visible=False),
+                   actions=gr.update(visible=False))
 
-    history[-1]["content"] = "🐕 One more pass — checking the protections the law requires…"
-    yield _out(history)
-    # Every clause, including the ones past the cap: "missing" is a claim about
-    # the whole document, so this pass can't be the one that reads a prefix.
-    protections = check_protections(clauses, meter)
-    new_report = render_report(findings, name, "wa", protections, gate_flagged, len(clauses))
-    counts = count_verdicts(findings)
-    missing = sum(1 for p in protections if p["status"] == "missing")
-    log_scan(meter, name, total, verdicts=counts, missing=missing, split_mode=split_mode,
-             gate_flagged=gate_flagged, clauses_total=len(clauses))
-    cache_put(digest, {"findings": findings, "protections": protections,
-                       "gate_flagged": gate_flagged})
-    coverage = (f" — across clauses 1–{total} of {len(clauses)}"
-                if total < len(clauses) else "")
-    history[-1]["content"] = (
-        f"🐕 Sniff complete{coverage}: 🚩 {counts['red']} red · ⚠️ {counts['yellow']} caution · "
-        f"✅ {counts['green']} clear · 🔍 {missing} missing protections. "
+
+def missing_protections(result: ScanResult) -> int:
+    return sum(1 for p in result.protections if p["status"] == "missing")
+
+
+def scan_summary(result: ScanResult) -> str:
+    counts = count_verdicts(result.findings)
+    coverage = (f" — across clauses 1–{result.clauses_judged} of {result.clauses_total}"
+                if result.partial else "")
+    return (
+        f"🐕 Sniff complete{coverage}: 🚩 {counts['red']} red · "
+        f"⚠️ {counts['yellow']} caution · ✅ {counts['green']} clear · "
+        f"🔍 {missing_protections(result)} missing protections. "
         "Full report on the right — ask me about any clause."
     )
+
+
+def finished_scan(result: ScanResult, name, key, history, context_base, question):
+    """Pin the report and settle the panel — the caller has already said its piece
+    in chat. Shared by the fresh and the cached path, which had drifted to calling
+    `render_report` with different arguments for the same report."""
+    report = render_report(result.findings, name, DEMO_STATE, result.protections,
+                           result.gate_flagged, result.clauses_total)
     yield _out(history, box=gr.update(interactive=True),
-               report=new_report, state=new_report,
+               report=report, state=report,
                context=report_context(name), source=key,
                stop=gr.update(visible=False), col=gr.update(visible=True),
-               download=gr.update(value=report_file(new_report, name)),
+               download=gr.update(value=report_file(report, name)),
                actions=gr.update(visible=True))
     if question:
-        yield from answer_flow(question, history, new_report, context_base)
+        yield from answer_flow(question, history, report, context_base)
 
 
 def respond(message, history, report, scanned):

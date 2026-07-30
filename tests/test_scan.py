@@ -3,6 +3,8 @@
 import time
 from unittest.mock import patch
 
+import pytest
+
 import leasehound.scan as scan
 from leasehound.scan import base_section, count_verdicts, render_report
 
@@ -187,3 +189,69 @@ def test_the_report_warns_when_the_document_did_not_read_as_a_lease():
     assert "didn't read as a residential lease" in flagged
     assert "unreliable" in flagged
     assert "didn't read as a residential lease" not in clean
+
+
+def test_no_text_raises_instead_of_exiting():
+    """`raise SystemExit` inside the scan is a command-line gesture. Under a web
+    server it is the wrong exception entirely, and it was one reason the UI could
+    not call this code. This path had no test at all when the type changed."""
+    with pytest.raises(scan.NoTextExtracted):
+        list(scan.scan_steps("", "photo_of_a_lease.pdf"))
+
+
+def test_the_split_step_reports_both_counts_before_anything_is_spent():
+    """Callers size a progress bar and decide whether to mention the cap from this
+    one step, and it must arrive before the gate, which costs an API call."""
+    filler = "The parties agree to the terms set forth in this provision as written. "
+    clauses = [f"{i}. CLAUSE HEADING. {filler}" for i in range(1, scan.MAX_CLAUSES + 6)]
+    gate_calls = []
+    with (
+        patch.object(scan, "looks_like_lease",
+                     lambda c, meter=None: gate_calls.append(1) or True),
+        patch.object(scan, "scan_clause", lambda clause, index, config, meter=None: {
+            "index": index, "clause": clause, "verdict": "green",
+            "citations": [], "urls": {}, "explanation": "fine"}),
+        patch.object(scan, "check_protections", lambda c, meter=None: []),
+        patch.object(scan, "log_scan", lambda *a, **k: {}),
+    ):
+        steps = scan.scan_steps("\n\n".join(clauses), "long.md")
+        first = next(steps)
+        assert first.kind == "split", "the cheap news must come first"
+        assert not gate_calls, "nothing may be spent before the counts are reported"
+        assert first.total == len(clauses)
+        assert first.judged == scan.MAX_CLAUSES
+        assert first.partial is True
+        list(steps)
+
+
+def test_one_orchestration_serves_both_the_cli_and_the_ui():
+    """The sequence used to exist twice, assembled from the same primitives, and had
+    already drifted: the UI hard-coded the state the CLI took as an argument. Stub the
+    stages once — patching `scan` and nothing else — and both paths must agree."""
+    import leasehound.app as app
+
+    clauses = ["1. RENT. Rent is due on the first.", "2. ENTRY. Landlord may enter."]
+    protections = [{"name": "Deposit location", "status": "missing", "evidence": ""}]
+
+    def one_clause(clause, index, config, meter=None):
+        return {"index": index, "clause": clause, "verdict": "green",
+                "citations": [], "urls": {}, "explanation": "fine"}
+
+    with (
+        patch.object(scan, "read_document", lambda path: "whatever"),
+        patch.object(scan, "split_clauses_with_mode", lambda text: (clauses, "numbered")),
+        patch.object(scan, "looks_like_lease", lambda c, meter=None: True),
+        patch.object(scan, "scan_clause", one_clause),
+        patch.object(scan, "check_protections", lambda c, meter=None: protections),
+        patch.object(scan, "log_scan", lambda *a, **k: {}),
+        patch.object(scan, "cost_line", lambda record: ""),
+    ):
+        from_cli = scan.scan_lease("lease.md")
+        from_core = list(scan.scan_steps("whatever", "lease.md", state=app.DEMO_STATE))[-1].result
+
+    assert from_cli.findings == from_core.findings
+    assert from_cli.protections == from_core.protections == protections
+    assert from_cli.clauses_total == from_core.clauses_total == len(clauses)
+    assert from_cli.split_mode == from_core.split_mode == "numbered"
+    # And the UI renders that result through the same call the CLI's report uses.
+    assert app.DEMO_STATE == "wa"

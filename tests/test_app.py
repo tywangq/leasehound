@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import leasehound.app as app
+import leasehound.scan as scan
 from leasehound.app import (
     MODEL_FOOTER,
     SAMPLE_LEASE,
@@ -107,9 +108,11 @@ def test_second_scan_of_identical_content_makes_no_api_calls(monkeypatch, tmp_pa
                "citations": [], "urls": {}, "explanation": "fine"}
 
     monkeypatch.setattr(app, "read_document", lambda path: lease_text)
-    monkeypatch.setattr(app, "looks_like_lease", lambda clauses, meter=None: True)
-    monkeypatch.setattr(app, "scan_clauses", fake_scan_clauses)
-    monkeypatch.setattr(app, "check_protections", lambda clauses, meter=None: [])
+    # Stubbed on leasehound.scan, not on app: there is one orchestration now, and
+    # the UI reaches these stages through it rather than calling them itself.
+    monkeypatch.setattr(scan, "looks_like_lease", lambda clauses, meter=None: True)
+    monkeypatch.setattr(scan, "scan_clauses", fake_scan_clauses)
+    monkeypatch.setattr(scan, "check_protections", lambda clauses, meter=None: [])
     monkeypatch.setattr(metrics, "LOG_PATH", tmp_path / "scan_metrics.jsonl")
     app._scan_cache.clear()
 
@@ -146,9 +149,9 @@ def test_a_long_lease_is_scanned_partially_instead_of_being_turned_away(monkeypa
                    "citations": [], "urls": {}, "explanation": "fine"}
 
     monkeypatch.setattr(app, "read_document", lambda path: lease_text)
-    monkeypatch.setattr(app, "looks_like_lease", lambda clauses, meter=None: True)
-    monkeypatch.setattr(app, "scan_clauses", fake_scan_clauses)
-    monkeypatch.setattr(app, "check_protections",
+    monkeypatch.setattr(scan, "looks_like_lease", lambda clauses, meter=None: True)
+    monkeypatch.setattr(scan, "scan_clauses", fake_scan_clauses)
+    monkeypatch.setattr(scan, "check_protections",
                         lambda clauses, meter=None: protections_saw.extend(clauses) or [])
     monkeypatch.setattr(metrics, "LOG_PATH", tmp_path / "scan_metrics.jsonl")
     app._scan_cache.clear()
