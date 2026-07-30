@@ -31,12 +31,25 @@ def commit() -> str | None:
     return result.stdout.strip() or None
 
 
-def stamp() -> dict:
+def stamp(models: bool = True) -> dict:
+    """Provenance for one run.
+
+    `models=False` is for runs that call no model and read no corpus — the
+    concurrency harness stubs the whole LLM layer, so naming three models there
+    would imply they had something to do with the number. Commit and date still
+    apply, and they are the fields that make a re-run comparable, so the same
+    stamping path covers both kinds of run rather than growing a second one.
+    """
+    origin = {
+        "commit": commit(),
+        "run_at": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+    }
+    if not models:
+        return origin
     return {
         "generation_model": GENERATION_MODEL,
         "utility_model": UTILITY_MODEL,
         "embedding_model": EMBEDDING_MODEL,
         "corpus_snapshot": CORPUS_SNAPSHOT,
-        "commit": commit(),
-        "run_at": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        **origin,
     }

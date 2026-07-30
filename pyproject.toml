@@ -8,14 +8,24 @@ version = "0.1.0"
 description = "Tenant-side lease red-flag scanner and Q&A, grounded in state statutes"
 license = {file = "LICENSE"}
 requires-python = ">=3.11"
-# Capped at the next major everywhere. The chromadb floor is the one that is not
-# cosmetic: the vector store is an on-disk artifact written by 1.x, and 0.5 —
-# which this file used to allow — cannot read it. The image does not rely on
-# these ranges at all; it installs requirements-lock.txt (see Dockerfile), which
-# leaves this set free to float so CI notices upstream breakage early.
+# Capped at the next major everywhere, and two of the floors carry a reason.
+#
+# chromadb: the vector store is an on-disk artifact written by 1.x, and 0.5 —
+# which this file used to allow — cannot read it.
+#
+# gradio: 6.6 is the first release without the advisories that pip-audit reports
+# against 5.x, and the cap this file used to carry (`<6`) was itself what held 43
+# of them in place — gradio 5 pins `pillow<12` and `starlette<1.0`, whose fixes
+# are 12.1.1 and 1.0.1. One floor moved, four packages cleared. That is why
+# ci.yml audits the lockfile now: a pin is a promise to keep shipping a version,
+# including its vulnerabilities, and nothing here would otherwise have noticed.
+#
+# The image does not rely on these ranges at all; it installs
+# requirements-lock.txt (see Dockerfile), which leaves this set free to float so
+# CI notices upstream breakage early.
 dependencies = [
     "chromadb>=1.0,<2",
-    "gradio>=5.0,<6",
+    "gradio>=6.6,<7",
     "litellm>=1.40,<2",
     "openai>=2.0,<3",
     "pydantic>=2.7,<3",

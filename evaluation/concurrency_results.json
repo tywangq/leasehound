@@ -2,6 +2,10 @@
   "pool_workers": 8,
   "stubbed_clause_seconds": 4.0,
   "note": "API latency is stubbed; this measures the pool's shape, not the API.",
+  "provenance": {
+    "commit": "50ff887",
+    "run_at": "2026-07-30"
+  },
   "staircase": {
     "1": {
       "waves": 1,
@@ -9,41 +13,41 @@
     },
     "4": {
       "waves": 1,
-      "seconds": 4.006
+      "seconds": 4.004
     },
     "8": {
       "waves": 1,
-      "seconds": 4.006
+      "seconds": 4.007
     },
     "9": {
       "waves": 2,
-      "seconds": 8.008
+      "seconds": 8.006
     },
     "16": {
       "waves": 2,
-      "seconds": 8.01
+      "seconds": 8.007
     },
     "17": {
       "waves": 3,
-      "seconds": 12.01
+      "seconds": 12.011
     },
     "24": {
       "waves": 3,
-      "seconds": 12.013
+      "seconds": 12.011
     }
   },
   "concurrent_scans": {
     "1": {
-      "slowest_scan_seconds": 8.009,
-      "total_seconds": 8.01
+      "slowest_scan_seconds": 8.008,
+      "total_seconds": 8.008
     },
     "2": {
-      "slowest_scan_seconds": 8.009,
-      "total_seconds": 8.01
+      "slowest_scan_seconds": 8.01,
+      "total_seconds": 8.012
     },
     "4": {
-      "slowest_scan_seconds": 8.017,
-      "total_seconds": 8.019
+      "slowest_scan_seconds": 8.012,
+      "total_seconds": 8.014
     }
   },
   "admission_control": {
@@ -54,5 +58,5 @@
     "worst_wait_at_queue_full_seconds": 32.0,
     "visitor_number_that_gets_turned_away": 21
   },
-  "peak_rss_mb": 235.8
+  "peak_rss_mb": 297.2
 }

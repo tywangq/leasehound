@@ -33,11 +33,14 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
 
+from evaluation.provenance import stamp
+
+# QUEUE_* are imported, not restated: they are Gradio's admission control, and this
+# script publishes arithmetic derived from them. Copying the two numbers into this
+# file is how a published claim quietly stops describing the deployed configuration.
+from leasehound.app import QUEUE_CONCURRENCY, QUEUE_MAX_SIZE
 from leasehound.scan import MAX_PARALLEL_SCANS, scan_clauses
 
-# Gradio admission control, from app.py's demo.queue(...).
-QUEUE_CONCURRENCY = 4
-QUEUE_MAX_SIZE = 16
 # Derived from the logged scans: p50 8.1s over 9-15 clauses is two pool waves,
 # so one clause costs roughly half of that.
 DEFAULT_CLAUSE_SECONDS = 4.0
@@ -114,6 +117,10 @@ def main() -> None:
         "pool_workers": MAX_PARALLEL_SCANS,
         "stubbed_clause_seconds": seconds,
         "note": "API latency is stubbed; this measures the pool's shape, not the API.",
+        # No models named: nothing here calls one. Peak RSS does depend on which
+        # Gradio is installed, though — it moved 236 -> 302 MB on the 5-to-6
+        # upgrade — so the commit this ran at is the part that matters.
+        "provenance": stamp(models=False),
         "staircase": staircase,
         "concurrent_scans": concurrent,
         "admission_control": admission,

@@ -38,6 +38,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Audit the shipped dependency set
+        # A lockfile without this step is a promise to keep shipping a fixed set
+        # of versions including their vulnerabilities, and nothing else here would
+        # notice. It found 44 advisories across 4 packages the first time it ran;
+        # 43 were held in place by a single `gradio<6` cap in pyproject.
+        #
+        # --no-deps because the lockfile is already fully pinned, and this audits
+        # exactly what the image installs — dev tools are not in it because they
+        # are not in the container.
+        #
+        # The one ignored advisory is pre-authentication code injection in
+        # ChromaDB's *server* API, /api/v2/tenants/.../collections with
+        # trust_remote_code. This deployment embeds Chroma as a PersistentClient
+        # and serves no such endpoint — the same reason the Dockerfile can drop
+        # chromadb's kubernetes dependency. There is no fixed version to move to,
+        # so it is named here rather than left to turn the job permanently red,
+        # which is how an audit stops being read at all. Revisit if Chroma ever
+        # runs as a separate service.
+        run: |
+          pip install pip-audit
+          pip-audit --no-deps -r requirements-lock.txt \
+            --ignore-vuln GHSA-f4j7-r4q5-qw2c
       - name: Stand in for the runtime vector store
         run: mkdir -p vector_db_runtime && touch vector_db_runtime/.keep
       - name: Build

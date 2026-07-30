@@ -563,16 +563,25 @@ TRASH_JS = """
 """
 
 
-with gr.Blocks(
-    theme=gr.themes.Soft(
+# Gradio 6 moved theme/css/js off the Blocks constructor. Theme and css belong to
+# whoever serves the Blocks, and there are two of those — `launch()` here and
+# `mount_gradio_app()` in api.py — so they live in one dict rather than being
+# spelled out twice and drifting.
+#
+# `js` is deliberately NOT in here. Passing it to launch() is accepted and then
+# silently never runs: the script is absent from the page and activeElement stays
+# on <body>, which killed both the autofocus and the click handler that makes the
+# example chips submit. It has to be a load event instead (see demo.load below).
+UI_STYLE = {
+    "theme": gr.themes.Soft(
         primary_hue="teal",
         neutral_hue="slate",
         font=[gr.themes.GoogleFont("Inter"), "ui-sans-serif", "system-ui", "sans-serif"],
     ),
-    css=CSS,
-    js=EXAMPLES_JS,
-    title="LeaseHound — lease red-flag scanner",
-) as demo:
+    "css": CSS,
+}
+
+with gr.Blocks(title="LeaseHound — lease red-flag scanner") as demo:
     gr.HTML(HERO)
     report_state = gr.State("")
     scanned_source = gr.State("")  # what the current report is for: a file path or "sample"
@@ -580,7 +589,9 @@ with gr.Blocks(
     with gr.Row(elem_classes="main-row"):
         with gr.Column(scale=1, elem_classes="chat-col"):
             context_line = gr.Markdown(LAW_ONLY_CONTEXT, elem_classes="step-sub")
-            chatbot = gr.Chatbot(height=440, type="messages", show_label=False)
+            # Gradio 6 dropped `type=`: the messages format this app already uses
+            # is the only one now, so the argument became a no-op and then an error.
+            chatbot = gr.Chatbot(height=440, show_label=False)
             message_box = gr.MultimodalTextbox(
                 placeholder="Attach a lease, or ask about renting in Washington…",
                 show_label=False,
@@ -638,12 +649,20 @@ with gr.Blocks(
     # Input is the Markdown component, not report_state: a js-only handler runs
     # entirely client-side, and gr.State values only exist on the server.
     copy_button.click(None, inputs=[report_output], js=COPY_JS)
+    # Client-side setup: focus the input, and make the example chips submit. A load
+    # event is the only place this runs under Gradio 6 — see UI_STYLE above.
+    demo.load(None, js=EXAMPLES_JS)
 
 # Public-hosting guardrails: a bounded waiting room instead of an unbounded
 # queue, and a few concurrent turns so one long scan doesn't serialize everyone.
-demo.queue(max_size=16, default_concurrency_limit=4)
+# Named rather than inlined because scripts/measure_concurrency.py does the
+# admission arithmetic from them — it used to restate the two numbers in its own
+# source, which would have gone stale the moment either changed here.
+QUEUE_MAX_SIZE = 16
+QUEUE_CONCURRENCY = 4
+demo.queue(max_size=QUEUE_MAX_SIZE, default_concurrency_limit=QUEUE_CONCURRENCY)
 
 if __name__ == "__main__":
     # No explicit host/port: gradio falls back to GRADIO_SERVER_NAME /
     # GRADIO_SERVER_PORT (set by the container), else 127.0.0.1:7860 locally.
-    demo.launch(inbrowser=False)
+    demo.launch(inbrowser=False, **UI_STYLE)
