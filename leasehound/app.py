@@ -27,6 +27,7 @@ from collections import OrderedDict
 from pathlib import Path
 
 import gradio as gr
+from starlette.responses import Response
 
 from leasehound.answer import answer_question
 from leasehound.metrics import ScanMeter, log_scan
@@ -673,6 +674,61 @@ QUEUE_MAX_SIZE = 16
 QUEUE_CONCURRENCY = 4
 demo.queue(max_size=QUEUE_MAX_SIZE, default_concurrency_limit=QUEUE_CONCURRENCY)
 
+# Gradio hard-codes its own Open Graph tags into the page it serves, so the link
+# preview on LinkedIn, Slack or a recruiter's inbox reads "Gradio — Click to try out
+# the app!" under someone else's Twitter handle, and og:url ships as the literal
+# unsubstituted string "{url}". The favicon was the visible half of this; the share
+# card is the half that reaches people who never click. Rewritten on the way out
+# because the tags are baked into Gradio's template, not configurable.
+DEMO_URL = "https://leasehound-671004460975.us-west1.run.app"
+# The same still the README shows, served from the public repo so a share card can
+# reach it. Worth knowing: this file is itself due for a re-record.
+SCREENSHOT = "docs/screenshot.png"
+SOCIAL_TITLE = "LeaseHound — lease red-flag scanner"
+SOCIAL_DESCRIPTION = ("Scan a Washington lease for clauses that are void under "
+                      "RCW 59.18 — every verdict cites the statute.")
+# Matched by attribute rather than by exact string: Gradio emits these twice, in two
+# blocks, and wraps some of them across lines, so a literal replacement caught the
+# titles and left og:image pointing at Gradio's own banner. An empty value here means
+# drop the tag — shipping someone else's URL is worse than shipping none.
+SOCIAL_CONTENT = {
+    "og:title": SOCIAL_TITLE,
+    "twitter:title": SOCIAL_TITLE,
+    "og:description": SOCIAL_DESCRIPTION,
+    "twitter:description": SOCIAL_DESCRIPTION,
+    "og:url": DEMO_URL,
+    "og:image": f"https://raw.githubusercontent.com/tywangq/leasehound/main/{SCREENSHOT}",
+    "twitter:image": f"https://raw.githubusercontent.com/tywangq/leasehound/main/{SCREENSHOT}",
+    "twitter:creator": "",
+    "twitter:site": "",
+}
+META_TAG_RE = re.compile(r'<meta\s[^>]*?(property|name)="([\w:]+)"[^>]*?/>', re.S)
+
+
+def rebrand_meta_tag(match: re.Match) -> str:
+    attribute, key = match.group(1), match.group(2)
+    if key not in SOCIAL_CONTENT:
+        return match.group(0)
+    value = SOCIAL_CONTENT[key]
+    return f'<meta {attribute}="{key}" content="{value}" />' if value else ""
+
+
+async def rebrand_social_preview(request, call_next):
+    """Swap Gradio's share-card metadata for this app's, on HTML responses only."""
+    response = await call_next(request)
+    if not response.headers.get("content-type", "").startswith("text/html"):
+        return response
+    body = b"".join([chunk async for chunk in response.body_iterator])
+    text = META_TAG_RE.sub(rebrand_meta_tag, body.decode("utf-8", "replace"))
+    # Declared rather than left to the browser's default /favicon.ico probe, so the
+    # tab icon does not depend on a fallback and the SVG type is stated outright.
+    text = text.replace("<head>", '<head>\n\t\t<link rel="icon" type="image/svg+xml" '
+                                  'href="/favicon.ico" />', 1)
+    headers = {k: v for k, v in response.headers.items() if k.lower() != "content-length"}
+    return Response(content=text, status_code=response.status_code,
+                    headers=headers, media_type="text/html")
+
+
 def serve() -> None:
     """One process, two surfaces: the UI at / and the HTTP API at /v1.
 
@@ -686,8 +742,11 @@ def serve() -> None:
 
     from leasehound.api import api
 
+    server = gr.mount_gradio_app(api, demo, path="/",
+                                 favicon_path=str(ICONS / "favicon.svg"), **UI_STYLE)
+    server.middleware("http")(rebrand_social_preview)
     uvicorn.run(
-        gr.mount_gradio_app(api, demo, path="/", **UI_STYLE),
+        server,
         host=os.environ.get("GRADIO_SERVER_NAME", "127.0.0.1"),
         port=int(os.environ.get("GRADIO_SERVER_PORT", "7860")),
     )

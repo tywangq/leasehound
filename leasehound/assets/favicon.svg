@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- The wordmark is 🐕 and the browser tab was Gradio's logo, which is the wrong
+       brand on the one surface a visitor sees before anything else loads. Drawn as
+       emoji text rather than vector paths so it matches the hero exactly; that makes
+       the glyph the client's emoji font rather than ours, which is a fair trade for a
+       demo and is why the viewBox leaves room rather than hugging a fixed shape. -->
+  <text x="32" y="47" font-size="50" text-anchor="middle">🐕</text>
+</svg>
