@@ -11,6 +11,12 @@ uploads/
 .DS_Store
 *.egg-info/
 
+# `python -m leasehound.scan <lease>` defaults to --out scan_report.md, so running
+# the README's own command dirties the working tree. Anchored to the root on
+# purpose: examples/scan_report.md is the committed example output and must stay
+# tracked, and an unanchored pattern would match it at any depth.
+/scan_report.md
+
 # Real published lease PDFs: third-party documents, fetched on demand from
 # evaluation/leases_real/sources.json. The manifest and results are tracked.
 evaluation/leases_real/*.pdf

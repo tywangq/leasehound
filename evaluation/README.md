@@ -21,14 +21,16 @@ architecture earned its shape rather than accumulating it.
 | [Adversarial rephrasing](#adversarial-rephrasing--the-same-82-questions-renter-voice) | Does it hold when renters don't speak statute? | full pipeline wins; the earlier tie was vocabulary leakage |
 | [Hybrid BM25](#hybrid-retrieval-bm25--dense--measured-and-not-shipped) | Does a lexical channel help ask mode? | no — the apparent gain was vocabulary leakage |
 | [Generation layer](#generation-layer-evaluation--is-the-final-answer-right-n82--2-configs) | Is the final answer right and grounded? | 82/82 consistent, 81/82 grounded |
+| [Router](#the-router--every-metric-above-assumes-retrieval-ran-at-all) | Does the pipeline run at all? | **no — "there are cockroaches everywhere" reached no statute, 5/5**; every other eval calls past the router |
 
 **How to read these numbers.** Every table here is one run, and `temperature=0` is not determinism — one baseline row moved by a clause between two runs, and borderline verdicts can flip. Treat a gap of one or two questions as a tie. The six hand-labeled leases are the acceptance bar; the generated set's labels are verified by construction rather than authoritative; and the LLM judges share a model family with the systems they grade, mitigated by grading against reference statute text instead of taste. Each section adds only the caveats specific to it.
 
-Artifacts live beside this file: 13 `.json` results, of which 8 carry a `provenance`
+Artifacts live beside this file: 14 `.json` results, of which 9 carry a `provenance`
 stamp — generation, utility and embedding model, corpus snapshot, commit, run date.
 Stamped: `ask_cost_results.json`, `enumerated_split_results.json`,
-`injection_results.json`, `real_format_results.json`, `scan_cost_summary.json`,
-`scan_retrieval_results.json` (gold manifest), `scan_retrieval_silver.json` (the
+`injection_results.json`, `real_format_results.json`, `router_results.json`,
+`scan_cost_summary.json`, `scan_retrieval_results.json` (gold manifest),
+`scan_retrieval_silver.json` (the
 40-lease one), and `concurrency_results.json` — that last one with commit and date
 only, because it stubs the LLM layer completely and naming three models on a run
 that called none of them would imply they were involved. These 5 do not:
@@ -307,6 +309,8 @@ Each test question is a colloquial tenant question generated from — and then v
 | + CRAG self-grading (full pipeline) | **.808** | .835 | **.915** | .915 |
 | naive chunks + CRAG only (two-stage) | .807 | **.841** | .890 | **.951** |
 
+<a id="what-six-stage-means"></a>**"Six-stage" throughout this repo means the shipped ask-mode pipeline**, and its six stages are the six cumulative rows above: long fixed-size chunks → LLM semantic chunking → plain-language augmentation → dual-query RRF merge → LLM rerank → CRAG self-grading. Spelled out because the table has *seven* rows and shares three names with them, which invites reading it as the stage list. It is not one: the last row is a different **configuration**, not a seventh stage — naive chunks with CRAG only, the simplification candidate. And the six stages are not six costs per question, because the first two happen at ingest time; [what a question actually pays for](../README.md#what-a-question-costs-and-what-the-extra-stages-buy) is the router, one or two embeddings, the rewrite, the grade, the rerank, and the answer.
+
 ## What the ablation taught us
 
 1. **Naive chunking is a brutally strong baseline** for section-level retrieval: statute sections are already coherent topical units, and long fixed-size chunks carry more section-distinctive vocabulary than fine-grained semantic chunks. Confirmed at both n=43 and n=82. Fancy ≠ better; measure before you pay.
@@ -324,9 +328,9 @@ Each test question is a colloquial tenant question generated from — and then v
 | LLM semantic chunking | .784 | .690 | −.094 | .817 | — |
 | + plain-language augmentation | .771 | .708 | −.063 | **.866** | — |
 | naive + CRAG (two-stage) | .807 | .731 | −.076 | .805 | [$0.0016](../README.md#what-a-question-costs-and-what-the-extra-stages-buy) |
-| full pipeline | .808 | **.748** | **−.060** | **.866** | [$0.0029](../README.md#what-a-question-costs-and-what-the-extra-stages-buy) |
+| full pipeline | .808 | **.748** | **−.060** | **.866** | [$0.0026](../README.md#what-a-question-costs-and-what-the-extra-stages-buy) |
 
-Three things the original set could not show: the vocabulary gap is real (every configuration drops); **plain-language augmentation now beats plain chunking by +.018 MRR** (it was −.013 on the leaky set) — its renter-vocabulary summaries buffer exactly this shift; and the **full pipeline is now the leader on every metric with the smallest degradation**, while the two-stage system falls five questions behind on hit@5. At the generation layer the reworded set also breaks the ceiling: full pipeline 80/82 consistent · 81/82 grounded vs 79/82 · 79/82 for two-stage. No single gap is huge, but every metric now points the same way — **ask mode keeps the full pipeline**, at [1.8× the cost and +1.9 s](../README.md#what-a-question-costs-and-what-the-extra-stages-buy) of the two-stage alternative. That price went unmeasured far longer than it should have, given that a pipeline was rejected here on measured evidence.
+Three things the original set could not show: the vocabulary gap is real (every configuration drops); **plain-language augmentation now beats plain chunking by +.018 MRR** (it was −.013 on the leaky set) — its renter-vocabulary summaries buffer exactly this shift; and the **full pipeline is now the leader on every metric with the smallest degradation**, while the two-stage system falls five questions behind on hit@5. At the generation layer the reworded set also breaks the ceiling: full pipeline 80/82 consistent · 81/82 grounded vs 79/82 · 79/82 for two-stage. No single gap is huge, but every metric now points the same way — **ask mode keeps the full pipeline**, at [1.5× the cost and +1.1 s](../README.md#what-a-question-costs-and-what-the-extra-stages-buy) of the two-stage alternative. That price went unmeasured far longer than it should have, given that a pipeline was rejected here on measured evidence — and when it was finally measured from production rather than reconstructed by a script, it turned out the reconstruction had been missing a call.
 
 ## Hybrid retrieval (BM25 + dense) — measured, and not shipped
 
@@ -364,4 +368,62 @@ python -m evaluation.eval_generation --name naive-crag-n82 --collection wa_refer
 ```
 
 This closes the question the ablation opened: the augmented six-stage pipeline shows **no measurable win at the generation layer either** — every gap in the table is a single question. Specific caveat: both configurations sit at this test set's ceiling (98–100%), so the eval bounds the difference rather than ranking the systems — separating them needs harder, adversarial questions.
+
+## The router — every metric above assumes retrieval ran at all
+
+Nine evaluations measure how well the pipeline retrieves and answers. **None of them
+measured whether the pipeline runs.** Ask mode opens with a one-call classifier that
+decides between the six-stage pipeline and a canned chitchat reply, and it had no
+eval, no test, and — until ask mode was metered — no way to notice it was wrong.
+
+It was wrong, and in a specific shape: **a housing problem stated as a fact, naming
+no law, claiming no right, and never mentioning the landlord.** As shipped, on
+`gpt-4.1-nano`:
+
+> "There are cockroaches everywhere. What can I do?" → `small_talk`, **5 times out of 5**
+> "My toilet has been leaking for a month. What can I do?" → `small_talk`, **5 times out of 5**
+> "My heater has been broken for two weeks. What can I do?" → `small_talk` 4 times out of 5
+
+Not borderline calls. RCW 59.18.060 puts pest control and plumbing squarely on the
+landlord, and the classifier's own definition of `small_talk` covers only greetings,
+thanks, goodbyes and questions about the assistant. Add the landlord ("the landlord
+hasn't fixed my heat in two weeks") or the word "rights" and nano got it right every
+time — which is the failure mode exactly backwards: **the renter least able to phrase
+the question legally was the one being turned away.** What they got instead was a
+warm two-sentence note offering to scan a lease for them.
+
+Two changes, and it matters that they are separate. `scripts/probe_router.py`,
+15 cases × **15** samples each — the repeats are not decoration, because the router
+runs at the provider's default temperature and a 1-in-5 failure is invisible to a
+single sample:
+
+| router | all cases | bare habitability | chitchat controls |
+| --- | --- | --- | --- |
+| `gpt-4.1-nano`, reworded prompt | 14/15 pass, 1 flapping | 4/5 (cockroaches 12/15) | 5/5 |
+| **`gpt-4.1-mini`, reworded prompt (shipped)** | **15/15 pass** | **5/5, every case 15/15** | **5/5** |
+
+Saying in the prompt that a *described problem* is a legal question did most of the
+work — the leaking toilet went from 0/5 to 15/15. Stopping there would have been the
+wrong conclusion: cockroaches still flapped at 12/15, and a case that fails 1 time in
+5 is not an underspecified prompt, it is a model at its limit. So the router moved to
+the generation model, which is the decision [`scan.py`'s is-this-a-lease gate had
+already made](#document-formats--real-published-leases-and-real-numbering) for the
+same reason. One call per question: **~$0.00006 against a $0.0026 question.**
+
+**How this was found is the point.** Nobody read the router and spotted it. The
+metrics log ask mode had *just* grown showed one question answering in 1.8 s for
+$0.00015 — two calls, no retrieval — sitting among neighbours that took 5–7 s and
+five calls. A misroute raises nothing and logs no error; from the outside it is an
+answer with no law in it, and the only trace it leaves is a suspiciously cheap row.
+Nine evaluations could not see it, because all nine call the pipeline directly, past
+the router.
+
+```bash
+python -m scripts.probe_router                                  # the shipped router
+python -m scripts.probe_router --model openai/gpt-4.1-nano      # re-measure the table
+```
+
+The five chitchat controls are load-bearing: the cheapest way to pass a routing test
+is to route everything to retrieval, which would score 10/10 on the questions above
+and quietly put the whole six-stage pipeline behind "hi".
 

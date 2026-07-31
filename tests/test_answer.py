@@ -1,12 +1,15 @@
-"""Ask mode's deterministic parts: prompt assembly and stream unwrapping.
+"""Ask mode's deterministic parts: prompt assembly, stream unwrapping, metering.
 
-The router and the generation call need the API, so they aren't tested here —
-what is testable without one is the context the model receives, which is where
-grounding either holds or quietly breaks.
+The models are stubbed rather than called — what is testable without an API is
+the context the model receives (where grounding either holds or quietly breaks)
+and the accounting around it (where the published cost figure broke).
 """
 
+import json
 from types import SimpleNamespace
 
+import leasehound.answer as answer
+import leasehound.metrics as metrics
 from leasehound.answer import SYSTEM_PROMPT, make_messages, stream_text
 from leasehound.retrieval import Result
 
@@ -71,3 +74,122 @@ def test_stream_text_yields_content_and_skips_empty_deltas():
     # carry None mid-stream; passing those through would crash the caller's join.
     stream = [delta(None), delta("Under "), delta("RCW 59.18.230"), delta(None), delta(".")]
     assert "".join(stream_text(stream)) == "Under RCW 59.18.230."
+
+
+def usage_chunk(prompt=800, completion=120):
+    """The extra final chunk include_usage adds: token totals, and NO choices."""
+    return SimpleNamespace(choices=[], usage=SimpleNamespace(
+        prompt_tokens=prompt, completion_tokens=completion, prompt_tokens_details=None))
+
+
+def priced(monkeypatch, per_call=0.001):
+    monkeypatch.setattr(metrics, "completion_cost", lambda completion_response: per_call)
+    monkeypatch.setattr(metrics, "cost_per_token", lambda **kwargs: (per_call, 0.0))
+
+
+def test_the_usage_only_final_chunk_carries_no_choices_to_index(monkeypatch):
+    # Asking for usage on a stream buys one chunk with an EMPTY choices list. The
+    # unguarded delta lookup this replaced would have raised IndexError on the last
+    # chunk of every answer — i.e. metering ask mode would have broken ask mode.
+    priced(monkeypatch)
+    meter = metrics.UsageMeter()
+    text = "".join(stream_text([delta("Answer."), usage_chunk()], meter, "m"))
+    assert text == "Answer."
+    assert meter.summary()["llm_calls"] == 1
+
+
+def test_usage_is_booked_once_even_if_two_chunks_carry_it(monkeypatch):
+    # Some providers attach usage to a content chunk as well as the final one.
+    # Booking both would inflate the mode's cost by a whole call per answer.
+    priced(monkeypatch)
+    meter = metrics.UsageMeter()
+    carrying = delta("Answer.")
+    carrying.usage = SimpleNamespace(prompt_tokens=800, completion_tokens=120,
+                                     prompt_tokens_details=None)
+    "".join(stream_text([carrying, usage_chunk()], meter, "m"))
+    assert meter.summary()["llm_calls"] == 1
+
+
+def route(category="legal_question"):
+    return SimpleNamespace(
+        choices=[SimpleNamespace(message=SimpleNamespace(
+            content=json.dumps({"category": category})))],
+        usage=SimpleNamespace(prompt_tokens=120, completion_tokens=5,
+                              prompt_tokens_details=None),
+    )
+
+
+def stub_ask(monkeypatch, tmp_path, category="legal_question", chunks=None):
+    """Wire answer_question to stubs and return the list of calls it makes.
+
+    Nothing here raises: answer_question is wrapped in llm_retry, so an assertion
+    thrown from inside a stub would be retried for four minutes before failing.
+    Calls are recorded and checked afterwards instead.
+    """
+    priced(monkeypatch)
+    monkeypatch.setattr(metrics, "ASK_LOG_PATH", tmp_path / "ask_metrics.jsonl")
+    calls: list[dict] = []
+
+    def fake_completion(**kwargs):
+        calls.append(kwargs)
+        if kwargs.get("stream"):
+            return iter([delta("Under "), delta("RCW 59.18.230."), usage_chunk()])
+        return route(category)
+
+    monkeypatch.setattr(answer, "completion", fake_completion)
+    monkeypatch.setattr(answer, "fetch_context",
+                        lambda q, config, history=None, meter=None:
+                        chunks if chunks is not None else [chunk("RCW 59.18.230")])
+    return calls
+
+
+def test_the_router_call_is_metered_not_just_the_retrieval_stages(monkeypatch, tmp_path):
+    """The guard on the bug that made the published ask-mode cost too low.
+
+    The measurement script reached past answer_question straight into
+    fetch_context, so the router — which classifies every incoming message and
+    therefore runs on every question — was absent from the totals while the
+    docstring claimed a single known deviation from production. Metering the real
+    entry point is what makes the router impossible to leave out.
+    """
+    stub_ask(monkeypatch, tmp_path)
+    result = answer.answer_question("can they keep my deposit?")
+
+    assert result.routed is True
+    assert result.record is None, "usage arrives with the stream's last chunk, not before"
+    assert "".join(result.stream) == "Under RCW 59.18.230."
+    # The router, then the answer. fetch_context is stubbed here, so its own stages
+    # are counted by its own tests — what matters is that the router is included.
+    assert result.record["llm_calls"] == 2
+    assert result.record["routed_to_retrieval"] is True
+    assert result.record["retrieved_chunks"] == 1
+
+
+def test_chitchat_is_one_router_call_plus_one_reply_and_no_retrieval(monkeypatch, tmp_path):
+    stub_ask(monkeypatch, tmp_path, category="small_talk")
+    result = answer.answer_question("hi")
+    assert result.routed is False
+    assert result.chunks == [], "no statutes, so the caller skips the sources footer"
+    "".join(result.stream)
+    assert result.record["llm_calls"] == 2
+    assert result.record["routed_to_retrieval"] is False
+
+
+def test_the_answer_call_asks_for_usage_or_nothing_would_be_metered(monkeypatch, tmp_path):
+    calls = stub_ask(monkeypatch, tmp_path)
+    "".join(answer.answer_question("q").stream)
+    streamed = [c for c in calls if c.get("stream")]
+    assert len(streamed) == 1
+    assert streamed[0]["stream_options"] == {"include_usage": True}
+
+
+def test_abandoning_the_stream_still_logs_what_was_already_spent(monkeypatch, tmp_path):
+    # The retrieval calls were paid for whether or not anyone read the answer, so a
+    # visitor who closes the tab must not make that spend invisible.
+    stub_ask(monkeypatch, tmp_path)
+    result = answer.answer_question("q")
+    next(result.stream)
+    result.stream.close()
+    assert result.record is not None
+    assert result.record["llm_calls"] >= 1
+    assert (tmp_path / "ask_metrics.jsonl").read_text().strip()

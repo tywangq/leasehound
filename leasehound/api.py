@@ -105,6 +105,14 @@ class AskRequest(BaseModel):
 class AskResponse(BaseModel):
     answer: str
     sources: list[str] = Field(description="Statute sections the answer was grounded in")
+    retrieved: bool = Field(
+        description="False when the router classified the message as chitchat or a scan "
+                    "request, so no statutes were fetched and `sources` is empty by design")
+    llm_calls: int | None = Field(
+        default=None,
+        description="Calls this question made: the router, the retrieval stages, the answer")
+    cost_usd: float | None = Field(default=None, description="What this request spent")
+    seconds: float | None = None
 
 
 class Health(BaseModel):
@@ -209,8 +217,18 @@ def ask(request: AskRequest) -> AskResponse:
     """
     history = ([{"role": "assistant", "content": request.report_markdown}]
                if request.report_markdown else [])
-    stream, chunks = answer_question(request.question, history)
+    answered = answer_question(request.question, history,
+                               report_context=bool(request.report_markdown))
+    # Draining the stream is also what completes the metering, so `record` is only
+    # populated after this line — same ordering as /v1/scan, where run_scan drains
+    # the step iterator before the record exists.
+    answer = "".join(answered.stream)
+    record = answered.record or {}
     return AskResponse(
-        answer="".join(stream),
-        sources=sorted({c.metadata.get("section", "") for c in chunks} - {""}),
+        answer=answer,
+        sources=sorted({c.metadata.get("section", "") for c in answered.chunks} - {""}),
+        retrieved=answered.routed,
+        llm_calls=record.get("llm_calls"),
+        cost_usd=record.get("cost_usd"),
+        seconds=record.get("seconds"),
     )

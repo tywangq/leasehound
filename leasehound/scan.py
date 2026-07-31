@@ -23,7 +23,7 @@ from litellm import completion
 from pydantic import BaseModel, Field
 from tqdm import tqdm
 
-from leasehound.metrics import ScanMeter, cost_line, log_scan
+from leasehound.metrics import UsageMeter, cost_line, log_scan
 from leasehound.retrieval import (
     GENERATION_MODEL,
     PipelineConfig,
@@ -91,7 +91,7 @@ Classify the clause. Rules:
 
 
 @llm_retry
-def judge_clause(clause: str, chunks: list[Result], meter: ScanMeter | None = None) -> ClauseVerdict:
+def judge_clause(clause: str, chunks: list[Result], meter: UsageMeter | None = None) -> ClauseVerdict:
     messages = [{"role": "user", "content": make_judge_prompt(clause, chunks)}]
     # temperature=0: verdicts are classifications — the same lease should get
     # the same report every scan, and the 7/7 acceptance test should be stable.
@@ -107,6 +107,21 @@ def judge_clause(clause: str, chunks: list[Result], meter: ScanMeter | None = No
 # Negative-space check: protections the law requires that a lease might simply
 # omit. The checklist is curated by hand with citations — the LLM only judges
 # whether each item is addressed in the lease text, it never invents requirements.
+#
+# ADMISSION CRITERION, because it was implicit and a reviewer proposed an item that
+# breaks it: an item belongs here only if the statute is satisfiable ONLY by text in
+# the lease (or by a document the lease must record delivering). Absence from the
+# text has to be evidence of non-compliance — otherwise "missing" is a guess about
+# the world, and this scanner's most defensible property is that it produces no
+# false reds.
+#
+# RCW 59.18.060 is why the rule needs writing down. Its (16) requires the landlord
+# to designate their name and address "by a statement on the rental agreement OR by
+# a notice conspicuously posted on the premises" — so a lease that never names the
+# landlord may be perfectly compliant, with the notice in the stairwell. It is
+# excluded for that reason, not by oversight. The same disjunction is what keeps
+# RCW 59.18.060's other duties (repairs, weatherproofing) out: those are behaviour,
+# and a lease's silence about behaviour says nothing at all.
 PROTECTION_CHECKLIST = [
     {
         "name": "Deposit withholding terms",
@@ -240,7 +255,7 @@ Respond with one status per checklist item, in order.
 
 
 @llm_retry
-def check_protections_window(text: str, meter: ScanMeter | None = None) -> list[ProtectionStatus]:
+def check_protections_window(text: str, meter: UsageMeter | None = None) -> list[ProtectionStatus]:
     """One prompt's verdicts. A window judging an item "missing" is expected and
     not yet a finding — only the merge across every window can say that."""
     messages = [{"role": "user", "content": make_protections_prompt(text)}]
@@ -253,16 +268,27 @@ def check_protections_window(text: str, meter: ScanMeter | None = None) -> list[
     return ProtectionReport.model_validate_json(response.choices[0].message.content).checks
 
 
-def check_protections(clauses: list[str], meter: ScanMeter | None = None) -> list[dict]:
+def check_protections(clauses: list[str], meter: UsageMeter | None = None) -> list[dict]:
     """Whole-document negative-space check: one API call per 24k window, merged.
 
-    Cost scales with document length like the clause pass does — the sample lease
-    and every labelled document are one window, so this is one call there.
+    Unlike the clause pass this is NOT capped, so it is the term that makes a
+    scan's spend ceiling grow with document length: 60 + 1 + ceil(chars/24000)
+    completions in total. The sample lease and every labelled document are a
+    single window, so this is one call on all of them.
+
+    Windows run on the same pool the clause pass uses. They were serial until this
+    was noticed, which put the project's two long-document passes on opposite
+    latency rules: a 270-provision real lease would parallelise 60 clause
+    judgments 8 ways and then queue its protection windows one behind another, at
+    the tail of the slowest scan there is. `map` rather than as_completed, because
+    merge_protection_checks breaks ties by first-seen and window order is
+    therefore part of the result — this is a latency change only.
     """
     windows = protection_windows(clauses)
-    checks = merge_protection_checks(
-        [check_protections_window(window, meter) for window in windows]
-    )
+    with ThreadPoolExecutor(max_workers=min(MAX_PARALLEL_SCANS, len(windows))) as pool:
+        per_window = list(pool.map(lambda window: check_protections_window(window, meter),
+                                   windows))
+    checks = merge_protection_checks(per_window)
     results = []
     for check in checks:
         if 1 <= check.index <= len(PROTECTION_CHECKLIST):
@@ -303,7 +329,7 @@ Document:
 
 
 @llm_retry
-def looks_like_lease(clauses: list[str], meter: ScanMeter | None = None) -> bool:
+def looks_like_lease(clauses: list[str], meter: UsageMeter | None = None) -> bool:
     """Sanity check before burning a full scan on a document that isn't a lease.
 
     The gate reads attacker-controlled text, and refusing to scan is the most
@@ -344,7 +370,7 @@ def base_section(citation: str) -> str:
 
 
 def scan_clause(clause: str, index: int, config: PipelineConfig,
-                meter: ScanMeter | None = None) -> dict:
+                meter: UsageMeter | None = None) -> dict:
     chunks = fetch_unranked(clause[:1200], config, meter)
     verdict = judge_clause(clause, chunks, meter)
     url_by_section = {c.metadata.get("section"): c.metadata.get("url") for c in chunks}
@@ -359,7 +385,7 @@ def scan_clause(clause: str, index: int, config: PipelineConfig,
 
 
 def scan_clauses(clauses: list[str], config: PipelineConfig,
-                 meter: ScanMeter | None = None) -> Iterator[dict]:
+                 meter: UsageMeter | None = None) -> Iterator[dict]:
     """Judge every clause concurrently, yielding each finding as its verdict arrives.
 
     The judgments are independent I/O-bound API calls (one embedding + one
@@ -466,7 +492,7 @@ def scan_steps(text: str, source: str, state: str = "wa",
     # is an API call, so the cheap news arrived second.
     yield ScanStep("split", judged=len(judged), total=len(clauses))
 
-    meter = ScanMeter()  # the gate below is the scan's first API call
+    meter = UsageMeter()  # the gate below is the scan's first API call
     # Advisory, not fatal. The gate used to raise, which made a wrong reject a
     # total failure — and the real-document probe found it rejecting a genuine WA
     # housing agreement (evaluation/eval_real_formats.py). Warning and continuing

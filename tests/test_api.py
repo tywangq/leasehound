@@ -12,16 +12,16 @@ rather than a short one.
 import pytest
 from fastapi.testclient import TestClient
 
+import leasehound.metrics as metrics
 import leasehound.scan as scan
 from leasehound.api import TOKEN_ENV, api
+from leasehound.retrieval import Result
 
 TOKEN = "test-token"
 
 
 @pytest.fixture
 def client(monkeypatch, tmp_path):
-    import leasehound.metrics as metrics
-
     monkeypatch.setenv(TOKEN_ENV, TOKEN)
     monkeypatch.setattr(metrics, "LOG_PATH", tmp_path / "scan_metrics.jsonl")
     return TestClient(api)
@@ -122,3 +122,46 @@ def test_the_openapi_schema_describes_both_surfaces():
     """The schema is the artifact a reader can check without running anything."""
     paths = TestClient(api).get("/openapi.json").json()["paths"]
     assert {"/v1/health", "/v1/scan", "/v1/ask"} <= set(paths)
+
+
+@pytest.fixture
+def stub_answer(monkeypatch):
+    """Ask mode with the models replaced, returning a fixed answer and its cost."""
+    import leasehound.answer as answer
+
+    def answered(question, history=None, config=None, report_context=False):
+        result = answer.AskResult(
+            stream=iter(()), chunks=[Result(page_content="Waivers are void.",
+                                            metadata={"section": "RCW 59.18.230"})],
+            meter=metrics.UsageMeter(), routed=True)
+
+        def stream():
+            yield "Waivers of that right are void "
+            yield "under RCW 59.18.230."
+            result.record = {"llm_calls": 5, "cost_usd": 0.0041, "seconds": 6.2}
+
+        result.stream = stream()
+        return result
+
+    monkeypatch.setattr("leasehound.api.answer_question", answered)
+
+
+def test_an_answer_comes_back_with_its_sources_and_what_it_spent(client, stub_answer):
+    """/v1/ask returns cost for the same reason /v1/scan does: a caller that cannot
+    see what a request spent cannot meter itself, and ask mode is the mode whose
+    price this project left unmeasured longest."""
+    body = client.post("/v1/ask", json={"question": "can they waive my rights?"},
+                       headers={"X-API-Token": TOKEN}).json()
+    assert "RCW 59.18.230" in body["answer"]
+    assert body["sources"] == ["RCW 59.18.230"]
+    assert body["retrieved"] is True
+    # Populated only because the route drains the stream before answering — that is
+    # what completes the metering, exactly as run_scan drains the step iterator.
+    assert body["llm_calls"] == 5
+    assert body["cost_usd"] == 0.0041
+
+
+def test_the_ask_route_is_behind_the_same_spend_gate(monkeypatch):
+    monkeypatch.delenv(TOKEN_ENV, raising=False)
+    response = TestClient(api).post("/v1/ask", json={"question": "hi"})
+    assert response.status_code == 503

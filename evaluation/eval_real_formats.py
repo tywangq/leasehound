@@ -32,7 +32,7 @@ import urllib.request
 from pathlib import Path
 
 from evaluation.provenance import stamp
-from leasehound.metrics import ScanMeter
+from leasehound.metrics import UsageMeter
 from leasehound.scan import (
     MAX_CLAUSES,
     check_protections,
@@ -94,7 +94,7 @@ def measure(entry: dict, scan: bool) -> dict:
     if not scan:
         return result
 
-    meter = ScanMeter()
+    meter = UsageMeter()
     accepted = looks_like_lease(clauses, meter)
     result["gate_accepted_as_lease"] = accepted
     if accepted:

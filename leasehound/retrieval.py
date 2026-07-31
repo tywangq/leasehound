@@ -89,8 +89,14 @@ class Sufficiency(BaseModel):
     sufficient: bool = Field(description="Whether the excerpts can fully answer the question")
 
 
+# Every stage below takes an optional meter, the same way scan.py's judge and gate
+# do. Without it the only way to price ask mode was to monkeypatch this module from
+# a script — which is exactly how the published figure came to miss a call: the
+# script reached past answer_question straight into fetch_context, so the router
+# that decides whether retrieval runs at all was never counted.
 @llm_retry
-def rewrite_query(question: str, history: list | None = None, angle: str = "specific") -> str:
+def rewrite_query(question: str, history: list | None = None, angle: str = "specific",
+                  meter=None) -> str:
     instruction = {
         "specific": "Rewrite as a short, specific search query most likely to surface "
         "relevant statute text. Focus on the concrete details.",
@@ -111,6 +117,8 @@ Tenant's question:
 Respond ONLY with the query text, nothing else.
 """
     response = completion(model=UTILITY_MODEL, messages=[{"role": "system", "content": message}])
+    if meter is not None:
+        meter.add_completion(response)
     return response.choices[0].message.content
 
 
@@ -226,7 +234,7 @@ def merge_chunks(*chunk_lists: list[Result], rrf_k: int = 60) -> list[Result]:
 
 
 @llm_retry
-def grade_context(question: str, chunks: list[Result]) -> bool:
+def grade_context(question: str, chunks: list[Result], meter=None) -> bool:
     """CRAG-style self-grading: do the retrieved chunks actually cover the question?"""
     excerpts = "\n\n".join(chunk.page_content[:500] for chunk in chunks[:8])
     messages = [
@@ -237,11 +245,13 @@ def grade_context(question: str, chunks: list[Result]) -> bool:
         }
     ]
     response = completion(model=UTILITY_MODEL, messages=messages, response_format=Sufficiency)
+    if meter is not None:
+        meter.add_completion(response)
     return Sufficiency.model_validate_json(response.choices[0].message.content).sufficient
 
 
 @llm_retry
-def rerank(question: str, chunks: list[Result]) -> list[Result]:
+def rerank(question: str, chunks: list[Result], meter=None) -> list[Result]:
     system_prompt = (
         "You are a document re-ranker. Rank the provided chunks by relevance to the "
         "question, most relevant first. Reply only with the ranked chunk ids, "
@@ -255,18 +265,21 @@ def rerank(question: str, chunks: list[Result]) -> list[Result]:
         {"role": "user", "content": user_prompt},
     ]
     response = completion(model=UTILITY_MODEL, messages=messages, response_format=RankOrder)
+    if meter is not None:
+        meter.add_completion(response)
     order = RankOrder.model_validate_json(response.choices[0].message.content).order
     return [chunks[i - 1] for i in order if 1 <= i <= len(chunks)]
 
 
-def fetch_context(question: str, config: PipelineConfig, history: list | None = None) -> list[Result]:
-    chunks = fetch_unranked(question, config)
+def fetch_context(question: str, config: PipelineConfig, history: list | None = None,
+                  meter=None) -> list[Result]:
+    chunks = fetch_unranked(question, config, meter)
     if config.dual_query:
-        rewritten = rewrite_query(question, history)
-        chunks = merge_chunks(chunks, fetch_unranked(rewritten, config))
-    if config.grader and not grade_context(question, chunks):
-        statutory = rewrite_query(question, history, angle="statutory")
-        chunks = merge_chunks(chunks, fetch_unranked(statutory, config))
+        rewritten = rewrite_query(question, history, meter=meter)
+        chunks = merge_chunks(chunks, fetch_unranked(rewritten, config, meter))
+    if config.grader and not grade_context(question, chunks, meter):
+        statutory = rewrite_query(question, history, angle="statutory", meter=meter)
+        chunks = merge_chunks(chunks, fetch_unranked(statutory, config, meter))
     if config.rerank:
-        chunks = rerank(question, chunks)
+        chunks = rerank(question, chunks, meter)
     return chunks[: config.final_k]

@@ -103,8 +103,7 @@ def ask_with_report_in_context(report: str) -> str:
         {"role": "assistant",
          "content": "Got it — I'll answer your questions with your scan report in mind."},
     ]
-    stream, _ = answer_question(CARRYOVER_QUESTION, context)
-    return "".join(stream)
+    return "".join(answer_question(CARRYOVER_QUESTION, context, report_context=True).stream)
 
 
 def rescore() -> None:

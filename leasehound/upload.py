@@ -56,7 +56,8 @@ def cap_clause_length(clauses: list[str]) -> list[str]:
 
     Now such a document becomes more clauses instead — each with its own
     retrieval and its own verdict — and if that pushes it past the 60-clause cap
-    the scan refuses with an explanation, which is the honest outcome.
+    the scan judges the first 60 and names the rest as unjudged, so a report that
+    covers a prefix cannot read like one that covers everything.
     """
     out: list[str] = []
     for clause in clauses:

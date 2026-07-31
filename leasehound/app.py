@@ -30,7 +30,7 @@ import gradio as gr
 from starlette.responses import Response
 
 from leasehound.answer import answer_question
-from leasehound.metrics import ScanMeter, log_scan
+from leasehound.metrics import UsageMeter, log_scan
 from leasehound.scan import (
     MAX_CLAUSES,
     NoTextExtracted,
@@ -302,14 +302,14 @@ def answer_flow(question, history, report, context_base):
                 "content": "Got it — I'll answer your questions with your scan report in mind.",
             },
         ] + context_history
-    stream, chunks = answer_question(question, context_history)
+    answered = answer_question(question, context_history, report_context=bool(report))
     answer = ""
-    for delta in stream:
+    for delta in answered.stream:
         answer += delta
         history[-1]["content"] = answer
         yield _out(history)
     answer = MODEL_FOOTER.sub("", answer).rstrip()
-    history[-1]["content"] = answer + sources_footer(answer, chunks)
+    history[-1]["content"] = answer + sources_footer(answer, answered.chunks)
     yield _out(history)
 
 
@@ -333,7 +333,7 @@ def scan_flow(path, key, history, report, scanned, context_base, question=""):
     digest = cache_key(text)
     result = cache_get(digest)
     if result is not None:
-        log_scan(ScanMeter(), name, result.clauses_judged,
+        log_scan(UsageMeter(), name, result.clauses_judged,
                  verdicts=count_verdicts(result.findings),
                  missing=missing_protections(result), split_mode=result.split_mode,
                  cache_hit=True, clauses_total=result.clauses_total)

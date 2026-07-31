@@ -1,21 +1,29 @@
-"""What one ask-mode question costs, per pipeline configuration.
+"""What the extra ask-mode pipeline stages cost, per configuration.
 
-Every cost figure this project publishes is scan mode. Ask mode had none — and ask
-mode is where the six-stage pipeline lives, kept over a two-stage one on a margin
-of one or two questions per metric. A pipeline was rejected here on measured
-evidence (hybrid retrieval: −.099 MRR, two false reds) while the six stages were
-kept without their price ever being named, and that is the one place this project
-failed to hold itself to its own standard.
+Ask mode is where the six-stage pipeline lives, kept over a two-stage one on a
+margin of one or two questions per metric. A pipeline was rejected here on
+measured evidence (hybrid retrieval: −.099 MRR, two false reds) while the six
+stages were kept without their price ever being named.
 
 The extra stages are LLM calls: query rewriting, self-grading, a second rewrite
 when the grade fails, and reranking. So the comparison is calls, tokens, dollars
 and seconds per question, for the shipped full pipeline against the two-stage
 configuration that matched it within noise on the original test set.
 
-Method, and its one deviation from production: retrieval is measured exactly as
-production runs it, by metering the real stage calls. The answer call is measured
-UNSTREAMED, because a streamed response carries no usage totals — same model, same
-messages, same chunks, so the tokens are the tokens; only the delivery differs.
+This script is now ONLY the A/B comparison. What the shipped pipeline costs per
+question is answered by production metering (logs/ask_metrics.jsonl, aggregated
+into evaluation/scan_cost_summary.json), because a script cannot keep being true
+after the code it reconstructs changes — and this one had already stopped being
+true. Its first version reached past answer_question() straight into
+fetch_context(), so the router call that classifies every incoming message was
+missing from the totals: the published figure undercounted the shipped pipeline
+by one LLM call per question while claiming a single documented deviation from
+production. It now measures both configurations through answer_question, the
+same entry point the UI and the HTTP API call.
+
+One deviation remains, and it is unavoidable: the second config's collection is
+`wa_reference_naive`, which exists only in a full checkout — the demo image ships
+the runtime collection alone. So this runs locally, not in CI.
 
     python -m scripts.measure_ask_cost                 # 6 questions x 2 configs
     python -m scripts.measure_ask_cost --questions 12
@@ -23,20 +31,16 @@ messages, same chunks, so the tokens are the tokens; only the delivery differs.
 
 import argparse
 import json
-import time
 from pathlib import Path
-from unittest.mock import patch
-
-from litellm import completion
 
 from evaluation.provenance import stamp
-from leasehound import retrieval
-from leasehound.answer import make_messages
-from leasehound.metrics import ScanMeter
-from leasehound.retrieval import GENERATION_MODEL, PipelineConfig
+from leasehound import metrics
+from leasehound.answer import answer_question
+from leasehound.retrieval import PipelineConfig
 
 TESTS_PATH = Path(__file__).parent.parent / "evaluation" / "tests_adversarial.jsonl"
 RESULTS_PATH = Path(__file__).parent.parent / "evaluation" / "ask_cost_results.json"
+AB_LOG_PATH = Path(__file__).parent.parent / "logs" / "ask_metrics_ab.jsonl"
 
 CONFIGS = {
     # The shipped ask-mode pipeline: semantic chunks, augmentation, dual query,
@@ -51,44 +55,35 @@ CONFIGS = {
 
 
 def measure_one(question: str, config: PipelineConfig) -> dict:
-    """Meter every retrieval-stage call, then the answer call, for one question."""
-    meter = ScanMeter()
-    real_fetch, real_completion = retrieval.fetch_unranked, retrieval.completion
+    """One question through the production entry point, split into its two halves.
 
-    def counted_fetch(query, cfg, _meter=None):
-        return real_fetch(query, cfg, meter)  # the embedding lands in the meter
+    The split comes free from where answer_question hands control back: routing and
+    retrieval are finished by then, and the answer call is only booked when the
+    stream is drained. So reading the meter at that seam separates the two without
+    a single patch — and the meter's clock, which starts when the request does,
+    separates the seconds the same way.
+    """
+    answered = answer_question(question, config=config)
+    # Router + every retrieval stage. The router is the call the first version of
+    # this script missed entirely.
+    before_answer = answered.meter.summary()
+    # Drains the stream, which is also what books the answer call's usage. Timed
+    # to the LAST token, because that is what a user waits for; the earlier
+    # version measured an unstreamed call instead, so it timed something the
+    # product does not do.
+    "".join(answered.stream)
+    total = answered.record
 
-    def counted_completion(*args, **kwargs):
-        response = real_completion(*args, **kwargs)
-        meter.add_completion(response)
-        return response
-
-    start = time.perf_counter()
-    with (
-        patch.object(retrieval, "fetch_unranked", counted_fetch),
-        patch.object(retrieval, "completion", counted_completion),
-    ):
-        chunks = retrieval.fetch_context(question, config)
-    retrieval_seconds = time.perf_counter() - start
-    retrieval_only = meter.summary()
-
-    answer_start = time.perf_counter()
-    response = completion(model=GENERATION_MODEL,
-                          messages=make_messages(question, [], chunks))
-    meter.add_completion(response)
-    answer_seconds = time.perf_counter() - answer_start
-
-    total = meter.summary()
     return {
-        "retrieval_llm_calls": retrieval_only["llm_calls"],
-        "retrieval_embedding_calls": retrieval_only["embedding_calls"],
-        "retrieval_cost_usd": round(retrieval_only["cost_usd"], 6),
-        "retrieval_seconds": round(retrieval_seconds, 2),
-        "answer_prompt_tokens": response.usage.prompt_tokens,
-        "answer_seconds": round(answer_seconds, 2),
+        "router_and_retrieval_llm_calls": before_answer["llm_calls"],
+        "retrieval_embedding_calls": before_answer["embedding_calls"],
+        "router_and_retrieval_cost_usd": round(before_answer["cost_usd"], 6),
+        "router_and_retrieval_seconds": round(before_answer["seconds"], 2),
+        "answer_prompt_tokens": total["prompt_tokens"] - before_answer["prompt_tokens"],
+        "cached_prompt_tokens": total["cached_prompt_tokens"],
         "total_llm_calls": total["llm_calls"],
         "total_cost_usd": round(total["cost_usd"], 6),
-        "total_seconds": round(retrieval_seconds + answer_seconds, 2),
+        "total_seconds": round(total["seconds"], 2),
     }
 
 
@@ -111,13 +106,13 @@ def median(rows: list[dict], key: str) -> float:
 def summarize(rows: list[dict]) -> dict:
     return {
         "mean_total_llm_calls": mean(rows, "total_llm_calls"),
-        "mean_retrieval_llm_calls": mean(rows, "retrieval_llm_calls"),
+        "mean_router_and_retrieval_llm_calls": mean(rows, "router_and_retrieval_llm_calls"),
         "mean_embedding_calls": mean(rows, "retrieval_embedding_calls"),
         "mean_answer_prompt_tokens": round(mean(rows, "answer_prompt_tokens")),
         "mean_cost_usd": mean(rows, "total_cost_usd"),
-        "mean_retrieval_cost_usd": mean(rows, "retrieval_cost_usd"),
+        "mean_router_and_retrieval_cost_usd": mean(rows, "router_and_retrieval_cost_usd"),
         "median_seconds": median(rows, "total_seconds"),
-        "median_retrieval_seconds": median(rows, "retrieval_seconds"),
+        "median_router_and_retrieval_seconds": median(rows, "router_and_retrieval_seconds"),
         "mean_seconds": mean(rows, "total_seconds"),
         "slowest_seconds": max(r["total_seconds"] for r in rows),
         "per_question": rows,
@@ -157,6 +152,12 @@ def main() -> None:
                   f"(slowest {block['slowest_seconds']}s)")
         print(f"\nRescored {report['questions']} saved questions for $0.")
         return
+
+    # Going through the production entry point means every question here also
+    # writes a production ask-log row — and half of them run a configuration that
+    # is not shipped. Redirected so an A/B run cannot move the figure that answers
+    # "what does ask mode cost", which is supposed to come from real traffic.
+    metrics.ASK_LOG_PATH = AB_LOG_PATH
 
     everything = [json.loads(line) for line in
                   Path(args.tests).read_text(encoding="utf-8").splitlines() if line.strip()]

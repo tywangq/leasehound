@@ -1,0 +1,125 @@
+{
+  "router_model": "openai/gpt-4.1-mini",
+  "repeats": 15,
+  "cases": 15,
+  "passed": 15,
+  "flapping": 0,
+  "failed": 0,
+  "bare_habitability_passed": "5/5",
+  "controls_passed": "5/5",
+  "provenance": {
+    "generation_model": "openai/gpt-4.1-mini",
+    "utility_model": "openai/gpt-4.1-nano",
+    "embedding_model": "text-embedding-3-large",
+    "corpus_snapshot": "2026-07-25",
+    "commit": "c051eb2",
+    "run_at": "2026-07-31"
+  },
+  "results": [
+    {
+      "question": "There are cockroaches everywhere. What can I do?",
+      "kind": "habitability",
+      "expect_retrieval": true,
+      "correct": "15/15",
+      "verdict": "pass"
+    },
+    {
+      "question": "My toilet has been leaking for a month. What can I do?",
+      "kind": "habitability",
+      "expect_retrieval": true,
+      "correct": "15/15",
+      "verdict": "pass"
+    },
+    {
+      "question": "My heater has been broken for two weeks. What can I do?",
+      "kind": "habitability",
+      "expect_retrieval": true,
+      "correct": "15/15",
+      "verdict": "pass"
+    },
+    {
+      "question": "There's no hot water again. What can I do?",
+      "kind": "habitability",
+      "expect_retrieval": true,
+      "correct": "15/15",
+      "verdict": "pass"
+    },
+    {
+      "question": "My apartment has mold. What can I do?",
+      "kind": "habitability",
+      "expect_retrieval": true,
+      "correct": "15/15",
+      "verdict": "pass"
+    },
+    {
+      "question": "My heater is broken and the landlord won't fix it. What are my rights?",
+      "kind": "habitability, legal vocabulary",
+      "expect_retrieval": true,
+      "correct": "15/15",
+      "verdict": "pass"
+    },
+    {
+      "question": "The landlord hasn't fixed my heat in two weeks. What can I do?",
+      "kind": "habitability, landlord named",
+      "expect_retrieval": true,
+      "correct": "15/15",
+      "verdict": "pass"
+    },
+    {
+      "question": "Can my landlord charge a late fee if rent is 3 days late?",
+      "kind": "rules",
+      "expect_retrieval": true,
+      "correct": "15/15",
+      "verdict": "pass"
+    },
+    {
+      "question": "How much notice before my landlord can enter?",
+      "kind": "rules",
+      "expect_retrieval": true,
+      "correct": "15/15",
+      "verdict": "pass"
+    },
+    {
+      "question": "When do I get my security deposit back after moving out?",
+      "kind": "rules",
+      "expect_retrieval": true,
+      "correct": "15/15",
+      "verdict": "pass"
+    },
+    {
+      "question": "hi",
+      "kind": "control: greeting",
+      "expect_retrieval": false,
+      "correct": "15/15",
+      "verdict": "pass"
+    },
+    {
+      "question": "thanks!",
+      "kind": "control: thanks",
+      "expect_retrieval": false,
+      "correct": "15/15",
+      "verdict": "pass"
+    },
+    {
+      "question": "ok cool",
+      "kind": "control: acknowledgement",
+      "expect_retrieval": false,
+      "correct": "15/15",
+      "verdict": "pass"
+    },
+    {
+      "question": "what do you do?",
+      "kind": "control: about the assistant",
+      "expect_retrieval": false,
+      "correct": "15/15",
+      "verdict": "pass"
+    },
+    {
+      "question": "scan this sample lease for red flags",
+      "kind": "control: app action",
+      "expect_retrieval": false,
+      "correct": "15/15",
+      "verdict": "pass"
+    }
+  ]
+}
