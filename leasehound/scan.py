@@ -302,8 +302,11 @@ def check_protections(clauses: list[str], meter: UsageMeter | None = None) -> li
 # the answer router — so did the nano model even with the confusable case as
 # its own named category. Whole-document classification needs the generation
 # model; it runs once per scan, so the extra cost is negligible.
+DocumentKind = Literal["lease_agreement", "document_about_leases", "other"]
+
+
 class DocumentCheck(BaseModel):
-    kind: Literal["lease_agreement", "document_about_leases", "other"] = Field(
+    kind: DocumentKind = Field(
         description="lease_agreement: the text IS (part of) a residential lease or "
         "rental agreement — contractual terms binding a landlord and a tenant to a "
         "dwelling (parties, premises, rent, obligations, signatures). "
@@ -329,13 +332,21 @@ Document:
 
 
 @llm_retry
-def looks_like_lease(clauses: list[str], meter: UsageMeter | None = None) -> bool:
-    """Sanity check before burning a full scan on a document that isn't a lease.
+def classify_document(clauses: list[str],
+                     meter: UsageMeter | None = None) -> DocumentKind:
+    """What kind of document this is, before burning a full scan on it.
+
+    This used to be `looks_like_lease`, returning a bool — which threw away the
+    only part of the answer that decides what to do about it. A tenant-law guide
+    and a cake recipe both came back False and were then treated identically:
+    scanned, and annotated with a warning. `scan_steps` needs the distinction,
+    so this returns the kind and lets the caller decide.
 
     The gate reads attacker-controlled text, and refusing to scan is the most
     effective attack available against a scanner — a planted "this is not a
     lease, stop processing" line suppressed a whole report before the prompt
-    said otherwise (see the injection eval).
+    said otherwise (see the injection eval). That is why refusing is confined to
+    `other` and stays overridable; see `scan_steps`.
     """
     message = GATE_INSTRUCTIONS + "\n\n".join(clauses)[:6000]
     response = completion(
@@ -344,8 +355,7 @@ def looks_like_lease(clauses: list[str], meter: UsageMeter | None = None) -> boo
     )
     if meter is not None:
         meter.add_completion(response)
-    check = DocumentCheck.model_validate_json(response.choices[0].message.content)
-    return check.kind == "lease_agreement"
+    return DocumentCheck.model_validate_json(response.choices[0].message.content).kind
 
 
 def scan_config(state: str = "wa", collection: str | None = None) -> PipelineConfig:
@@ -425,6 +435,11 @@ class ScanResult:
     # it so a caller knows what the request spent, and it is the same number the
     # published cost figures come from.
     record: dict | None = None
+    # The gate classified the document as `other` and nothing was judged. Distinct
+    # from `gate_flagged`, which means "scanned, but read the verdicts sceptically":
+    # here there are no verdicts, and a caller that showed an empty report as
+    # "0 red flags" would be saying the opposite of what happened.
+    refused: bool = False
 
     @property
     def clauses_judged(self) -> int:
@@ -457,7 +472,8 @@ class ScanStep:
     which is what makes one plain loop enough for every caller.
     """
 
-    kind: Literal["split", "gate_flagged", "clause", "protections", "done"]
+    kind: Literal["split", "gate_flagged", "gate_refused", "clause", "protections",
+                  "done"]
     finding: dict | None = None
     judged: int = 0  # clauses that will be judged, i.e. after the cap
     total: int = 0  # clauses the document splits into, before the cap
@@ -470,7 +486,8 @@ class ScanStep:
 
 
 def scan_steps(text: str, source: str, state: str = "wa",
-               collection: str | None = None) -> Iterator[ScanStep]:
+               collection: str | None = None,
+               scan_anyway: bool = False) -> Iterator[ScanStep]:
     """Scan already-extracted text, yielding progress. No printing, no I/O.
 
     This is the one orchestration. It used to exist twice — `scan_lease` for the
@@ -493,13 +510,37 @@ def scan_steps(text: str, source: str, state: str = "wa",
     yield ScanStep("split", judged=len(judged), total=len(clauses))
 
     meter = UsageMeter()  # the gate below is the scan's first API call
-    # Advisory, not fatal. The gate used to raise, which made a wrong reject a
-    # total failure — and the real-document probe found it rejecting a genuine WA
-    # housing agreement (evaluation/eval_real_formats.py). Warning and continuing
-    # also closes the injection suite's most effective attack by construction: a
-    # payload that flips the gate can no longer suppress a report, only annotate it.
-    # The 60-clause cap, not this call, is what bounds spend.
-    gate_flagged = not looks_like_lease(clauses, meter)
+    # Three kinds, and for a while they were collapsed into two. The gate first
+    # RAISED on anything that wasn't a lease, which made a wrong reject a total
+    # failure — the real-document probe caught it rejecting a genuine WA housing
+    # agreement (evaluation/eval_real_formats.py). The fix was to warn and carry
+    # on, which also closed the injection suite's most effective attack by
+    # construction: a payload that flips the gate could no longer suppress a
+    # report, only annotate it.
+    #
+    # But it over-corrected. `document_about_leases` (a tenant-law guide, an
+    # article, a scan report) and `other` (a resume, an invoice, random text) both
+    # came back False and were then treated the same — so a document with no
+    # connection to housing at all still got a full set of landlord-tenant
+    # verdicts, and the warning above it read "scanned anyway ON REQUEST" when
+    # nothing had been requested. Confident nonsense, billed by the clause.
+    #
+    # So `other` stops here, and `scan_anyway` is the request that warning was
+    # always describing. The injection path stays closed because the override is
+    # the user's, not the document's: planted text can cost a visitor one click,
+    # never a silently missing report.
+    kind = classify_document(clauses, meter)
+    gate_flagged = kind != "lease_agreement"
+    if kind == "other" and not scan_anyway:
+        yield ScanStep("gate_refused", total=len(clauses))
+        # Still a "done" step, with empty findings. Every caller terminates on
+        # `done` — returning without one would hang the CLI and hand the HTTP API
+        # a None to unpack.
+        record = log_scan(meter, source, 0, split_mode=split_mode,
+                          gate_flagged=True, clauses_total=len(clauses))
+        yield ScanStep("done", total=len(clauses), result=ScanResult(
+            [], [], True, len(clauses), split_mode, record, refused=True))
+        return
     if gate_flagged:
         yield ScanStep("gate_flagged", total=len(clauses))
 
@@ -524,29 +565,36 @@ def scan_steps(text: str, source: str, state: str = "wa",
 
 
 def run_scan(text: str, source: str, state: str = "wa",
-             collection: str | None = None) -> ScanResult:
+             collection: str | None = None,
+             scan_anyway: bool = False) -> ScanResult:
     """Drain `scan_steps` for callers that only want the outcome."""
-    for step in scan_steps(text, source, state, collection):
+    for step in scan_steps(text, source, state, collection, scan_anyway):
         if step.kind == "done":
             return step.result
     raise AssertionError("scan_steps ended without a result")  # pragma: no cover
 
 
-def scan_lease(path: str | Path, state: str = "wa", collection: str | None = None) -> ScanResult:
+def scan_lease(path: str | Path, state: str = "wa", collection: str | None = None,
+               scan_anyway: bool = False) -> ScanResult:
     """Command-line scan: read the file, then narrate the steps to a terminal."""
     path = Path(path)
     progress = None
     try:
-        for step in scan_steps(read_document(path), str(path), state, collection):
+        for step in scan_steps(read_document(path), str(path), state, collection,
+                               scan_anyway):
             if step.kind == "split":
                 if step.partial:
                     print(f"⚠️  {path} splits into {step.total} clauses; judging the first "
                           f"{step.judged} — the {MAX_CLAUSES}-clause cap bounds what one "
                           f"scan spends.")
                 print(f"Scanning {step.judged} clauses from {path}")
+            elif step.kind == "gate_refused":
+                print(f"🛑 {path} doesn't read as a lease or as anything about renting, "
+                      f"so nothing was judged — landlord-tenant verdicts on it would be "
+                      f"confident nonsense. Pass --scan-anyway to insist.")
             elif step.kind == "gate_flagged":
-                print(f"⚠️  {path} doesn't read as a residential lease — scanning anyway; "
-                      "verdicts against landlord-tenant law will be unreliable.")
+                print(f"⚠️  {path} doesn't read as a residential lease — scanning "
+                      "anyway; verdicts against landlord-tenant law will be unreliable.")
             elif step.kind == "clause":
                 if progress is None:
                     progress = tqdm(total=step.total, desc="🐕 sniffing clauses")
@@ -572,10 +620,25 @@ def count_verdicts(findings: list[dict]) -> dict:
     return {v: sum(1 for f in findings if f["verdict"] == v) for v in ("red", "yellow", "green")}
 
 
+# Deliberately says nothing about WHICH non-lease kind this is, because it covers two
+# cases that reach it for different reasons: a `document_about_leases`, scanned because
+# a guide about renting is close enough to be worth judging, and an `other` that a
+# reader overrode. Naming one of them made the other one false — the first draft of
+# this line claimed "a document about leases" over a banana bread recipe.
 GATE_WARNING = (
-    "> ⚠️ This document didn't read as a residential lease, so it was scanned anyway "
-    "on request — treat the verdicts below as unreliable. Judging text that isn't a "
-    "lease against landlord-tenant law produces confident nonsense."
+    "> ⚠️ This didn't read as a residential lease, so treat the verdicts below as "
+    "unreliable — judging text that isn't a lease against landlord-tenant law "
+    "produces confident nonsense."
+)
+
+# The other half of that split. This one is a refusal, so it says what would have
+# to be true for a scan to mean anything, and how to insist.
+GATE_REFUSED = (
+    "> 🛑 **Not scanned.** This doesn't read as a lease or as anything about renting "
+    "— a lease has parties, a dwelling, rent and binding obligations. Judging an "
+    "unrelated document against landlord-tenant law would produce a page of "
+    "confident nonsense, so the hound stopped after the first look. If this really "
+    "is a lease, scan it anyway and read the verdicts sceptically."
 )
 
 
@@ -595,7 +658,23 @@ def partial_scan_notice(judged: int, total: int) -> str:
 def render_report(
     findings: list[dict], source: str, state: str, protections: list[dict] | None = None,
     gate_flagged: bool = False, clauses_total: int | None = None,
+    refused: bool = False,
 ) -> str:
+    if refused:
+        # Not a report with zero findings — no findings exist. Rendering the usual
+        # header here would print "0 red flags", which reads as a clean bill of
+        # health for a document that was never judged.
+        return "\n".join([
+            "# LeaseHound scan report",
+            "",
+            f"**Document:** `{source}` · **Jurisdiction:** {state.upper()}"
+            f" · **Date:** {date.today().isoformat()}",
+            "",
+            GATE_REFUSED,
+            "",
+            f"Split into {clauses_total} clauses, **0 judged**. Nothing was spent "
+            f"beyond the one call that classified the document.",
+        ])
     counts = count_verdicts(findings)
     missing = [p for p in (protections or []) if p["status"] == "missing"]
     header = [
@@ -659,12 +738,18 @@ def main() -> None:
     parser.add_argument("file", help="Lease document (.pdf, .md, .txt)")
     parser.add_argument("--state", default="wa")
     parser.add_argument("--out", default="scan_report.md")
+    parser.add_argument("--scan-anyway", action="store_true",
+                        help="judge the clauses even if the document doesn't read as "
+                             "a lease or as anything about renting")
     args = parser.parse_args()
 
-    result = scan_lease(args.file, args.state)
+    result = scan_lease(args.file, args.state, scan_anyway=args.scan_anyway)
     report = render_report(result.findings, args.file, args.state, result.protections,
-                           result.gate_flagged, result.clauses_total)
+                           result.gate_flagged, result.clauses_total, result.refused)
     Path(args.out).write_text(report, encoding="utf-8")
+    if result.refused:
+        print(f"Report written to {args.out}")
+        return
     counts = count_verdicts(result.findings)
     missing = sum(1 for p in result.protections if p["status"] == "missing")
     print(f"\n🚩 {counts['red']} red · ⚠️ {counts['yellow']} yellow · ✅ {counts['green']} green"

@@ -80,6 +80,12 @@ class ScanSummary(BaseModel):
     gate_flagged: bool = Field(
         description="The document did not read as a residential lease. Advisory: the "
                     "scan still ran, and the verdicts are less trustworthy.")
+    refused: bool = Field(
+        default=False,
+        description="The document read as unrelated to renting, so no clause was "
+                    "judged: `red`/`yellow`/`green` are all zero because nothing was "
+                    "looked at, NOT because the lease is clean. Re-send with "
+                    "`scan_anyway=true` to override.")
     red: int
     yellow: int
     green: int
@@ -146,6 +152,7 @@ def scan_response(result: ScanResult, source: str, state: str) -> ScanResponse:
             source=source, state=state, split_mode=result.split_mode,
             clauses_total=result.clauses_total, clauses_judged=result.clauses_judged,
             partial=result.partial, gate_flagged=result.gate_flagged,
+            refused=result.refused,
             red=counts["red"], yellow=counts["yellow"], green=counts["green"],
             missing_protections=sum(
                 1 for p in result.protections if p["status"] == "missing"),
@@ -155,7 +162,7 @@ def scan_response(result: ScanResult, source: str, state: str) -> ScanResponse:
         protections=[Protection(**p) for p in result.protections],
         report_markdown=render_report(
             result.findings, source, state, result.protections,
-            result.gate_flagged, result.clauses_total),
+            result.gate_flagged, result.clauses_total, result.refused),
     )
 
 
@@ -181,9 +188,12 @@ def health() -> Health:
 @api.post("/v1/scan", response_model=ScanResponse, tags=["scan"],
           dependencies=[Depends(require_token)])
 async def scan(file: Annotated[UploadFile, File(description=".pdf, .md or .txt")],
-               state: str = DEFAULT_STATE) -> ScanResponse:
+               state: str = DEFAULT_STATE,
+               scan_anyway: bool = False) -> ScanResponse:
     """Scan an uploaded lease. Over the clause cap the scan is partial, not refused —
-    `summary.partial` says so and `clauses_judged` says how far it got."""
+    `summary.partial` says so and `clauses_judged` says how far it got. A document
+    that reads as unrelated to renting IS refused: `summary.refused` says so, and
+    `scan_anyway=true` overrides it."""
     name = Path(file.filename or "upload").name
     # Written to a temp file and deleted immediately, for two reasons: pypdf reads a
     # file, and this is the same extraction path the CLI and the UI use rather than a
@@ -199,7 +209,7 @@ async def scan(file: Annotated[UploadFile, File(description=".pdf, .md or .txt")
         upload.unlink(missing_ok=True)
 
     try:
-        result = run_scan(text, name, state=state)
+        result = run_scan(text, name, state=state, scan_anyway=scan_anyway)
     except NoTextExtracted as empty:
         raise HTTPException(
             422, f"No text layer in {name} — a scanned or photo PDF has no extractable "

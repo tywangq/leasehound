@@ -150,10 +150,32 @@ NOTHING_EXTRACTED = (
     "🐕 The hound couldn't find any text in this document — a scanned or photo PDF has "
     "no text layer. Try a text-based .pdf, .md, or .txt."
 )
+# The override the refusal below asks for. A phrase rather than a button because the
+# upload is deleted as soon as its text is read (see cleanup_upload), so the document
+# has to come back with the request — and a phrase the visitor types is unambiguously
+# the visitor's, which is the property that keeps a planted "this is not a lease" line
+# from suppressing anything on its own.
+SCAN_ANYWAY_PHRASE = "scan anyway"
+
+# Reaches the screen for two different documents — a guide about renting, and an
+# `other` the reader insisted on — so it must not name either. Saying "a document
+# about renting" here put that sentence above a scan of a banana bread recipe.
 NOT_A_LEASE = (
-    "🐕 The hound gave this document a good sniff, and it doesn't smell like a "
-    "residential lease. Sniffing it anyway — but landlord-tenant verdicts on something "
-    "that isn't a lease are unreliable, so read the report with that in mind."
+    "🐕 The hound gave this a good sniff and it doesn't smell like a residential "
+    "lease. Sniffing it anyway — but landlord-tenant verdicts on something that isn't "
+    "a lease are unreliable, so read the report with that in mind."
+)
+# The refusal half. Says what it would take for a scan to mean anything, and points
+# at the button — because the old warning claimed the scan happened "on request"
+# when there was no way to make one.
+NOT_ABOUT_RENTING = (
+    "🛑 The hound had a good sniff and this doesn't smell like a lease **or** like "
+    "anything about renting — no parties, no dwelling, no rent, no obligations. "
+    "Judging it against landlord-tenant law would fill a page with confident "
+    "nonsense, so nothing was judged and nothing was spent past the first look.\n\n"
+    f"If it really is a lease, attach it again with **{SCAN_ANYWAY_PHRASE}** in the "
+    "message. It has to be re-attached because your upload is deleted the moment its "
+    "text is read — the hound doesn't keep a copy waiting for a second opinion."
 )
 PARTIAL_SCAN = (
     "🐕 This document splits into {count} clauses — long-form agreements really do run "
@@ -322,10 +344,15 @@ def answer_flow(question, history, report, context_base):
     yield _out(history)
 
 
-def scan_flow(path, key, history, report, scanned, context_base, question=""):
+def scan_flow(path, key, history, report, scanned, context_base, question="",
+              scan_anyway=False):
     """Scan a lease with per-clause progress in chat; report lands in the side panel."""
     name = path.name
-    if scanned == key and report:
+    # `scan_anyway` skips both caches deliberately. Refusals are not cached today,
+    # so a miss is what would happen anyway — but an override whose correctness
+    # depends on that staying true is one refactor away from silently doing nothing,
+    # and "scan anyway" has to mean a scan happened.
+    if scanned == key and report and not scan_anyway:
         history.append({"role": "assistant", "content": ALREADY_SNIFFED})
         yield _out(history, report=report, state=report,
                    context=report_context(name), source=key,
@@ -340,7 +367,7 @@ def scan_flow(path, key, history, report, scanned, context_base, question=""):
     cleanup_upload(path)
 
     digest = cache_key(text)
-    result = cache_get(digest)
+    result = cache_get(digest) if not scan_anyway else None
     if result is not None:
         log_scan(UsageMeter(), name, result.clauses_judged,
                  verdicts=count_verdicts(result.findings),
@@ -363,7 +390,7 @@ def scan_flow(path, key, history, report, scanned, context_base, question=""):
                stop=gr.update(visible=True), col=gr.update(visible=True),
                actions=gr.update(visible=False))
     try:
-        for step in scan_steps(text, name, state=DEMO_STATE):
+        for step in scan_steps(text, name, state=DEMO_STATE, scan_anyway=scan_anyway):
             if step.kind == "split":
                 # Over the cap the scan goes ahead on a prefix. Refusing meant a
                 # visitor who uploaded a real WA housing agreement (270 clauses) got
@@ -378,6 +405,12 @@ def scan_flow(path, key, history, report, scanned, context_base, question=""):
             elif step.kind == "gate_flagged":
                 history.insert(-1, {"role": "assistant", "content": NOT_A_LEASE})
                 yield _out(history)
+            elif step.kind == "gate_refused":
+                # Replaces the progress line rather than sitting above it: there is
+                # no progress to narrate, and leaving "judging clause 0 of N" on
+                # screen would promise a scan that is not going to happen.
+                history[-1]["content"] = NOT_ABOUT_RENTING
+                yield _out(history)
             elif step.kind == "clause":
                 history[-1]["content"] = progress_line(step.judged, step.total)
                 yield _out(history)
@@ -385,6 +418,18 @@ def scan_flow(path, key, history, report, scanned, context_base, question=""):
                 history[-1]["content"] = (
                     "🐕 One more pass — checking the protections the law requires…")
                 yield _out(history)
+            elif step.result.refused:
+                # Not cached, and no panel pinned. The cache serves finished
+                # reports and a hit is rendered as one, so keeping refusals out of
+                # it costs one cheap classification call and keeps every other
+                # path uniform. Leaving the context on law-only matters more:
+                # telling ask mode "you have the scan report of X" when no clause
+                # was judged would invent a report for it to reason from.
+                yield _out(history, box=gr.update(interactive=True),
+                           report="", state="", context=LAW_ONLY_CONTEXT, source="",
+                           stop=gr.update(visible=False),
+                           col=gr.update(visible=False),
+                           actions=gr.update(visible=False))
             else:
                 cache_put(digest, step.result)
                 history[-1]["content"] = scan_summary(step.result)
@@ -470,7 +515,13 @@ def _respond(message, history, report, scanned):
         # The canned example text is an instruction the scan itself fulfills —
         # don't answer it again as a follow-up question afterwards.
         question = "" if text == SCAN_EXAMPLE["text"] else text
-        yield from scan_flow(path, key, history, report, scanned, context_base, question=question)
+        anyway = SCAN_ANYWAY_PHRASE in text.lower()
+        # It was the override, not a question — answering "scan anyway" as a legal
+        # question afterwards would be nonsense.
+        if anyway:
+            question = ""
+        yield from scan_flow(path, key, history, report, scanned, context_base,
+                             question=question, scan_anyway=anyway)
     else:
         history.append({"role": "user", "content": text})
         yield _out(history, box=gr.update(value=None))
@@ -612,7 +663,12 @@ with gr.Blocks(title="LeaseHound — lease red-flag scanner") as demo:
             context_line = gr.Markdown(LAW_ONLY_CONTEXT, elem_classes="step-sub")
             # Gradio 6 dropped `type=`: the messages format this app already uses
             # is the only one now, so the argument became a no-op and then an error.
-            chatbot = gr.Chatbot(height=440, show_label=False)
+            # Gradio's default toolbar is ["share", "copy_all"], and its "share"
+            # posts to Hugging Face Spaces Discussions — a no-op anywhere else, so
+            # on Cloud Run it is a button that cannot do anything. Naming the list
+            # drops it and keeps the two that work.
+            chatbot = gr.Chatbot(height=440, show_label=False,
+                                 buttons=["copy", "copy_all"])
             message_box = gr.MultimodalTextbox(
                 placeholder="Attach a lease, or ask about renting in Washington…",
                 show_label=False,

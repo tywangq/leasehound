@@ -110,7 +110,8 @@ def test_second_scan_of_identical_content_makes_no_api_calls(monkeypatch, tmp_pa
     monkeypatch.setattr(app, "read_document", lambda path: lease_text)
     # Stubbed on leasehound.scan, not on app: there is one orchestration now, and
     # the UI reaches these stages through it rather than calling them itself.
-    monkeypatch.setattr(scan, "looks_like_lease", lambda clauses, meter=None: True)
+    monkeypatch.setattr(scan, "classify_document",
+                        lambda clauses, meter=None: "lease_agreement")
     monkeypatch.setattr(scan, "scan_clauses", fake_scan_clauses)
     monkeypatch.setattr(scan, "check_protections", lambda clauses, meter=None: [])
     monkeypatch.setattr(metrics, "LOG_PATH", tmp_path / "scan_metrics.jsonl")
@@ -128,6 +129,73 @@ def test_second_scan_of_identical_content_makes_no_api_calls(monkeypatch, tmp_pa
     log_lines = (tmp_path / "scan_metrics.jsonl").read_text().splitlines()
     assert json.loads(log_lines[1])["cache_hit"] is True
     assert json.loads(log_lines[1])["source"] == "renamed_copy.md"
+    app._scan_cache.clear()
+
+
+def test_the_override_phrase_reaches_the_scan_and_is_not_answered_as_a_question(
+        monkeypatch, tmp_path):
+    """The seam between what the visitor types and what the scan is told. Without
+    this, "scan anyway" could look right in chat and still scan normally — and it
+    must not also be handed to ask mode, which would answer a control phrase as
+    though it were a question about tenant law."""
+    seen = {}
+
+    def fake_scan_flow(path, key, history, report, scanned, context_base,
+                       question="", scan_anyway=False):
+        seen.update(question=question, scan_anyway=scan_anyway)
+        yield app._out(history)
+
+    monkeypatch.setattr(app, "scan_flow", fake_scan_flow)
+    upload = tmp_path / "maybe_a_lease.md"
+    upload.write_text("1. RENT. Tenant pays.", encoding="utf-8")
+
+    list(app._respond({"text": "Scan Anyway please", "files": [str(upload)]},
+                      [], "", ""))
+    assert seen == {"question": "", "scan_anyway": True}, "case must not matter"
+
+    list(app._respond({"text": "what about my deposit?", "files": [str(upload)]},
+                      [], "", ""))
+    assert seen == {"question": "what about my deposit?", "scan_anyway": False}
+
+
+def test_a_refused_scan_leaves_ask_mode_on_law_only_context(monkeypatch, tmp_path):
+    """The subtle half of refusing. Pinning an empty panel would read as "0 red
+    flags", and setting the report context would tell ask mode it has the scan
+    report of a document nobody judged — every follow-up answer would then be
+    reasoning from a report that does not exist."""
+    import leasehound.metrics as metrics
+
+    filler = "The parties agree to the terms set forth in this provision as written. "
+    text = "Intro.\n\n" + "\n\n".join(f"{i}. HEADING. {filler}" for i in range(1, 4))
+    judged = {"count": 0}
+
+    def fake_scan_clauses(clauses, config, meter=None):
+        judged["count"] += 1
+        yield {"index": 1, "clause": clauses[0], "verdict": "red",
+               "citations": [], "urls": {}, "explanation": "bad"}
+
+    monkeypatch.setattr(app, "read_document", lambda path: text)
+    monkeypatch.setattr(scan, "classify_document", lambda clauses, meter=None: "other")
+    monkeypatch.setattr(scan, "scan_clauses", fake_scan_clauses)
+    monkeypatch.setattr(scan, "check_protections", lambda clauses, meter=None: [])
+    monkeypatch.setattr(metrics, "LOG_PATH", tmp_path / "scan_metrics.jsonl")
+    app._scan_cache.clear()
+
+    history: list = []
+    frames = list(app.scan_flow(Path("resume.pdf"), "key", history, "", "", []))
+
+    assert judged["count"] == 0, "no clause may be judged after a refusal"
+    assert any(app.NOT_ABOUT_RENTING in (m.get("content") or "") for m in history)
+    # _out's positional contract: report, state, context are 3rd, 4th, 5th.
+    _, _, report, state, context = frames[-1][:5]
+    assert report == "" and state == ""
+    assert context == app.LAW_ONLY_CONTEXT
+
+    # And the override gets through: same document, same stubs, one word added.
+    app._scan_cache.clear()
+    override: list = []
+    list(app.scan_flow(Path("resume.pdf"), "key", override, "", "", [], scan_anyway=True))
+    assert judged["count"] == 1
     app._scan_cache.clear()
 
 
@@ -149,7 +217,8 @@ def test_a_long_lease_is_scanned_partially_instead_of_being_turned_away(monkeypa
                    "citations": [], "urls": {}, "explanation": "fine"}
 
     monkeypatch.setattr(app, "read_document", lambda path: lease_text)
-    monkeypatch.setattr(scan, "looks_like_lease", lambda clauses, meter=None: True)
+    monkeypatch.setattr(scan, "classify_document",
+                        lambda clauses, meter=None: "lease_agreement")
     monkeypatch.setattr(scan, "scan_clauses", fake_scan_clauses)
     monkeypatch.setattr(scan, "check_protections",
                         lambda clauses, meter=None: protections_saw.extend(clauses) or [])

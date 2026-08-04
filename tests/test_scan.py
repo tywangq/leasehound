@@ -1,6 +1,7 @@
 """Report rendering and the parallel-scan cancellation contract (no API calls)."""
 
 import time
+from contextlib import ExitStack, contextmanager
 from unittest.mock import patch
 
 import pytest
@@ -102,7 +103,7 @@ def test_an_oversized_document_is_scanned_to_the_cap_rather_than_refused():
     with (
         patch.object(scan, "read_document", lambda path: ""),
         patch.object(scan, "split_clauses_with_mode", lambda text: (clauses, "numbered")),
-        patch.object(scan, "looks_like_lease", lambda c, meter=None: True),
+        patch.object(scan, "classify_document", lambda c, meter=None: "lease_agreement"),
         patch.object(scan, "scan_clause", judged),
         patch.object(scan, "check_protections",
                      lambda c, meter=None: seen_by_protections.extend(c) or []),
@@ -152,12 +153,84 @@ def test_closing_scan_generator_cancels_queued_clauses():
     assert len(started) <= 9
 
 
+GATE_CLAUSES = ["1. RENT. Tenant pays $2,000 monthly.", "2. TERM. Month to month.",
+                "3. DEPOSIT. Held in trust."]
+
+
+@contextmanager
+def gate_says(kind: str, judged_indexes: list | None = None):
+    """Stub the whole deterministic scan around one fixed gate verdict."""
+    def judged(clause, index, config, meter=None):
+        if judged_indexes is not None:
+            judged_indexes.append(index)
+        return {"index": index, "clause": clause, "verdict": "green",
+                "citations": [], "urls": {}, "explanation": "fine"}
+
+    with ExitStack() as stack:
+        for patched in (
+            patch.object(scan, "read_document", lambda path: ""),
+            patch.object(scan, "split_clauses_with_mode",
+                         lambda text: (GATE_CLAUSES, "numbered")),
+            patch.object(scan, "classify_document", lambda c, meter=None: kind),
+            patch.object(scan, "scan_clause", judged),
+            patch.object(scan, "check_protections", lambda c, meter=None: []),
+            patch.object(scan, "log_scan", lambda *a, **k: {}),
+            patch.object(scan, "cost_line", lambda record: ""),
+        ):
+            stack.enter_context(patched)
+        yield
+
+
+def test_an_unrelated_document_is_refused_rather_than_judged():
+    """The complaint that produced this: an obviously unrelated upload came back
+    with a full set of landlord-tenant verdicts. The gate already knew — it returns
+    three kinds — and `looks_like_lease` collapsed them to a bool, so a tenant-law
+    guide and a resume were handled identically."""
+    judged_indexes = []
+    with gate_says("other", judged_indexes):
+        result = scan.scan_lease("resume.pdf")
+
+    assert result.refused is True
+    assert judged_indexes == [], "not one clause may be judged, because none was read"
+    assert result.findings == []
+    assert result.protections == []
+    # Still flagged, so anything rendering the result knows the gate had an opinion.
+    assert result.gate_flagged is True
+
+
+def test_the_refusal_is_overridable_because_refusing_is_the_injection():
+    """A document that can suppress its own report is the most effective attack on a
+    scanner, so `other` must never be the last word — `scan_anyway` is the request
+    the old warning already claimed had happened."""
+    judged_indexes = []
+    with gate_says("other", judged_indexes):
+        result = scan.scan_lease("really_a_lease.pdf", scan_anyway=True)
+
+    assert result.refused is False
+    assert judged_indexes == list(range(1, len(GATE_CLAUSES) + 1))
+    # The gate's opinion survives the override: the verdicts stay marked unreliable.
+    assert result.gate_flagged is True
+
+
+def test_a_refusal_still_yields_a_done_step():
+    """Every caller terminates on `done`. Returning without one would hang the CLI's
+    loop and hand the HTTP API a None to unpack — a refusal is an outcome, not an
+    early exit."""
+    with gate_says("other"):
+        kinds = [step.kind for step in scan.scan_steps("", "resume.pdf")]
+
+    assert "gate_refused" in kinds
+    assert kinds[-1] == "done"
+    assert "clause" not in kinds
+
+
 def test_a_document_that_fails_the_gate_is_scanned_anyway_and_flagged():
     # The gate used to raise here, which made a wrong reject cost the visitor
     # everything — and the real-document probe caught it rejecting a genuine WA
     # housing agreement. It is advisory now: the report still gets produced, and
     # carries a warning. This also means a prompt injection that flips the gate
-    # can no longer suppress a report, only annotate one.
+    # can no longer suppress a report, only annotate one. Only `other` refuses; see
+    # test_an_unrelated_document_is_refused_rather_than_judged.
     clauses = ["1. RENT. Tenant pays $2,000 monthly.", "2. TERM. Month to month.",
                "3. DEPOSIT. Held in trust."]
 
@@ -168,7 +241,8 @@ def test_a_document_that_fails_the_gate_is_scanned_anyway_and_flagged():
     with (
         patch.object(scan, "read_document", lambda path: ""),
         patch.object(scan, "split_clauses_with_mode", lambda text: (clauses, "numbered")),
-        patch.object(scan, "looks_like_lease", lambda c, meter=None: False),
+        patch.object(scan, "classify_document",
+                     lambda c, meter=None: "document_about_leases"),
         patch.object(scan, "scan_clause", judged),
         patch.object(scan, "check_protections", lambda c, meter=None: []),
         patch.object(scan, "log_scan", lambda *a, **k: {}),
@@ -188,7 +262,26 @@ def test_the_report_warns_when_the_document_did_not_read_as_a_lease():
     clean = scan.render_report(findings, "x.md", "wa", [], gate_flagged=False)
     assert "didn't read as a residential lease" in flagged
     assert "unreliable" in flagged
-    assert "didn't read as a residential lease" not in clean
+    assert "unreliable" not in clean
+    # Kind-neutral on purpose: the same line covers a guide about renting and an
+    # `other` document the reader overrode, so naming either makes it false for the
+    # other. It claimed "a document about leases" over a banana bread recipe once.
+    assert "about leases" not in flagged and "about renting" not in flagged
+
+
+def test_a_refused_report_never_reads_as_a_clean_bill_of_health():
+    """The dangerous rendering is the plausible one: a refusal has no findings, and
+    the ordinary header would print "0 red flags" over a document nobody judged."""
+    refused = scan.render_report([], "resume.pdf", "wa", [], gate_flagged=True,
+                                 clauses_total=9, refused=True)
+    assert "Not scanned" in refused
+    assert "0 red flags" not in refused
+    assert "0 judged" in refused
+    # And the counts still render for a real scan of a genuinely clean lease, which
+    # is the case this must not swallow.
+    clean = scan.render_report([], "clean.md", "wa", [], clauses_total=9)
+    assert "0 red flags" in clean
+    assert "Not scanned" not in clean
 
 
 def test_no_text_raises_instead_of_exiting():
@@ -206,8 +299,8 @@ def test_the_split_step_reports_both_counts_before_anything_is_spent():
     clauses = [f"{i}. CLAUSE HEADING. {filler}" for i in range(1, scan.MAX_CLAUSES + 6)]
     gate_calls = []
     with (
-        patch.object(scan, "looks_like_lease",
-                     lambda c, meter=None: gate_calls.append(1) or True),
+        patch.object(scan, "classify_document",
+                     lambda c, meter=None: gate_calls.append(1) or "lease_agreement"),
         patch.object(scan, "scan_clause", lambda clause, index, config, meter=None: {
             "index": index, "clause": clause, "verdict": "green",
             "citations": [], "urls": {}, "explanation": "fine"}),
@@ -240,7 +333,7 @@ def test_one_orchestration_serves_both_the_cli_and_the_ui():
     with (
         patch.object(scan, "read_document", lambda path: "whatever"),
         patch.object(scan, "split_clauses_with_mode", lambda text: (clauses, "numbered")),
-        patch.object(scan, "looks_like_lease", lambda c, meter=None: True),
+        patch.object(scan, "classify_document", lambda c, meter=None: "lease_agreement"),
         patch.object(scan, "scan_clause", one_clause),
         patch.object(scan, "check_protections", lambda c, meter=None: protections),
         patch.object(scan, "log_scan", lambda *a, **k: {}),

@@ -37,7 +37,8 @@ def stub_pipeline(monkeypatch):
                 "urls": {"RCW 59.18.230": "https://example.test/230"},
                 "explanation": "Void under the prohibited-provisions section."}
 
-    monkeypatch.setattr(scan, "looks_like_lease", lambda clauses, meter=None: True)
+    monkeypatch.setattr(scan, "classify_document",
+                        lambda clauses, meter=None: "lease_agreement")
     monkeypatch.setattr(scan, "scan_clause", one_clause)
     monkeypatch.setattr(scan, "check_protections", lambda clauses, meter=None: [
         {"name": "Deposit location", "status": "missing", "requirement": "Name the bank.",
@@ -92,6 +93,27 @@ def test_a_scan_returns_the_verdicts_the_cost_and_the_report(client, stub_pipeli
     assert body["protections"][0]["name"] == "Deposit location"
     # The same report the UI pins, not a second rendering that could disagree.
     assert "LeaseHound scan report" in body["report_markdown"]
+
+
+def test_an_unrelated_document_is_refused_and_says_so_in_the_summary(
+        client, stub_pipeline, monkeypatch):
+    """Zeroes are the trap. A caller reading red/yellow/green without `refused`
+    would see 0/0/0 and conclude the document is clean, when nothing was read."""
+    monkeypatch.setattr(scan, "classify_document", lambda clauses, meter=None: "other")
+    summary = post_scan(client, lease(3)).json()["summary"]
+    assert summary["refused"] is True
+    assert summary["clauses_judged"] == 0
+    assert summary["red"] == summary["yellow"] == summary["green"] == 0
+    body = post_scan(client, lease(3)).json()
+    assert "Not scanned" in body["report_markdown"]
+    assert "0 red flags" not in body["report_markdown"]
+
+    # The override is a query parameter, and it has to actually reach the scan.
+    overridden = client.post("/v1/scan?scan_anyway=true",
+                             files={"file": ("lease.md", lease(3), "text/markdown")},
+                             headers={"X-API-Token": TOKEN}).json()["summary"]
+    assert overridden["refused"] is False
+    assert overridden["clauses_judged"] == 3
 
 
 def test_a_scan_over_the_cap_says_it_is_partial(client, stub_pipeline):

@@ -36,7 +36,7 @@ from leasehound.metrics import UsageMeter
 from leasehound.scan import (
     MAX_CLAUSES,
     check_protections,
-    looks_like_lease,
+    classify_document,
     protection_windows,
 )
 from leasehound.upload import MAX_CLAUSE_CHARS, read_document, split_clauses_with_mode
@@ -95,7 +95,14 @@ def measure(entry: dict, scan: bool) -> dict:
         return result
 
     meter = UsageMeter()
-    accepted = looks_like_lease(clauses, meter)
+    # The kind, not just the boolean it used to collapse to: this probe exists to
+    # measure the gate on real documents, and "rejected as a guide about leases"
+    # and "rejected as unrelated" now lead to different behaviour in scan_steps —
+    # the second one refuses. A probe that recorded only True/False could not tell
+    # a recalibration from a regression.
+    kind = classify_document(clauses, meter)
+    accepted = kind == "lease_agreement"
+    result["gate_kind"] = kind
     result["gate_accepted_as_lease"] = accepted
     if accepted:
         protections = check_protections(clauses, meter)
@@ -109,8 +116,8 @@ def measure(entry: dict, scan: bool) -> dict:
 
 
 # Keys only a --scan run produces. A free run must not erase them.
-PAID_KEYS = ("gate_accepted_as_lease", "protections_missing", "protections_present",
-             "llm_calls", "cost_usd")
+PAID_KEYS = ("gate_kind", "gate_accepted_as_lease", "protections_missing",
+             "protections_present", "llm_calls", "cost_usd")
 
 
 def carry_paid_results(results: list[dict], existing: dict | None) -> list[dict]:
