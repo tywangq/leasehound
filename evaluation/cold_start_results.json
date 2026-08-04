@@ -1,0 +1,39 @@
+{
+  "url": "https://cold---leasehound-sbiact24ca-uw.a.run.app",
+  "provenance": {
+    "commit": "2243293",
+    "run_at": "2026-08-04"
+  },
+  "idle_wait_minutes": 17,
+  "samples": [
+    {
+      "cold_seconds": 15.16,
+      "warm_seconds": 0.17,
+      "status": 200,
+      "waited_minutes": 17,
+      "foreign_requests_during_wait": 0,
+      "window_verified_empty": true
+    },
+    {
+      "cold_seconds": 14.28,
+      "warm_seconds": 0.1,
+      "status": 200,
+      "waited_minutes": 17,
+      "foreign_requests_during_wait": 0,
+      "window_verified_empty": true
+    },
+    {
+      "cold_seconds": 13.45,
+      "warm_seconds": 0.08,
+      "status": 200,
+      "waited_minutes": 17,
+      "foreign_requests_during_wait": 0,
+      "window_verified_empty": true
+    }
+  ],
+  "cold_samples_trusted": 3,
+  "warm_median": 0.1,
+  "cold_min": 13.45,
+  "cold_max": 15.16,
+  "cold_median": 14.28
+}

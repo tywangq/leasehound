@@ -25,15 +25,16 @@ architecture earned its shape rather than accumulating it.
 
 **How to read these numbers.** Every table here is one run, and `temperature=0` is not determinism — one baseline row moved by a clause between two runs, and borderline verdicts can flip. Treat a gap of one or two questions as a tie. The six hand-labeled leases are the acceptance bar; the generated set's labels are verified by construction rather than authoritative; and the LLM judges share a model family with the systems they grade, mitigated by grading against reference statute text instead of taste. Each section adds only the caveats specific to it.
 
-Artifacts live beside this file: 14 `.json` results, of which 9 carry a `provenance`
+Artifacts live beside this file: 15 `.json` results, of which 10 carry a `provenance`
 stamp — generation, utility and embedding model, corpus snapshot, commit, run date.
 Stamped: `ask_cost_results.json`, `enumerated_split_results.json`,
 `injection_results.json`, `real_format_results.json`, `router_results.json`,
-`scan_cost_summary.json`, `scan_retrieval_results.json` (gold manifest),
+`scan_cost_summary.json`, `scan_retrieval_results.json` (gold manifest), and
 `scan_retrieval_silver.json` (the
-40-lease one), and `concurrency_results.json` — that last one with commit and date
-only, because it stubs the LLM layer completely and naming three models on a run
-that called none of them would imply they were involved. These 5 do not:
+40-lease one). Two more carry commit and date only — `concurrency_results.json`,
+which stubs the LLM layer completely, and `cold_start_results.json`, which fetches a
+static page over HTTP — because naming three models on a run that called none of
+them would imply they were involved. These 5 do not:
 
 - `baseline_results.json`
 - `enumerated_index.json`
