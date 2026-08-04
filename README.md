@@ -208,6 +208,14 @@ pytest          # 166 unit tests: clause splitting across seven real numbering c
 ruff check leasehound evaluation scripts tests
 ```
 
+The tests render no CSS, which is a real gap and not a theoretical one: the gradio 6 upgrade flipped the composer's flex container from a row to a column, so a rule of ours that had been centering it vertically started collapsing it *horizontally* — 734 px of input bar down to 237, the placeholder wrapped onto two lines with "Washington…" clipped off the end. 166 green tests and a stale screenshot between them said nothing. Re-recording the README's assets is what surfaced it, which is the argument for `scripts/record_demo.py` existing at all. It needs a browser, dev-only and deliberately absent from `pyproject` and `requirements-lock.txt` — nothing that ships needs one:
+
+```bash
+pip install playwright && playwright install chromium
+python -m leasehound.app &                 # a cold cache, so the GIF has a live scan in it
+python -m scripts.record_demo              # ≈ $0.018: one scan, one question
+```
+
 CI (GitHub Actions) runs both on every push, plus a third job that **builds the container and boots it**. That job exists because the deployed artifact was the least-tested thing here: the test job installs `pyproject`'s version ranges and is the canary for upstream drift, while the image installs the pinned `requirements-lock.txt` it actually ships and proves those pins still resolve and import together. It builds against a placeholder store — the real one isn't in git, and re-embedding the corpus per commit would spend money re-proving something no commit changes. That job also **audits `requirements-lock.txt` with `pip-audit`**, because a lockfile with no audit step is a promise to keep shipping a fixed set of versions including their known holes; it found 44 advisories the first time it ran. Tests themselves cover the deterministic core only: no API calls, no vector DB.
 
 Deploying is two steps, because the image ships a different store than development uses:
@@ -217,7 +225,7 @@ python -m scripts.export_runtime_db     # vector_db/ → vector_db_runtime/, one
 docker build -t leasehound .            # see "What the image ships" above
 ```
 
-The experiment write-ups live in [`evaluation/README.md`](evaluation/README.md) next to the artifacts they describe; `scripts/` holds the one-off measurement tools (`measure_concurrency.py`, `measure_ask_cost.py`, `probe_router.py`, `build_enumerated_collection.py`, `check_corpus_drift.py`), each of which prints what it costs before it costs it, plus the two deployment tools above (`export_runtime_db.py`, `image_smoke_test.py`).
+The experiment write-ups live in [`evaluation/README.md`](evaluation/README.md) next to the artifacts they describe; `scripts/` holds the one-off measurement tools (`measure_concurrency.py`, `measure_ask_cost.py`, `probe_router.py`, `build_enumerated_collection.py`, `check_corpus_drift.py`), each of which prints what it costs before it costs it, plus `record_demo.py`, which regenerates the GIF and screenshot above by driving the real UI (they had gone stale, and a hand-made asset gets stale again), plus the two deployment tools above (`export_runtime_db.py`, `image_smoke_test.py`).
 
 Two more workflows sit alongside it. `corpus.yml` watches the statute snapshot for drift — free, no secret, [described above](#keeping-the-snapshot-honest). `eval.yml` runs the paid evaluations: the gold-set scan eval, the ask-mode retrieval eval, and the scan-mode retrieval eval — that last one first, since at ~$0.0002 it says whether a regression is retrieval or judgment before anything expensive runs — on every push to `main` that touches pipeline code (≈ $0.15/run — path-filtered so docs commits cost nothing), with the pricier generation eval and the 40-lease synthetic set on manual dispatch. Scores land in the job summary as a report, not a gate: temperature-0 API calls still drift a flag's worth between runs, and a hard threshold would flake. Forks never see the API key (main-only triggers), and the workflow skips gracefully when the secret isn't configured.
 

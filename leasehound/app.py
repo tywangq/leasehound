@@ -106,7 +106,16 @@ CSS = """
 @media (max-width: 900px) {
   .report-panel {max-height: 65vh; overflow-y: auto; padding: 0 4px;}
 }
-.chat-col .multimodal-textbox .input-container {align-items: center !important;}
+/* STRETCH, not center. This rule said `center` and was written when gradio 5 laid
+   the container out as a ROW, where centering the cross axis meant centering the
+   icons and the textarea vertically. Gradio 6 makes the container a COLUMN, so the
+   same declaration centers the cross axis HORIZONTALLY: the input wrapper collapsed
+   to its content and the composer went from 734px wide to 237px, wrapping the
+   placeholder onto two lines and clipping "Washington…" off the end. Nothing caught
+   it — the tests render no CSS, and the README screenshot that would have shown it
+   predated the upgrade. The vertical centering it used to do is now the textarea's
+   own align-content, below. */
+.chat-col .multimodal-textbox .input-container {align-items: stretch !important;}
 .chat-col .multimodal-textbox textarea {align-content: center;}
 /* Attached-file chip: gradio's 48px thumbnail dwarfs the 30px attach/send
    icons beside it. Direct-child only, so the delete ✕ keeps its own size. */
