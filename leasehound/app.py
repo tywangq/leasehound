@@ -786,8 +786,12 @@ async def rebrand_social_preview(request, call_next):
     body = b"".join([chunk async for chunk in response.body_iterator])
     text = META_TAG_RE.sub(rebrand_meta_tag, body.decode("utf-8", "replace"))
     # Declared rather than left to the browser's default /favicon.ico probe, so the
-    # tab icon does not depend on a fallback and the SVG type is stated outright.
-    text = text.replace("<head>", '<head>\n\t\t<link rel="icon" type="image/svg+xml" '
+    # tab icon does not depend on a fallback. PNG, not SVG: this shipped as an SVG
+    # holding the emoji as `<text>`, served a correct 200 image/svg+xml, and showed
+    # nothing — Safari does not support SVG favicons at all, and a text glyph needs
+    # an emoji font resolved inside the favicon's rendering context. See
+    # scripts/render_favicon.py, which draws the real glyph in a real browser.
+    text = text.replace("<head>", '<head>\n\t\t<link rel="icon" type="image/png" '
                                   'href="/favicon.ico" />', 1)
     headers = {k: v for k, v in response.headers.items() if k.lower() != "content-length"}
     return Response(content=text, status_code=response.status_code,
@@ -808,7 +812,7 @@ def serve() -> None:
     from leasehound.api import api
 
     server = gr.mount_gradio_app(api, demo, path="/",
-                                 favicon_path=str(ICONS / "favicon.svg"), **UI_STYLE)
+                                 favicon_path=str(ICONS / "favicon.png"), **UI_STYLE)
     server.middleware("http")(rebrand_social_preview)
     uvicorn.run(
         server,
