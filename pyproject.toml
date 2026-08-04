@@ -20,23 +20,36 @@ requires-python = ">=3.11"
 # ci.yml audits the lockfile now: a pin is a promise to keep shipping a version,
 # including its vulnerabilities, and nothing here would otherwise have noticed.
 #
+# fastapi / starlette / uvicorn: imported directly (api.py, app.py's rebranding
+# middleware, app.py's serve()) and previously not declared at all — they arrived
+# as gradio's transitive dependencies and everything worked, which is exactly what
+# makes it a trap. Nothing breaks until gradio drops or re-pins one of them, and
+# then it breaks as an ImportError in a release nobody expected to touch the HTTP
+# layer. The rule is that what a module imports, the project declares.
+#
 # The image does not rely on these ranges at all; it installs
 # requirements-lock.txt (see Dockerfile), which leaves this set free to float so
 # CI notices upstream breakage early.
 dependencies = [
     "chromadb>=1.0,<2",
+    "fastapi>=0.110,<1",
     "gradio>=6.6,<7",
     "litellm>=1.40,<2",
     "openai>=2.0,<3",
     "pydantic>=2.7,<3",
     "pypdf>=4.0,<7",
     "python-dotenv>=1.0,<2",
+    "starlette>=1.0,<2",
     "tenacity>=8.3,<10",
     "tqdm>=4.66,<5",
+    "uvicorn>=0.30,<1",
 ]
 
 [project.optional-dependencies]
+# httpx: fastapi's TestClient needs it, and tests/test_api.py is 10 of the 166
+# tests. Same trap as above — it was reaching the suite through gradio.
 dev = [
+    "httpx>=0.27,<1",
     "pytest>=8.0",
     "ruff>=0.4",
 ]
