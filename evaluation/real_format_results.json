@@ -1,14 +1,14 @@
 {
   "documents": 5,
-  "cost_usd": 0.02227,
+  "cost_usd": 0.02032,
   "scan_run": true,
   "provenance": {
     "generation_model": "openai/gpt-4.1-mini",
     "utility_model": "openai/gpt-4.1-nano",
     "embedding_model": "text-embedding-3-large",
     "corpus_snapshot": "2026-07-25",
-    "commit": "59b8376",
-    "run_at": "2026-07-29"
+    "commit": "0104877",
+    "run_at": "2026-08-04"
   },
   "results": [
     {
@@ -24,14 +24,16 @@
       "tiny_clauses": 0,
       "over_clause_cap": false,
       "protection_windows": 2,
+      "gate_kind": "lease_agreement",
       "gate_accepted_as_lease": true,
       "protections_missing": [
+        "Deposit location disclosure",
         "Fire safety information",
         "Mold information"
       ],
-      "protections_present": 3,
+      "protections_present": 2,
       "llm_calls": 3,
-      "cost_usd": 0.00497
+      "cost_usd": 0.00428
     },
     {
       "file": "hud_52641a_tenancy_addendum.pdf",
@@ -46,6 +48,7 @@
       "tiny_clauses": 3,
       "over_clause_cap": false,
       "protection_windows": 2,
+      "gate_kind": "lease_agreement",
       "gate_accepted_as_lease": true,
       "protections_missing": [
         "Deposit location disclosure",
@@ -55,7 +58,7 @@
       ],
       "protections_present": 1,
       "llm_calls": 3,
-      "cost_usd": 0.00404
+      "cost_usd": 0.00362
     },
     {
       "file": "uw_12month_housing_agreement.pdf",
@@ -70,6 +73,7 @@
       "tiny_clauses": 70,
       "over_clause_cap": true,
       "protection_windows": 3,
+      "gate_kind": "lease_agreement",
       "gate_accepted_as_lease": true,
       "protections_missing": [
         "Deposit withholding terms",
@@ -79,7 +83,7 @@
       ],
       "protections_present": 1,
       "llm_calls": 4,
-      "cost_usd": 0.00743
+      "cost_usd": 0.00701
     },
     {
       "file": "uwt_housing_agreement.pdf",
@@ -94,6 +98,7 @@
       "tiny_clauses": 17,
       "over_clause_cap": true,
       "protection_windows": 2,
+      "gate_kind": "lease_agreement",
       "gate_accepted_as_lease": true,
       "protections_missing": [
         "Deposit location disclosure",
@@ -103,7 +108,7 @@
       ],
       "protections_present": 1,
       "llm_calls": 3,
-      "cost_usd": 0.00519
+      "cost_usd": 0.00477
     },
     {
       "file": "wwu_housing_agreement.pdf",
@@ -118,6 +123,7 @@
       "tiny_clauses": 2,
       "over_clause_cap": false,
       "protection_windows": 1,
+      "gate_kind": "document_about_leases",
       "gate_accepted_as_lease": false,
       "llm_calls": 1,
       "cost_usd": 0.00064
