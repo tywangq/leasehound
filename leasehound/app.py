@@ -697,10 +697,17 @@ with gr.Blocks(title="LeaseHound — lease red-flag scanner") as demo:
             # One row pinned at the panel's top-right corner (see the CSS), so
             # all three actions share the same position and appear together,
             # only once a finished report is up.
+            # Discard, copy, download — matching the chat toolbar beside it, which
+            # reads Clear then Copy. That order is Gradio's: `buttons` accepts only
+            # "share"/"copy"/"copy_all" or custom buttons, and the Clear it renders
+            # ahead of them is not in that list and cannot be moved. Two toolbars a
+            # few hundred pixels apart disagreeing about where "delete" lives is the
+            # kind of thing a visitor notices, so the one we control follows the one
+            # we do not.
             with gr.Row(visible=False, elem_id="report-actions") as report_actions:
+                trash_button = gr.Button("", icon=str(ICONS / "trash.svg"), size="sm")
                 copy_button = gr.Button("", icon=str(ICONS / "copy.svg"), size="sm")
                 download_button = gr.DownloadButton("", icon=str(ICONS / "download.svg"), size="sm")
-                trash_button = gr.Button("", icon=str(ICONS / "trash.svg"), size="sm")
             report_output = gr.Markdown("", elem_classes="report-panel")
 
     outs = [chatbot, message_box, report_output, report_state,

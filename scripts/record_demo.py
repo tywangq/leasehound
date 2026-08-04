@@ -113,13 +113,29 @@ def show_question_with_answer(page, question: str) -> None:
 
     The log auto-scrolls to the newest token, which pushes the question off the top
     — and a screenshot of an answer to an invisible question illustrates nothing.
-    This is the second time that has had to be fixed; the first was by hand.
+    This is the third time it has needed work; the first fix was by hand, the second
+    used scrollIntoView, which aligns an element's box but not its message wrapper,
+    so the previous reply's last line stayed visible above the question and the hero
+    image opened on a clipped bubble. Setting scrollTop against the scroll parent's
+    own geometry is arithmetic rather than a hint, so it lands where it is told.
     """
     page.evaluate(
         """(text) => {
             const bubbles = [...document.querySelectorAll('.chat-col .message, .chat-col .bubble-wrap p')];
-            const asked = bubbles.reverse().find(el => el.innerText.trim().startsWith(text.slice(0, 40)));
-            if (asked) asked.scrollIntoView({block: 'start'});
+            const asked = bubbles.reverse().find(
+                el => el.innerText.trim().startsWith(text.slice(0, 40)));
+            if (asked) {
+                // The nearest ancestor that actually scrolls; the bubble's own parent
+                // usually does not.
+                let box = asked.parentElement;
+                while (box && box.scrollHeight <= box.clientHeight) box = box.parentElement;
+                if (box) {
+                    const top = asked.getBoundingClientRect().top
+                              - box.getBoundingClientRect().top + box.scrollTop;
+                    // A few pixels of air, so the bubble does not touch the top edge.
+                    box.scrollTop = Math.max(0, top - 8);
+                }
+            }
             window.scrollTo(0, 0);
         }""",
         question,
@@ -134,6 +150,37 @@ def ask(page, question: str) -> None:
     box.press("Enter")
 
 
+def shared_palette(images: list[Image.Image]) -> Image.Image:
+    """One palette, built from every frame, with the octree quantiser.
+
+    Two separate mistakes made the GIF greyscale while the PNG beside it in the
+    README stayed in colour — the 🐕 came out a grey dog, the 🚩 a grey triangle,
+    the ✅ a grey box.
+
+    The first is the global palette. A GIF has one, and PIL takes it from whichever
+    frame is saved first; frame 0 here is the app before anything happens, so the
+    palette was derived from a near-blank page. Hence a strip of ALL frames,
+    sampled at a third scale because a palette is about which colours occur, not
+    where.
+
+    The second is the quantiser, and it was the bigger one. **Median cut splits the
+    colour space by pixel POPULATION**, and this UI is white — so a screenshot
+    whose true-colour form has 3.2% coloured pixels came back with 2.6% after
+    `MEDIANCUT`, with the loss concentrated in exactly the small, salient things:
+    every emoji went grey. `FASTOCTREE` subdivides the colour space itself, is
+    therefore indifferent to how much area a colour covers, and returns 3.3% — every
+    emoji intact. Measured side by side at 128, 200 and 256 colours; 128 with
+    FASTOCTREE is indistinguishable from 256, so the file stays small.
+    """
+    thumbs = [im.resize((im.width // 3, im.height // 3), Image.LANCZOS) for im in images]
+    strip = Image.new("RGB", (thumbs[0].width, sum(t.height for t in thumbs)))
+    offset = 0
+    for thumb in thumbs:
+        strip.paste(thumb, (0, offset))
+        offset += thumb.height
+    return strip.quantize(colors=GIF_COLORS, method=Image.FASTOCTREE)
+
+
 def write_gif(frames: list[tuple[float, bytes]], path: Path) -> None:
     """Assemble stamped PNG frames into an animated GIF at true speed.
 
@@ -141,12 +188,16 @@ def write_gif(frames: list[tuple[float, bytes]], path: Path) -> None:
     README that takes ten seconds to show its own demo has not demonstrated
     anything.
     """
-    images = []
+    rgb = []
     for _, raw in frames:
         frame = Image.open(io.BytesIO(raw)).convert("RGB")
-        frame = frame.resize(
-            (GIF_WIDTH, round(frame.height * GIF_WIDTH / frame.width)), Image.LANCZOS)
-        images.append(frame.quantize(colors=GIF_COLORS, method=Image.MEDIANCUT))
+        rgb.append(frame.resize(
+            (GIF_WIDTH, round(frame.height * GIF_WIDTH / frame.width)), Image.LANCZOS))
+
+    master = shared_palette(rgb)
+    # dither=NONE: this is flat UI, not a photograph. Floyd-Steinberg speckles large
+    # areas of one colour and costs bytes for noise nobody wants to see.
+    images = [frame.quantize(palette=master, dither=Image.Dither.NONE) for frame in rgb]
 
     stamps = [stamp for stamp, _ in frames]
     durations = [
