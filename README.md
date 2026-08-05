@@ -14,15 +14,15 @@
 
 | what was tested | measured result |
 | --- | --- |
-| 6 hand-labeled leases · 18 planted violations | 18/18 flagged red · **0 false reds** · 18/18 citations correct · missing-protection list exact on 6/6 |
-| the same leases and model, no retrieval | 14/18 flagged · **3/14 citations correct** · protection list exact on 0/6 |
-| 40 generated leases · 61 planted violations | **60/61 flagged red** · 60/60 cited correctly · precision ≥ .896, [an audited lower bound](evaluation/README.md#scaling-past-the-ceiling--40-generated-leases-labels-for-free) |
+| scan mode · 6 hand-labeled leases · 18 planted violations | 18/18 flagged red · **0 false reds** · 18/18 citations correct · protections exact on 6/6 |
+| the same 6 leases, same model, no retrieval | 14/18 flagged red · 1 false red · **3/14 citations correct** · protections exact on 0/6 |
+| scan mode · 40 generated leases · 61 planted violations | **60/61 flagged red** · 7 reds outside the label set, [6 of them real, so precision ≥ .896](evaluation/README.md#scaling-past-the-ceiling--40-generated-leases-labels-for-free) · 60/60 citations correct · protections exact on 39/40 |
 | 5 prompt-injection payloads inside hostile leases | **5/5 held** — every planted violation still red, no scan suppressed, and the report stays clean when it is carried into ask mode |
-| scan-mode retrieval, 79 labelled clauses | an acceptable section arrives for 79/79; on the strict reading, where *every* acceptable section must arrive, [**40 of the 79 fall short and all trace to one statute**](evaluation/README.md#the-labelled-set-said-ship-it-the-40-lease-set-said-no) |
-| permissive vs prohibited, 35 labelled clauses | **the shipped index reads 2 of the 10 prohibitions as green**, with no citation at all; the candidate fix instead reads *"check or electronic payment"* as electronic-only — [both measured, neither shipped](evaluation/README.md#the-labelled-set-said-ship-it-the-40-lease-set-said-no) |
-| cost & latency, 135 logged scans (9–15 clauses) | **≈ $0.011/scan** · p50 8.8 s · [p95 18.5 s is the provider, not the pipeline](#what-a-scan-costs) · [and that mean is a warm-cache number](#what-a-scan-costs) |
-| ask mode, per question | **≈ $0.003/question** · p50 6.8 s · [1.5× the two-stage pipeline it beat by 1–2 questions](#what-the-extra-stages-cost) · [3% cached, against 65% for a warm scan](#what-a-question-costs-and-what-the-extra-stages-buy) |
-| ask-mode router, 15 cases × 15 samples | **15/15 route correctly** — [after "there are cockroaches everywhere" reached no statute in 5 tries out of 5](evaluation/README.md#the-router--every-metric-above-assumes-retrieval-ran-at-all) |
+| scan-mode retrieval · 79 labelled clauses | an acceptable section arrives for 79/79; on the strict reading, where *every* acceptable section must arrive, [**40 of the 79 fall short and all trace to one statute**](evaluation/README.md#the-labelled-set-said-ship-it-the-40-lease-set-said-no) |
+| permissive vs prohibited · 35 labelled clauses | **the shipped index reads 2 of the 10 prohibitions as green**, with no citation at all; the candidate fix instead reads *"check or electronic payment"* as electronic-only — [both measured, neither shipped](evaluation/README.md#the-labelled-set-said-ship-it-the-40-lease-set-said-no) |
+| cost & latency · scan mode · 135 logged scans (9–15 clauses) | **≈ $0.011/scan** · p50 8.8 s · [p95 18.5 s is the provider, not the pipeline](#what-a-scan-costs) · [and that mean is a warm-cache number](#what-a-scan-costs) |
+| cost & latency · ask mode · 20 logged questions | **≈ $0.003/question** · p50 6.8 s · [1.5× the two-stage pipeline it beat by 1–2 questions](#what-the-extra-stages-cost) · [3% cached, against 65% for a warm scan](#what-a-question-costs-and-what-the-extra-stages-buy) |
+| ask-mode router · 15 cases × 15 samples | **15/15 route correctly** — [after "there are cockroaches everywhere" reached no statute in 5 tries out of 5](evaluation/README.md#the-router--every-metric-above-assumes-retrieval-ran-at-all) |
 
 ---
 
