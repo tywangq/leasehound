@@ -1,9 +1,12 @@
-"""Zero-shot baseline: the same labeled leases, the same model, no pipeline.
+"""No-retrieval baseline: the same labeled leases, the same model, no pipeline.
+
+Called closed-book rather than zero-shot on purpose: zero-shot is about examples in
+the prompt, and the pipeline has none either. What comes out here is retrieval.
 
 The README argues that pasting a lease into a chat window is the wrong tool
 ("the law shouldn't come from parametric memory"). This script measures that
 claim instead of asserting it: each hand-labeled lease goes to the model
-whole, zero-shot — no retrieved statute text, no curated protections
+whole, closed-book — no retrieved statute text, no curated protections
 checklist, no clause splitting — and the output is scored against the same
 manifest.json ground truth as eval_scan, with the same metrics.
 
@@ -74,7 +77,7 @@ Lease:
 
 
 @llm_retry
-def judge_zero_shot(lease_text: str, model: str) -> BaselineReport:
+def judge_closed_book(lease_text: str, model: str) -> BaselineReport:
     messages = [{"role": "user", "content": make_baseline_prompt(lease_text)}]
     response = completion(
         model=model, messages=messages, response_format=BaselineReport, temperature=0
@@ -120,7 +123,7 @@ def map_protections(claims: list[str]) -> tuple[set[str], list[str]]:
 
 def evaluate_lease(entry: dict, model: str) -> dict:
     text = (LEASES_DIR / entry["file"]).resolve().read_text(encoding="utf-8")
-    report = judge_zero_shot(text, model)
+    report = judge_closed_book(text, model)
     expected_red = {int(num): cites for num, cites in entry["red"].items()}
 
     # Dedupe by clause number, red outranking yellow, before scoring.
@@ -167,7 +170,7 @@ def main() -> None:
     manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     results = []
     for entry in manifest["leases"]:
-        print(f"zero-shot {args.model}: {entry['file']}")
+        print(f"closed-book {args.model}: {entry['file']}")
         results.append(evaluate_lease(entry, args.model))
 
     planted = sum(len(r["planted"]) for r in results)

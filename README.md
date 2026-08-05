@@ -15,7 +15,7 @@
 | | measured result |
 | --- | --- |
 | 6 hand-labeled leases · 18 planted violations | **18/18 flagged red · 0 false reds · 18/18 citations correct** · 6/6 missing-protection sets |
-| the same leases, same model, zero-shot | 14/18 flagged · **3/14 citations correct** · 0/6 protection sets |
+| the same leases, same model, **no retrieval** | 14/18 flagged · **3/14 citations correct** · 0/6 protection sets |
 | 40 generated leases · 61 planted violations | 60/61 flagged red · 60/60 cited correctly · [precision is an audited lower bound](evaluation/README.md#scaling-past-the-ceiling--40-generated-leases-labels-for-free) |
 | 5 prompt-injection payloads inside hostile leases | **5/5 held** — every planted violation still red, no scan suppressed, and 5/5 clean on the report → ask-mode carryover path |
 | scan-mode retrieval, 79 labelled clauses | governing section arrives 79/79 — [all 40 partial misses are one section, and the fix that closes them still costs a false red on the compliant lease](evaluation/README.md#the-labelled-set-said-ship-it-the-40-lease-set-said-no) |
@@ -34,7 +34,7 @@
 
 The ten provisions RCW 59.18.230(2) prohibits are specific, which is what makes them checkable: waiving rights under the chapter, waiving class participation, an NDA covering rent terms, a confessed judgment, paying the landlord's attorney fees outside a court award, exculpation or indemnity for the landlord's own liability, an arbitrator named at signing, arbitration the tenant helps pay for, a late fee inside the five-day grace period, and rent by electronic means only. Each has its own subsection, and each is the kind of thing a lease states plainly enough to be read against the statute.
 
-**Why not just paste your lease into ChatGPT?** The lease fits in a context window; the law shouldn't come from parametric memory. Statutes change (RCW 59.18.230 was amended in 2025), models mix up states and invent citation numbers, and a chat answer can't be verified. LeaseHound retrieves the current statute text and cites the exact section — every claim has a clickable source. This claim is measured, not asserted (see the [zero-shot baseline](evaluation/README.md#zero-shot-baseline--the-same-leases-without-the-pipeline)).
+**Why not just paste your lease into ChatGPT?** The lease fits in a context window; the law shouldn't come from parametric memory. Statutes change (RCW 59.18.230 was amended in 2025), models mix up states and invent citation numbers, and a chat answer can't be verified. LeaseHound retrieves the current statute text and cites the exact section — every claim has a clickable source. This claim is measured, not asserted (see the [no-retrieval baseline](evaluation/README.md#no-retrieval-baseline--the-same-leases-and-model-closed-book)).
 
 ## Architecture
 
@@ -298,7 +298,7 @@ kept on purpose, because they are how the architecture earned its shape.
 | experiment | the question it answers | what it found |
 | --- | --- | --- |
 | [Scan layer](evaluation/README.md#scan-layer-evaluation--red-flag-precision--recall-6-labeled-leases) | Does it catch planted violations in hand-labeled leases? | 18/18 red, 0 false reds, 18/18 cited |
-| [Zero-shot baseline](evaluation/README.md#zero-shot-baseline--the-same-leases-without-the-pipeline) | What does the pipeline add over pasting the lease into the model? | citations 18/18 vs **3/14** — retrieval is the difference |
+| [No-retrieval baseline](evaluation/README.md#no-retrieval-baseline--the-same-leases-and-model-closed-book) | What does the pipeline add over pasting the lease into the model? | citations 18/18 vs **3/14** — retrieval is the difference |
 | [40 generated leases](evaluation/README.md#scaling-past-the-ceiling--40-generated-leases-labels-for-free) | Does it hold past the hand-labeled ceiling? | 60/61 red; found and fixed an evidence-bleed bug |
 | [Prompt injection](evaluation/README.md#prompt-injection-resistance--the-lease-is-hostile-input) | Can a lease talk to the model? | 5/5 held — after one payload suppressed a whole scan |
 | [Document formats](evaluation/README.md#document-formats--real-published-leases-and-real-numbering) | Does the pipeline survive documents nobody here wrote? | **6 of 7 conventions failed silently**, and a silent truncation invented two missing protections |
@@ -311,7 +311,7 @@ kept on purpose, because they are how the architecture earned its shape.
 
 **Three worth the click:**
 
-- **[The zero-shot baseline](evaluation/README.md#zero-shot-baseline--the-same-leases-without-the-pipeline)** is the most persuasive number in the project. Same model, same leases, no pipeline: 14 of 18 violations found, but only **3 of 14 citations correct** — it invents section numbers. Retrieval is not decoration here; it is the difference between a claim and a checkable one.
+- **[The no-retrieval baseline](evaluation/README.md#no-retrieval-baseline--the-same-leases-and-model-closed-book)** is the most persuasive number in the project. Same model, same leases, no pipeline: 14 of 18 violations found, but only **3 of 14 citations correct** — it invents section numbers. Retrieval is not decoration here; it is the difference between a claim and a checkable one.
 - **[Three candidate retrieval fixes, none shipped](evaluation/README.md#three-candidate-fixes-none-shipped)** — including one that *closed* the defect it targeted (strict retrieval .492 → .984) and was rejected anyway, because it cost a false red on a compliant clause. The metric that found the defect turned out to be a proxy, not an outcome.
 - **[Five real published leases](evaluation/README.md#the-same-question-against-documents-nobody-here-wrote)** broke two things no self-generated test could: six of seven real numbering conventions, and a silent 24,000-character truncation that invented two "missing protections" out of text it never read.
 

@@ -16,7 +16,7 @@ nothing here identified the fourth.)
 | experiment | the question it answers | what it found |
 | --- | --- | --- |
 | [Scan layer](#scan-layer-evaluation--red-flag-precision--recall-6-labeled-leases) | Does it catch planted violations in hand-labeled leases? | 18/18 red, 0 false reds, 18/18 cited |
-| [Zero-shot baseline](#zero-shot-baseline--the-same-leases-without-the-pipeline) | What does the pipeline add over pasting the lease into the model? | citations 18/18 vs **3/14** — retrieval is the difference |
+| [No-retrieval baseline](#no-retrieval-baseline--the-same-leases-and-model-closed-book) | What does the pipeline add over pasting the lease into the model? | citations 18/18 vs **3/14** — retrieval is the difference |
 | [40 generated leases](#scaling-past-the-ceiling--40-generated-leases-labels-for-free) | Does it hold past the hand-labeled ceiling? | 60/61 red; found and fixed an evidence-bleed bug |
 | [Prompt injection](#prompt-injection-resistance--the-lease-is-hostile-input) | Can a lease talk to the model? | 5/5 held — after one payload suppressed a whole scan |
 | [Document formats](#document-formats--real-published-leases-and-real-numbering) | Does the pipeline survive documents nobody here wrote? | **6 of 7 conventions failed silently**, and a silent truncation invented two missing protections |
@@ -82,11 +82,11 @@ python -m evaluation.eval_scan
 
 Specific caveat: the fire-safety checklist item is a known borderline case — a smoke-detector maintenance clause sometimes reads as fire-safety information. Tracking that variance is what this eval is for.
 
-## Zero-shot baseline — the same leases, without the pipeline
+## No-retrieval baseline — the same leases and model, closed-book
 
-The opening claim ("why not just paste it into ChatGPT?") deserves a measurement, not an assertion. `eval_baseline.py` pastes each of the six labeled leases into the model whole — zero-shot: no retrieved statute text, no curated checklist, no clause splitting, just a careful prompt with the same red/yellow rubric — and scores the output against the same manifest:
+The opening claim ("why not just paste it into ChatGPT?") deserves a measurement, not an assertion. **This used to be called the "zero-shot baseline", which named the wrong axis:** "zero-shot" is about whether the prompt carries worked examples, and neither arm here does — the pipeline's judge prompt has no examples either. What is removed is *retrieval*, so the term of art is closed-book. `eval_baseline.py` pastes each of the six labeled leases into the model whole — zero-shot: no retrieved statute text, no curated checklist, no clause splitting, just a careful prompt with the same red/yellow rubric — and scores the output against the same manifest:
 
-| metric | pipeline (gpt-4.1-mini) | zero-shot gpt-4.1-mini | zero-shot gpt-4.1 |
+| metric | pipeline (gpt-4.1-mini) | closed-book gpt-4.1-mini | closed-book gpt-4.1 |
 | --- | --- | --- | --- |
 | planted violations flagged red | **18/18** | 14/18 | 14/18 |
 | flagged red or yellow | 18/18 | 18/18 | 18/18 |
@@ -99,9 +99,9 @@ python -m evaluation.eval_baseline                         # same model as the p
 python -m evaluation.eval_baseline --model openai/gpt-4.1  # a model tier up
 ```
 
-1. **Zero-shot smells everything but won't commit.** Both baselines reach 18/18 lenient recall — every planted violation gets at least a yellow — but each hedges four genuine violations down to "potentially problematic". Grounding in the actual statute text is what turns suspicion into a defensible red.
+1. **Closed-book smells everything but won't commit.** Both baselines reach 18/18 lenient recall — every planted violation gets at least a yellow — but each hedges four genuine violations down to "potentially problematic". Grounding in the actual statute text is what turns suspicion into a defensible red.
 2. **Same-model citations are plausible-but-wrong.** Eleven of gpt-4.1-mini's fourteen correct red flags cite a real RCW section that doesn't govern the clause — the day-one late fee pinned on RCW 59.18.140, the rights waiver on the retaliation section (.240). That's worse than invented numbers: these look checkable. Retrieval fixes this mechanically, because the judge may only cite from the extracts in front of it.
-3. **The negative-space check doesn't survive zero-shot.** Without the curated checklist the model free-associates missing disclosures — six claims against the fully compliant lease — while never spotting the genuinely missing mold and fire-safety information (0/6 exact; gpt-4.1 manages 3/6). A model can't reliably notice what's absent without a list of what must be present.
+3. **The negative-space check doesn't survive without the checklist.** Without the curated checklist the model free-associates missing disclosures — six claims against the fully compliant lease — while never spotting the genuinely missing mold and fire-safety information (0/6 exact; gpt-4.1 manages 3/6). A model can't reliably notice what's absent without a list of what must be present.
 4. **A model tier up doesn't buy the pipeline back.** gpt-4.1 fixes citations (14/14) but still under-flags (14/18) and still misses half the checklist — while the pipeline gets 18/18 red, 18/18 cited, 6/6 protections out of the *cheaper* model. The architecture, not the model, is doing the work here.
 
 Scoring is deliberately generous to the baseline: missing-protection claims that match no checklist item (federal disclosures, inventions) are recorded but not penalized, and raw model output is saved in `baseline_results.json` for audit.
@@ -123,7 +123,7 @@ Six hand-labeled leases saturate: the pipeline scores 18/18, so neither an impro
 | red flags outside the label set | 5 | 2 | 0 | 7 |
 | missing-protections exact set match | 24/24 | 10/11 | 5/5 | **39/40** |
 
-**Read the 60/60 citation row narrowly — part of it closes on itself.** The generator is told which section to violate, the acceptable citations come from the same manifest, and the judge may only cite retrieved text. So the row measures whether retrieval surfaced the section the generator was told to violate — real, and it does fail when retrieval misses, but not open-ended citation accuracy. The unrehearsed version is the [zero-shot baseline](#zero-shot-baseline--the-same-leases-without-the-pipeline), where nothing constrains what the model may cite and same-model citations drop to 3/14.
+**Read the 60/60 citation row narrowly — part of it closes on itself.** The generator is told which section to violate, the acceptable citations come from the same manifest, and the judge may only cite retrieved text. So the row measures whether retrieval surfaced the section the generator was told to violate — real, and it does fail when retrieval misses, but not open-ended citation accuracy. The unrehearsed version is the [no-retrieval baseline](#no-retrieval-baseline--the-same-leases-and-model-closed-book), where nothing constrains what the model may cite and same-model citations drop to 3/14.
 
 ```bash
 python -m evaluation.make_synthetic_leases     # regenerate the set (~$0.35)
