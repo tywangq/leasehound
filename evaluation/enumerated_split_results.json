@@ -1,6 +1,6 @@
 {
   "question": "Does indexing RCW 59.18.230's ten enumerated prohibitions separately make the section retrievable, and what does it cost?",
-  "verdict": "retrieval fixed, product regressed \u2014 NOT shipped",
+  "verdict": "retrieval fixed, product regressed on 2026-07-29 and NOT shipped; re-gated 2026-08-05 with the blocker gone \u2014 see revisited_2026_08_05",
   "provenance": {
     "generation_model": "openai/gpt-4.1-mini",
     "utility_model": "openai/gpt-4.1-nano",
@@ -164,5 +164,84 @@
     "It cost the cleanest published claim in the project \u2014 0 false reds became 1, precision 1.000 -> .947.",
     "So the strict metric is a LEADING INDICATOR, not an outcome. It correctly found a real retrieval gap; closing that gap made the product worse. Outcome metrics win.",
     "Kept implemented and measured, enabled nowhere, same disposition as hybrid retrieval and section completion."
-  ]
+  ],
+  "revisited_2026_08_05": {
+    "why": "The roadmap said shipping this needed a labelled permissive-vs-mandatory set rather than a prompt rule written against the single observed false red. That set now exists (evaluation/permissive_pairs.jsonl, 32 clauses across all ten prohibitions) and it said the opposite of what was expected, so the paid gold gate was re-run.",
+    "what_changed_underneath": "Nothing in the clause judge: `judge_clause` and `make_judge_prompt` are unchanged since bb0243e apart from a ScanMeter->UsageMeter annotation, and retrieval.py's diff is metering plumbing. What did change is the index \u2014 `build_enumerated_collection.py` gained `temperature=0` after this experiment (commit 210a9e0), the collection was rebuilt, and the RETRIEVAL metric was re-verified at .984 while the PAID PRECISION GATE was not re-run. So the published 'precision 1.000 -> .947' described an index that no longer exists. Provider-side drift on gpt-4.1-mini is the other candidate and cannot be excluded from outside; either way the gate result below is the current one.",
+    "permissive_labelled_set": {
+      "clauses": 32,
+      "prohibitions_covered": 10,
+      "kinds": {
+        "prohibited": 10,
+        "permissive": 12,
+        "permissive_hard": 10
+      },
+      "shipped_index": {
+        "prohibited_total": 10,
+        "prohibited_red": 8,
+        "permissive_total": 22,
+        "false_reds": 2,
+        "false_red_ids": [
+          "230-2h-permissive",
+          "230-2h-permissive-hard"
+        ],
+        "false_reds_easy": 1,
+        "false_reds_hard": 1,
+        "verdicts": {
+          "red": 10,
+          "yellow": 0,
+          "green": 22
+        }
+      },
+      "split_index": {
+        "prohibited_total": 10,
+        "prohibited_red": 10,
+        "permissive_total": 22,
+        "false_reds": 0,
+        "false_red_ids": [],
+        "false_reds_easy": 0,
+        "false_reds_hard": 0,
+        "verdicts": {
+          "red": 10,
+          "yellow": 0,
+          "green": 22
+        }
+      },
+      "reading": "The split is better on both axes, not merely not-worse: it flags 10/10 prohibited clauses where the shipped index flags 8/10 (it reads the exculpation and arbitration-cost prohibitions as green with no citation at all), and it produces 0 false reds where the shipped index produces 2, both on (2)(h) and both citing RCW 59.18.340 instead."
+    },
+    "gold_scan_230split_regated": {
+      "leases": 6,
+      "planted_violations": 18,
+      "strict_recall": 1.0,
+      "lenient_recall": 1.0,
+      "precision": 1.0,
+      "citation_accuracy": 1.0,
+      "false_reds": 0,
+      "protections_exact_leases": "6/6"
+    },
+    "the_false_red_did_not_reproduce": {
+      "clause_id_in_labelled_set": "230-2j-gold-heavy-verbatim",
+      "verbatim_from": "evaluation/leases/lease_04_heavy.md clause 2",
+      "2026_07_29": "red under the split, reproduced twice",
+      "2026_08_05": "not red under the split, in two labelled-set runs and the gold gate"
+    },
+    "conclusion": [
+      "The gold gate passes under the split: 18/18 red, 18/18 citations, 0 false reds, 6/6 protections \u2014 identical outcomes to the shipped index, plus strict scan retrieval .492 -> .984.",
+      "So the stated blocker is gone and the disposition is a decision rather than a constraint. Not flipped in this round: enabling it changes what the runtime store must contain and what the image ships, and the 40-lease silver set \u2014 where precision is a measured lower bound rather than 1.000 \u2014 has not been run against the split.",
+      "The transferable point is unchanged and now better evidenced: a leading indicator is not an outcome. What DID change is that the outcome it was traded against was measured on an index that had since been rebuilt, and nobody re-gated it."
+    ],
+    "cost_usd": {
+      "labelled_set_two_runs": 0.0558,
+      "gold_precision_regate": 0.0903,
+      "total": 0.1461
+    },
+    "provenance": {
+      "generation_model": "openai/gpt-4.1-mini",
+      "utility_model": "openai/gpt-4.1-nano",
+      "embedding_model": "text-embedding-3-large",
+      "corpus_snapshot": "2026-07-25",
+      "commit": "45b3b8f",
+      "run_at": "2026-08-05"
+    }
+  }
 }

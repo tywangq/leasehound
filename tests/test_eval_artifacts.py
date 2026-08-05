@@ -22,8 +22,8 @@ from evaluation.eval_real_formats import carry_paid_results
 
 EVAL_DIR = Path(__file__).parent.parent / "evaluation"
 README = EVAL_DIR / "README.md"
-# Question sets the evals read, not results they write.
-INPUT_SETS = {"tests.jsonl", "tests_adversarial.jsonl"}
+# Question sets and labelled clause sets the evals read, not results they write.
+INPUT_SETS = {"tests.jsonl", "tests_adversarial.jsonl", "permissive_pairs.jsonl"}
 
 
 def result_files() -> list[Path]:

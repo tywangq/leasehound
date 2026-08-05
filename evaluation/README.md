@@ -16,7 +16,8 @@ architecture earned its shape rather than accumulating it.
 | [40 generated leases](#scaling-past-the-ceiling--40-generated-leases-labels-for-free) | Does it hold past the hand-labeled ceiling? | 60/61 red; found and fixed an evidence-bleed bug |
 | [Prompt injection](#prompt-injection-resistance--the-lease-is-hostile-input) | Can a lease talk to the model? | 5/5 held — after one payload suppressed a whole scan |
 | [Document formats](#document-formats--real-published-leases-and-real-numbering) | Does the pipeline survive documents nobody here wrote? | **6 of 7 conventions failed silently**, and a silent truncation invented two missing protections |
-| [Scan-mode retrieval](#scan-mode-retrieval--one-miss-and-three-fixes-that-did-not-ship) | Does the governing statute reach the judge, and do the candidate fixes work? | **all 40 partial misses are one section**; the fix that closed them (.492 → .984) [cost a false red](#the-third-fix-worked-and-made-the-product-worse) |
+| [Scan-mode retrieval](#scan-mode-retrieval--one-miss-and-three-fixes-that-did-not-ship) | Does the governing statute reach the judge, and do the candidate fixes work? | **all 40 partial misses are one section**; the fix that closed them (.492 → .984) cost a false red in July |
+| [Permissive vs prohibited](#the-labelled-set-said-the-opposite-and-the-gate-agreed-with-it) | Can the judge tell "you may" from "you must only"? | the labelled set **reversed** that rejection — and found the shipped index reading two prohibitions as green |
 | [Retrieval ablation](#retrieval-ablation--section-level-n82) | Which pipeline stage actually earns its cost? | naive chunking ties the six-stage pipeline |
 | [Adversarial rephrasing](#adversarial-rephrasing--the-same-82-questions-renter-voice) | Does it hold when renters don't speak statute? | full pipeline wins; the earlier tie was vocabulary leakage |
 | [Hybrid BM25](#hybrid-retrieval-bm25--dense--measured-and-not-shipped) | Does a lexical channel help ask mode? | no — the apparent gain was vocabulary leakage |
@@ -25,10 +26,11 @@ architecture earned its shape rather than accumulating it.
 
 <a id="how-to-read-these-numbers"></a>**How to read these numbers.** Every table here is one run, and `temperature=0` is not determinism — one baseline row moved by a clause between two runs, and borderline verdicts can flip. Treat a gap of one or two questions as a tie. The six hand-labeled leases are the acceptance bar; the generated set's labels are verified by construction rather than authoritative; and the LLM judges share a model family with the systems they grade, mitigated by grading against reference statute text instead of taste. Each section adds only the caveats specific to it.
 
-Artifacts live beside this file: 15 `.json` results, of which 10 carry a `provenance`
+Artifacts live beside this file: 16 `.json` results, of which 11 carry a `provenance`
 stamp — generation, utility and embedding model, corpus snapshot, commit, run date.
 Stamped: `ask_cost_results.json`, `enumerated_split_results.json`,
-`injection_results.json`, `real_format_results.json`, `router_results.json`,
+`injection_results.json`, `permissive_results.json`, `real_format_results.json`,
+`router_results.json`,
 `scan_cost_summary.json`, `scan_retrieval_results.json` (gold manifest), and
 `scan_retrieval_silver.json` (the
 40-lease one). Two more carry commit and date only — `concurrency_results.json`,
@@ -311,6 +313,33 @@ python -m evaluation.eval_scan --collection wa_reference_230split               
 ```
 
 Total across all three candidates: **$0.08 spent, $0.70 budgeted**, and the one that needed paying for was the one the free instrument said was worth paying for.
+
+### The labelled set said the opposite, and the gate agreed with it
+
+The rejection above ended with a condition: shipping the split would need *"a labelled set of permissive-vs-mandatory clause pairs, not a prompt rule written against the one failure this repo has seen — that would be buying a passing number."* That set now exists, in `permissive_pairs.jsonl`: **32 clauses across all ten prohibitions of RCW 59.18.230(2)**, written against the statute text rather than invented, in three kinds.
+
+The third kind is the one that makes it a test. `prohibited` clauses must come back red — included so that a "fix" which suppresses false reds by suppressing reds gets caught rather than congratulated. `permissive` clauses are lawful and offer the tenant options. **`permissive_hard` clauses are lawful and *name the prohibited thing*:** a CONFIDENTIALITY heading whose nondisclosure duty runs against the landlord, a CONFESSION OF JUDGMENT clause that forbids one, late-charge wording lifted from the statute's own sentence. Testing only the easy cases would have measured almost nothing, because the observed false red was of exactly this shape. The two verbatim gold-set rent clauses are in the set too — a paraphrase could not settle whether the false red reproduces.
+
+**It reversed the finding.** Two independent runs, same result both times:
+
+| 32 clauses | prohibited flagged red | false reds on the 22 lawful clauses |
+| --- | --- | --- |
+| dense (shipped) | 8/10 | **2** |
+| enumerated split | **10/10** | **0** |
+
+The split is not merely no-worse; it is better on both axes. And the shipped index has a defect of its own that no existing eval could see: it reads the **exculpation (2)(f)** and **arbitration-cost (2)(h)** prohibitions as *green with no citation at all* — the gold set's eighteen planted violations do not include a clause of either shape, so 18/18 recall was never evidence about them. The two false reds under the shipped index are both on (2)(h), both citing RCW 59.18.340 instead.
+
+So the paid gate was re-run, and **it passes**: 18/18 red, 18/18 citations, **0 false reds, precision 1.000**, protections 6/6 — identical outcomes to the shipped index, plus strict retrieval .492 → .984. The false red did not reproduce, in either labelled-set run or in the gate.
+
+**What changed underneath is the interesting part, and it is not the judge.** `judge_clause` and `make_judge_prompt` are unchanged since the rejection apart from a `ScanMeter` → `UsageMeter` annotation, and `retrieval.py`'s diff over the same span is metering plumbing. The *index* changed: `build_enumerated_collection.py` gained `temperature=0` afterwards (commit 210a9e0), the collection was rebuilt, and **the retrieval metric was re-verified at .984 while the paid precision gate was not re-run.** The published "precision 1.000 → .947" therefore described an index that no longer existed. Provider-side drift on `gpt-4.1-mini` is the other candidate and cannot be excluded from outside — which is the case `provenance.py` was written for.
+
+**Still not flipped, and that is now a decision rather than a constraint.** Enabling it changes what `export_runtime_db.py` exports and what the image ships, and the 40-lease silver set — where precision is a measured lower bound rather than 1.000 — has not been run against the split. Cost of this round: **$0.146** (two labelled-set runs $0.056, gold re-gate $0.090).
+
+The transferable lesson survives intact and is better evidenced than before: a leading indicator is not an outcome. What changed is that the outcome it was traded against had been measured on an index that was later rebuilt, and nobody re-gated it — so the trade was real when it was made and stale by the time it was quoted.
+
+```bash
+python -m evaluation.eval_permissive --both --write     # ≈ $0.028 per collection
+```
 
 ## Retrieval ablation — section-level, n=82
 
