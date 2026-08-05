@@ -2,19 +2,15 @@
 
 **Upload your lease. LeaseHound sniffs out the clauses that shouldn't be there.** A two-layer RAG system that answers tenant-law questions and scans rental agreements for prohibited provisions — grounded in Washington State's Residential Landlord-Tenant Act (RCW 59.18).
 
-**🐕 [Live demo](https://leasehound-671004460975.us-west1.run.app)** — one click scans the sample lease, warm and answering in ~80 ms ([how that stays free](#try-it)).
+**🐕 [Live demo](https://leasehound-671004460975.us-west1.run.app)** — one click scans the sample lease, warm and answering in ~100 ms ([how that stays free](#try-it)).
 
 ![LeaseHound in motion: the sample lease is scanned clause by clause, the red-flag report pins to the side panel, and a follow-up question gets a cited answer](docs/demo.gif)
 
 > ⚖️ LeaseHound is an educational tool, not legal advice. Verdicts are judged against a snapshot of RCW 59.18 fetched 2026-07-25 — the law may have changed since.
 
-## Why this exists
+**Washington's RCW 59.18.230 alone prohibits ten kinds of lease provision, and a landlord who knowingly includes one owes up to 2× monthly rent in statutory damages.** Most tenants sign without knowing that — and the law is the part a chatbot gets wrong, not the lease ([why](#why-retrieval-and-not-a-long-context)).
 
-Residential leases routinely contain clauses that are void and unenforceable under state law — Washington's RCW 59.18.230 alone prohibits ten kinds of provisions (rights waivers, landlord attorney-fee clauses, exculpation clauses, late fees inside the 5-day grace period, mandatory NDAs on rent terms, …), and a landlord who knowingly includes them is exposed to statutory damages of up to 2× monthly rent. Most tenants sign without knowing any of this.
-
-**Why not just paste your lease into ChatGPT?** The lease fits in a context window; the law shouldn't come from parametric memory. Statutes change (RCW 59.18.230 was amended in 2025), models mix up states and invent citation numbers, and a chat answer can't be verified. LeaseHound retrieves the current statute text and cites the exact section — every claim has a clickable source. This claim is measured, not asserted (see the [zero-shot baseline](evaluation/README.md#zero-shot-baseline--the-same-leases-without-the-pipeline)).
-
-**Results at a glance** — every number comes from the [evaluation suite](#evaluation) below:
+**Every number here is measured, and several of the features behind them were measured and then not shipped** ([evaluation suite](#evaluation)):
 
 | | measured result |
 | --- | --- |
@@ -27,6 +23,18 @@ Residential leases routinely contain clauses that are void and unenforceable und
 | cost & latency, 135 logged scans (9–15 clauses) | ≈ $0.0110/scan · p50 8.8 s · [p95 18.5 s is the provider, not the pipeline](#what-a-scan-costs) · [and that mean is a warm-cache number](#what-a-scan-costs) |
 | ask mode, per question | $0.0030 · p50 6.8 s — [1.5× the cost of the two-stage pipeline it beat by 1–2 questions](#what-the-extra-stages-cost) · [3% cached, against 65% for a warm scan](#what-a-question-costs-and-what-the-extra-stages-buy) |
 | ask-mode router, 15 cases × 15 samples | [15/15 — after "there are cockroaches everywhere" reached no statute 5/5](evaluation/README.md#the-router--every-metric-above-assumes-retrieval-ran-at-all) |
+
+---
+
+**That table is the claim. Everything below is how each number was produced, what it cost, and what it changed** — including the features that were built, measured and *not* shipped, which is how the architecture earned its shape instead of accumulating it.
+
+[Why retrieval, not a long context](#why-retrieval-and-not-a-long-context) · [Architecture](#architecture) · [Try it](#try-it) · [What a scan costs](#what-a-scan-costs) · [The is-this-a-lease gate](#the-gate--three-answers-that-used-to-be-two) · [Privacy](#privacy) · [Development](#development) · [Evaluation](#evaluation) · [Roadmap](#roadmap)
+
+## Why retrieval and not a long context
+
+The ten provisions RCW 59.18.230(2) prohibits are specific, which is what makes them checkable: waiving rights under the chapter, waiving class participation, an NDA covering rent terms, a confessed judgment, paying the landlord's attorney fees outside a court award, exculpation or indemnity for the landlord's own liability, an arbitrator named at signing, arbitration the tenant helps pay for, a late fee inside the five-day grace period, and rent by electronic means only. Each has its own subsection, and each is the kind of thing a lease states plainly enough to be read against the statute.
+
+**Why not just paste your lease into ChatGPT?** The lease fits in a context window; the law shouldn't come from parametric memory. Statutes change (RCW 59.18.230 was amended in 2025), models mix up states and invent citation numbers, and a chat answer can't be verified. LeaseHound retrieves the current statute text and cites the exact section — every claim has a clickable source. This claim is measured, not asserted (see the [zero-shot baseline](evaluation/README.md#zero-shot-baseline--the-same-leases-without-the-pipeline)).
 
 ## Architecture
 
