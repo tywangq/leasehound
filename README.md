@@ -200,7 +200,7 @@ Across 20 logged questions: **mean $0.00300, 5.1 LLM calls, p50 6.8 s** ([`scan_
 
 One methodological note, since it changed a conclusion. An early run's *mean* latency said the two-stage pipeline was 6 s **slower**, on the strength of a single 54 s outlier against a 3–9 s spread — a provider hiccup, not a property of the configuration. Latency is reported as a median for that reason, and summaries can be recomputed from the saved per-question rows (`--rescore`) rather than re-paying for a cleaner sample.
 
-**And metering ask mode is what caught the bug none of the nine evaluations could see: [the router was sending real legal questions to the chitchat path](evaluation/README.md#the-router--every-metric-above-assumes-retrieval-ran-at-all).** "There are cockroaches everywhere. What can I do?" reached no statute 5 times out of 5. It showed up as a row costing $0.00015 in 1.8 s among rows costing $0.0025 in 6 s — a misroute raises nothing, and the only trace it leaves is being suspiciously cheap.
+**And metering ask mode is what caught the bug the whole evaluation suite could not see: [the router was sending real legal questions to the chitchat path](evaluation/README.md#the-router--every-metric-above-assumes-retrieval-ran-at-all).** "There are cockroaches everywhere. What can I do?" reached no statute 5 times out of 5. It showed up as a row costing $0.00015 in 1.8 s among rows costing $0.0025 in 6 s — a misroute raises nothing, and the only trace it leaves is being suspiciously cheap.
 
 ### What stops a visitor running up the bill
 

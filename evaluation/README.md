@@ -440,8 +440,8 @@ This closes the question the ablation opened: the augmented six-stage pipeline s
 
 ## The router — every metric above assumes retrieval ran at all
 
-Nine evaluations measure how well the pipeline retrieves and answers. **None of them
-measured whether the pipeline runs.** Ask mode opens with a one-call classifier that
+Every evaluation above measures how well the pipeline retrieves and answers. **None of
+them measured whether the pipeline runs.** Ask mode opens with a one-call classifier that
 decides between the six-stage pipeline and a canned chitchat reply, and it had no
 eval, no test, and — until ask mode was metered — no way to notice it was wrong.
 
@@ -484,8 +484,11 @@ metrics log ask mode had *just* grown showed one question answering in 1.8 s for
 $0.00015 — two calls, no retrieval — sitting among neighbours that took 5–7 s and
 five calls. A misroute raises nothing and logs no error; from the outside it is an
 answer with no law in it, and the only trace it leaves is a suspiciously cheap row.
-Nine evaluations could not see it, because all nine call the pipeline directly, past
-the router.
+The suite could not see it, because the retrieval and generation evals call
+`fetch_context` directly and the scan evals never enter ask mode at all — both reach the
+pipeline past the router. The one exception is the injection suite's carryover phase,
+which does go through `answer_question`; its questions arrive with a scan report in
+context and routed correctly, so it cleared the row without ever testing the decision.
 
 ```bash
 python -m scripts.probe_router                                  # the shipped router
