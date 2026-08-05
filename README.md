@@ -12,19 +12,19 @@
 
 **Every number here is measured, and several of the features behind them were measured and then not shipped** ([evaluation suite](#evaluation)):
 
-| mode · criterion · what was tested | measured result |
-| --- | --- |
-| scan · verdict quality · 6 hand-labeled leases, 18 planted violations | 18/18 flagged red · **0 false reds** · 18/18 citations correct · protections exact on 6/6 — [the acceptance bar](evaluation/README.md#scan-layer-evaluation--red-flag-precision--recall-6-labeled-leases) |
-| scan · verdict quality · the same 6 leases, same model, no retrieval | 14/18 flagged red · 1 false red · **3/14 citations correct** · protections exact on 0/6 — [what retrieval is for](evaluation/README.md#no-retrieval-baseline--the-same-leases-and-model-closed-book) |
-| scan · verdict quality · 40 generated leases, 61 planted violations | **60/61 flagged red** · 7 reds outside the label set, [6 of them real, so precision ≥ .896](evaluation/README.md#scaling-past-the-ceiling--40-generated-leases-labels-for-free) · 60/60 citations correct · protections exact on 39/40 |
-| scan · retrieval · 79 labelled clauses | lenient 79/79 · [**strict 39/79, and all 40 shortfalls trace to one statute**](evaluation/README.md#the-labelled-set-said-ship-it-the-40-lease-set-said-no) |
-| scan · judge precision · 35 labelled permissive-vs-prohibited clauses | shipped index 8/10 prohibitions flagged · 2 false reds · candidate fix **10/10 flagged · 3 false reds** — [opposite defects, neither shipped](evaluation/README.md#the-labelled-set-said-ship-it-the-40-lease-set-said-no) |
-| scan · cost & latency · 135 logged scans (9–15 clauses) | **≈ $0.011/scan** · p50 8.8 s · [p95 18.5 s is the provider, not the pipeline](#what-a-scan-costs) · [that mean is a warm-cache number](#what-a-scan-costs) |
-| ask · answer quality · 82 generated questions | **82/82 answers consistent with the statute** · 81/82 grounded · 75/82 cite the ground-truth section — [graded against reference statute text](evaluation/README.md#generation-layer-evaluation--is-the-final-answer-right-n82--2-configs) |
-| ask · retrieval · the same 82 questions, reworded into renter voice | **every configuration drops** — the six-stage pipeline drops least (−.060 MRR) and leads the two-stage one by [+.017 MRR and 5 questions on hit@5](evaluation/README.md#adversarial-rephrasing--the-same-82-questions-renter-voice) |
-| ask · routing · 15 cases × 15 samples | **15/15 on the generation model** · 14/15 on the cheaper utility model — [after "there are cockroaches everywhere" reached no statute in 5 tries out of 5](evaluation/README.md#the-router--every-metric-above-assumes-retrieval-ran-at-all) |
-| ask · cost & latency · 20 logged questions | **≈ $0.003/question** · p50 6.8 s · [1.5× the two-stage pipeline it beat by 1–2 questions](#what-the-extra-stages-cost) · [3% cached, against 65% for a warm scan](#what-a-question-costs-and-what-the-extra-stages-buy) |
-| both · robustness · 5 prompt-injection payloads inside hostile leases | **5/5 held** · every planted violation still red · no scan suppressed · report stays clean carried into ask mode — [one payload beat the first run](evaluation/README.md#prompt-injection-resistance--the-lease-is-hostile-input) |
+| mode | criterion | what was tested | measured result |
+| --- | --- | --- | --- |
+| **scan** | verdict quality | 6 hand-labeled leases · 18 planted violations | 18/18 flagged red · **0 false reds** · 18/18 citations correct · protections exact on 6/6 — [the acceptance bar](evaluation/README.md#scan-layer-evaluation--red-flag-precision--recall-6-labeled-leases) |
+|  |  | the same 6 leases, same model, no retrieval | 14/18 flagged red · 1 false red · **3/14 citations correct** · protections exact on 0/6 — [what retrieval is for](evaluation/README.md#no-retrieval-baseline--the-same-leases-and-model-closed-book) |
+|  |  | 40 generated leases · 61 planted violations | **60/61 flagged red** · 7 reds outside the label set, [6 of them real, so precision ≥ .896](evaluation/README.md#scaling-past-the-ceiling--40-generated-leases-labels-for-free) · 60/60 citations correct · protections exact on 39/40 |
+|  | retrieval | 79 labelled clauses | lenient 79/79 · [**strict 39/79, and all 40 shortfalls trace to one statute**](evaluation/README.md#the-labelled-set-said-ship-it-the-40-lease-set-said-no) |
+|  | judge precision | 35 labelled permissive-vs-prohibited clauses | shipped index 8/10 prohibitions flagged · 2 false reds · candidate fix **10/10 flagged · 3 false reds** — [opposite defects, neither shipped](evaluation/README.md#the-labelled-set-said-ship-it-the-40-lease-set-said-no) |
+|  | cost & latency | 135 logged scans (9–15 clauses) | **≈ $0.011/scan** · p50 8.8 s · [p95 18.5 s is the provider, not the pipeline](#what-a-scan-costs) · [that mean is a warm-cache number](#what-a-scan-costs) |
+| **ask** | answer quality | 82 generated questions | **82/82 answers consistent with the statute** · 81/82 grounded · 75/82 cite the ground-truth section — [graded against reference statute text](evaluation/README.md#generation-layer-evaluation--is-the-final-answer-right-n82--2-configs) |
+|  | retrieval | the same 82 questions, reworded into renter voice | **every configuration drops** — the six-stage pipeline drops least (−.060 MRR) and leads the two-stage one by [+.017 MRR and 5 questions on hit@5](evaluation/README.md#adversarial-rephrasing--the-same-82-questions-renter-voice) |
+|  | routing | 15 cases × 15 samples | **15/15 on the generation model** · 14/15 on the cheaper utility model — [after "there are cockroaches everywhere" reached no statute in 5 tries out of 5](evaluation/README.md#the-router--every-metric-above-assumes-retrieval-ran-at-all) |
+|  | cost & latency | 20 logged questions | **≈ $0.003/question** · p50 6.8 s · [1.5× the two-stage pipeline it beat by 1–2 questions](#what-the-extra-stages-cost) · [3% cached, against 65% for a warm scan](#what-a-question-costs-and-what-the-extra-stages-buy) |
+| **both** | robustness | 5 prompt-injection payloads inside hostile leases | **5/5 held** · every planted violation still red · no scan suppressed · report stays clean carried into ask mode — [one payload beat the first run](evaluation/README.md#prompt-injection-resistance--the-lease-is-hostile-input) |
 
 ---
 
