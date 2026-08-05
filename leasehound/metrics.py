@@ -145,7 +145,8 @@ class UsageMeter:
 def log_scan(meter: UsageMeter, source: str, clauses: int,
              verdicts: dict | None = None, missing: int | None = None,
              split_mode: str | None = None, cache_hit: bool = False,
-             gate_flagged: bool = False, clauses_total: int | None = None) -> dict:
+             gate_flagged: bool = False, clauses_total: int | None = None,
+             refused: bool = False) -> dict:
     """Append one scan's metrics to the log; returns the record for display.
 
     The record is also printed to stdout: on Cloud Run the container filesystem
@@ -170,6 +171,13 @@ def log_scan(meter: UsageMeter, source: str, clauses: int,
         # The document did not read as a lease but was scanned anyway; the verdicts
         # in this record are not comparable with the rest.
         record["gate_flagged"] = True
+    if refused:
+        # The gate read the document as unrelated to renting, so nothing was judged:
+        # one classification call, ~$0.0002, zero clauses. Marked because it is not a
+        # scan and must not be averaged with scans — the same reason `cache_hit` is
+        # marked. Averaged in, a visitor uploading a recipe silently lowers the
+        # project's published cost-per-scan.
+        record["refused"] = True
     if clauses_total is not None and clauses_total != clauses:
         # Over the clause cap: `clauses` is what was judged, this is what the
         # document holds. Verdict counts here describe a prefix, so a cost-per-clause
@@ -259,6 +267,21 @@ def summarize_log(records: list[dict], clause_range: tuple[int, int] | None = No
     most-referenced operational numbers in the project and were reproducible from
     nothing. This is the shareable projection: counts, percentiles, no documents.
     """
+    # Refusals first, and before the clause filter: a refused document judged nothing,
+    # so it is not a scan at any clause count. The 9–15 band happened to drop them
+    # (they log 0 clauses) while `all_scans` counted them, which is the shape of bug
+    # that makes a mean quietly wrong rather than obviously wrong.
+    #
+    # Zero judged clauses counts as a refusal even without the flag, for two reasons:
+    # rows written before the flag existed are still in the log, and "0 clauses
+    # judged" is not a scan whatever produced it. A document that splits into no
+    # clauses raises NoTextExtracted and never reaches here, so this cannot swallow a
+    # real scan.
+    def refused(record: dict) -> bool:
+        return bool(record.get("refused")) or record["clauses"] == 0
+
+    refusals = [r for r in records if refused(r)]
+    records = [r for r in records if not refused(r)]
     if clause_range:
         low, high = clause_range
         records = [r for r in records if low <= r["clauses"] <= high]
@@ -271,6 +294,7 @@ def summarize_log(records: list[dict], clause_range: tuple[int, int] | None = No
     return {
         "scans": n,
         "cache_hits_excluded": len(records) - n,
+        "refusals_excluded": len(refusals),
         "clauses_min": min(r["clauses"] for r in paid),
         "clauses_max": max(r["clauses"] for r in paid),
         "mean_clauses": round(sum(r["clauses"] for r in paid) / n, 1),

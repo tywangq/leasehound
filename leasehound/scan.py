@@ -537,7 +537,8 @@ def scan_steps(text: str, source: str, state: str = "wa",
         # `done` — returning without one would hang the CLI and hand the HTTP API
         # a None to unpack.
         record = log_scan(meter, source, 0, split_mode=split_mode,
-                          gate_flagged=True, clauses_total=len(clauses))
+                          gate_flagged=True, clauses_total=len(clauses),
+                          refused=True)
         yield ScanStep("done", total=len(clauses), result=ScanResult(
             [], [], True, len(clauses), split_mode, record, refused=True))
         return

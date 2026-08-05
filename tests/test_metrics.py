@@ -184,3 +184,27 @@ def test_the_ask_summary_leaves_chitchat_out_of_the_cost_per_question():
 
 def test_the_ask_summary_survives_an_empty_log():
     assert metrics.summarize_ask_log([]) == {"questions": 0}
+
+
+def test_the_scan_summary_leaves_refusals_out_of_the_cost_per_scan():
+    """A refused document judged nothing — one classification call, ~$0.0002 — so it
+    is not a scan at any clause count. Averaged in, a visitor uploading a recipe
+    silently lowers the project's published cost-per-scan, which is the same reason
+    cache hits are already excluded. The 9-15 band dropped these by luck (they log 0
+    clauses); `all_scans` counted them."""
+    def row(**kw):
+        return {"clauses": 12, "cost_usd": 0.012, "seconds": 9.0, "llm_calls": 14,
+                "embedding_calls": 12, **kw}
+
+    rows = [
+        row(),
+        row(clauses=14, cost_usd=0.014, seconds=11.0, llm_calls=16, embedding_calls=14),
+        row(clauses=0, cost_usd=0.0002, seconds=1.4, llm_calls=1, embedding_calls=0,
+            refused=True, gate_flagged=True),
+    ]
+    summary = metrics.summarize_log(rows)
+    assert summary["scans"] == 2
+    assert summary["refusals_excluded"] == 1
+    assert summary["mean_cost_usd"] == 0.013
+    # And the giveaway the old code would have produced: a floor of zero clauses.
+    assert summary["clauses_min"] == 12
