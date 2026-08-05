@@ -6,8 +6,12 @@ measured, how, what it cost, and what it changed. [← back to the project READM
 Two habits run through all of it. **Cheapest first** — free and local checks, then
 embedding-only runs, then the 6-lease gold set (~$0.08), then the 40-lease generated
 set (~$0.6) — so an idea can be killed before it is paid for. And **negative results
-are kept**: four features here were built, measured, and not shipped, which is how the
-architecture earned its shape rather than accumulating it.
+are kept**: the [hybrid lexical channel](#hybrid-retrieval-bm25--dense--measured-and-not-shipped),
+[section completion](#three-candidate-fixes-none-shipped) and the
+[enumerated split](#the-labelled-set-said-ship-it-the-40-lease-set-said-no) were each
+built, measured and left disabled, which is how the architecture earned its shape rather
+than accumulating it. (Named rather than counted: the sentence used to say "four" and
+nothing here identified the fourth.)
 
 | experiment | the question it answers | what it found |
 | --- | --- | --- |

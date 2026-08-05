@@ -80,6 +80,19 @@ def chat_text(page) -> str:
     return page.locator(".chat-col").inner_text()
 
 
+# Pinning the PAGE while the chat log scrolls itself. Streaming an answer grows the
+# document, and the browser follows it — so the middle of the recording drifted down
+# until the 🐕 LeaseHound wordmark was off-screen, and only came back when the final
+# reframe ran. The chat log's own internal scrolling is wanted; the window's is not.
+PIN_PAGE = "window.scrollTo(0, 0)"
+
+
+def frame(page) -> tuple[float, bytes]:
+    """One stamped frame, taken with the page held at the top."""
+    page.evaluate(PIN_PAGE)
+    return time.time(), page.screenshot(type="png")
+
+
 def wait_until(page, done, what: str, frames: list | None = None,
                timeout_s: int = PHASE_TIMEOUT_S) -> None:
     """Poll until `done()`, collecting stamped frames while waiting.
@@ -91,12 +104,13 @@ def wait_until(page, done, what: str, frames: list | None = None,
     deadline = time.time() + timeout_s
     while time.time() < deadline:
         if frames is not None:
-            frames.append((time.time(), page.screenshot(type="png")))
+            frames.append(frame(page))
         else:
+            page.evaluate(PIN_PAGE)
             page.wait_for_timeout(200)
         if done():
             if frames is not None:
-                frames.append((time.time(), page.screenshot(type="png")))
+                frames.append(frame(page))
             return
     raise TimeoutError(f"waited {timeout_s}s and {what} never happened")
 
@@ -259,13 +273,12 @@ def record(url: str, still_only: bool) -> None:
         # token, and screenshotting mid-yield catches the answer without it.
         page.wait_for_timeout(1200)
 
-        # Streaming the answer scrolls the PAGE down, which cropped the wordmark and
-        # the report's verdict summary out of the first version of this still; and the
-        # chat log auto-scrolls past the question, which cropped that out of the
-        # version before it. Both have to be put back.
+        # The page is pinned to the top throughout now (see PIN_PAGE), so this is only
+        # about the chat log's own scroll position: it auto-follows the newest token,
+        # which pushed the question off the top of the log.
         show_question_with_answer(page, STILL_QUESTION)
         if frames is not None:
-            frames.append((time.time(), page.screenshot(type="png")))
+            frames.append(frame(page))
 
         DOCS.mkdir(exist_ok=True)
         page.screenshot(path=str(STILL_PATH))

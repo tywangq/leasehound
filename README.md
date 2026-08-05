@@ -1,4 +1,4 @@
-# LeaseHound 🐕
+# 🐕 LeaseHound
 
 **Upload your lease. LeaseHound sniffs out the clauses that shouldn't be there.** A two-layer RAG system that answers tenant-law questions and scans rental agreements for prohibited provisions — grounded in Washington State's Residential Landlord-Tenant Act (RCW 59.18).
 
@@ -22,7 +22,7 @@
 | permissive vs prohibited, 35 labelled clauses | the shipped index reads two of the ten prohibitions as **green with no citation**; the candidate fix reads *"check or electronic payment"* as electronic-**only** — [both measured, neither shipped](evaluation/README.md#the-labelled-set-said-ship-it-the-40-lease-set-said-no) |
 | cost & latency, 135 logged scans (9–15 clauses) | ≈ $0.0110/scan · p50 8.8 s · [p95 18.5 s is the provider, not the pipeline](#what-a-scan-costs) · [and that mean is a warm-cache number](#what-a-scan-costs) |
 | ask mode, per question | $0.0030 · p50 6.8 s — [1.5× the cost of the two-stage pipeline it beat by 1–2 questions](#what-the-extra-stages-cost) · [3% cached, against 65% for a warm scan](#what-a-question-costs-and-what-the-extra-stages-buy) |
-| ask-mode router, 15 cases × 15 samples | [15/15 — after "there are cockroaches everywhere" reached no statute 5/5](evaluation/README.md#the-router--every-metric-above-assumes-retrieval-ran-at-all) |
+| ask-mode router, 15 cases × 15 samples | **15/15** — [after "there are cockroaches everywhere" reached no statute 5/5](evaluation/README.md#the-router--every-metric-above-assumes-retrieval-ran-at-all) |
 
 ---
 

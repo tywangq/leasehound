@@ -653,7 +653,10 @@ UI_STYLE = {
     "css": CSS,
 }
 
-with gr.Blocks(title="LeaseHound — lease red-flag scanner") as demo:
+# Tab title is the wordmark alone. A tab is ~20 characters of usable space beside the
+# favicon, and the 🐕 already says which app this is; the descriptive half lives in
+# SOCIAL_TITLE below, where a link preview has room for it.
+with gr.Blocks(title="LeaseHound") as demo:
     gr.HTML(HERO)
     report_state = gr.State("")
     scanned_source = gr.State("")  # what the current report is for: a file path or "sample"
