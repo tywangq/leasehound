@@ -1,6 +1,6 @@
 {
   "question": "Does indexing RCW 59.18.230's ten enumerated prohibitions separately make the section retrievable, and what does it cost?",
-  "verdict": "retrieval fixed, product regressed on 2026-07-29 and NOT shipped; re-gated 2026-08-05 with the blocker gone \u2014 see revisited_2026_08_05",
+  "verdict": "retrieval fixed, product regressed \u2014 NOT shipped. Re-gated 2026-08-05: the gold set and a new labelled set both cleared it, then the 40-lease silver set reproduced the original false red. See silver_regate_2026_08_05.",
   "provenance": {
     "generation_model": "openai/gpt-4.1-mini",
     "utility_model": "openai/gpt-4.1-nano",
@@ -241,6 +241,137 @@
       "embedding_model": "text-embedding-3-large",
       "corpus_snapshot": "2026-07-25",
       "commit": "45b3b8f",
+      "run_at": "2026-08-05"
+    },
+    "superseded_by": "silver_regate_2026_08_05 \u2014 the conclusion below ('the stated blocker is gone') was written from the gold set and a 32-clause labelled set, and the 40-lease set then showed both were too small to contain the failing clause shape."
+  },
+  "silver_regate_2026_08_05": {
+    "why": "The gold set is 6 leases and the labelled set was 32 clauses. Neither is the widest net available; the 40-lease generated set is, and it had never seen the split.",
+    "shipped_baseline": {
+      "leases": 40,
+      "planted_violations": 61,
+      "strict_recall": 0.9836,
+      "lenient_recall": 0.9836,
+      "precision": 0.8955,
+      "citation_accuracy": 1.0,
+      "false_reds": 7,
+      "protections_exact_leases": "39/40"
+    },
+    "split": {
+      "leases": 40,
+      "planted_violations": 61,
+      "strict_recall": 1.0,
+      "lenient_recall": 1.0,
+      "precision": 0.8592,
+      "citation_accuracy": 1.0,
+      "false_reds": 10,
+      "protections_exact_leases": "39/40"
+    },
+    "reading": [
+      "Recall went UP, to perfect: 61/61 against the shipped index's 60/61. The split catches the one planted violation the shipped index misses.",
+      "Citation accuracy and protections held exactly: 1.000 and 39/40.",
+      "False reds went 7 -> 10, precision .8955 -> .8592. Five are new, two of the baseline's seven disappeared."
+    ],
+    "audit_of_the_five_new_false_reds": [
+      {
+        "lease": "lease_synth_012_violations.md",
+        "clause": 2,
+        "text": "by check or electronic payment to Landlord at the address provided",
+        "verdict": "red, cites RCW 59.18.230(2)(j)",
+        "judged": "REAL FALSE RED",
+        "evidence": "The judge's own explanation says the clause 'requires rent payment by check or electronic payment ONLY'. The word 'only' is not in the clause. It is the July failure, verbatim in mechanism."
+      },
+      {
+        "lease": "lease_synth_029_clean.md",
+        "clause": 2,
+        "text": "Rent should be paid by check or electronic transfer to the Landlord's designated account",
+        "verdict": "red, cites RCW 59.18.230",
+        "judged": "REAL FALSE RED, and on the COMPLIANT lease",
+        "evidence": "Same hallucinated 'only'. A red flag on the false-positive probe is the most expensive error this scanner can make."
+      },
+      {
+        "lease": "lease_synth_015_violations.md",
+        "clause": 2,
+        "text": "If rent is not received by the fifth of the month, a late fee of $50 will be charged for each week",
+        "verdict": "red, cites RCW 59.18.230(2)(i) + RCW 59.18.170(2)",
+        "judged": "GENUINE VIOLATION, unlabelled by the generator",
+        "evidence": "(2)(i) protects rent paid within five days FOLLOWING the due date. Rent due the 1st is protected through the 6th; a fee triggered by non-receipt on the 5th charges inside that window. Same class as the six-of-seven unlabelled reds the baseline's hand audit already found."
+      },
+      {
+        "lease": "lease_synth_040_injection.md",
+        "clause": 2,
+        "text": "Rent not received by the fifth (5th) day of the month will be subject to a $50 late fee",
+        "verdict": "red, cites RCW 59.18.230(2)(i) + RCW 59.18.170(2)",
+        "judged": "GENUINE VIOLATION, unlabelled",
+        "evidence": "Identical to lease_synth_015."
+      },
+      {
+        "lease": "lease_synth_006_violations.md",
+        "clause": 3,
+        "text": "deposit is held in a trust account at First Sound Bank ... Interest earned, if any, accrues to the Tenant per local law",
+        "verdict": "red in the run; YELLOW when re-judged",
+        "judged": "BORDERLINE, not counted either way",
+        "evidence": "Re-judging returned yellow citing RCW 59.18.270 and .260, on the substantive ground that the statute gives deposit interest to the landlord absent a written agreement. A defensible caution, and unstable between runs."
+      }
+    ],
+    "labelled_set_updated": {
+      "clauses": 35,
+      "what_was_added": "The three verbatim payment clauses above, as permissive_hard. The first version of the set missed this shape: its permissive (2)(j) clauses listed three or four methods, which reads as an open menu, while the silver set's bare two-item lists read as closed ones.",
+      "shipped_index": {
+        "prohibited_total": 10,
+        "prohibited_red": 8,
+        "permissive_total": 25,
+        "false_reds": 2,
+        "false_red_ids": [
+          "230-2h-permissive",
+          "230-2h-permissive-hard"
+        ],
+        "false_reds_easy": 1,
+        "false_reds_hard": 1,
+        "verdicts": {
+          "red": 10,
+          "yellow": 0,
+          "green": 25
+        }
+      },
+      "split_index": {
+        "prohibited_total": 10,
+        "prohibited_red": 10,
+        "permissive_total": 25,
+        "false_reds": 3,
+        "false_red_ids": [
+          "230-2j-silver-as-directed",
+          "230-2j-silver-clean-verbatim",
+          "230-2j-silver-two-methods"
+        ],
+        "false_reds_easy": 0,
+        "false_reds_hard": 3,
+        "verdicts": {
+          "red": 13,
+          "yellow": 0,
+          "green": 22
+        }
+      },
+      "result": "The set now reproduces the failure: 3 false reds under the split, all on the terse two-method clauses, all citing (2)(j). A future attempt at this fix is now testable for $0.028 instead of $0.6."
+    },
+    "decision": [
+      "NOT SHIPPED. The July rejection stands, and the reason it looked overturned is that the two sets consulted first were too small to hold the failing clause shape.",
+      "Both indexes carry a real defect, in opposite directions. The shipped index reads the exculpation (2)(f) and arbitration-cost (2)(h) prohibitions as green with no citation at all \u2014 8/10 on the labelled set \u2014 which is a silent false NEGATIVE. The split hallucinates the word 'only' into terse permissive payment clauses, including on the compliant lease, which is a false POSITIVE. This project's stated position is that a false red is the expensive error, so the shipped index keeps the default.",
+      "What changed that is worth keeping: the failure is now encoded in a labelled set rather than in a single anecdote from a paid run, and the shipped index's own (2)(f)/(2)(h) blind spot is now measured rather than unknown.",
+      "The honest next step is neither index but the judge: it is inventing exclusivity that the text does not contain. That is a generation fix, testable against permissive_pairs.jsonl for cents."
+    ],
+    "cost_usd": {
+      "silver_regate": 0.5988,
+      "labelled_set_rerun": 0.0522,
+      "five_clause_audit": 0.0023,
+      "total": 0.6533
+    },
+    "provenance": {
+      "generation_model": "openai/gpt-4.1-mini",
+      "utility_model": "openai/gpt-4.1-nano",
+      "embedding_model": "text-embedding-3-large",
+      "corpus_snapshot": "2026-07-25",
+      "commit": "497484c",
       "run_at": "2026-08-05"
     }
   }

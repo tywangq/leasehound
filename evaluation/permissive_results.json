@@ -4,17 +4,17 @@
     "utility_model": "openai/gpt-4.1-nano",
     "embedding_model": "text-embedding-3-large",
     "corpus_snapshot": "2026-07-25",
-    "commit": "45b3b8f",
+    "commit": "497484c",
     "run_at": "2026-08-05"
   },
-  "cost_usd": 0.0279,
+  "cost_usd": 0.05223,
   "runs": [
     {
       "collection": "wa_reference",
       "summary": {
         "prohibited_total": 10,
         "prohibited_red": 8,
-        "permissive_total": 22,
+        "permissive_total": 25,
         "false_reds": 2,
         "false_red_ids": [
           "230-2h-permissive",
@@ -25,10 +25,10 @@
         "verdicts": {
           "red": 10,
           "yellow": 0,
-          "green": 22
+          "green": 25
         }
       },
-      "cost_usd": 0.01481,
+      "cost_usd": 0.02811,
       "clauses": [
         {
           "id": "230-2a-prohibited",
@@ -50,7 +50,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "This clause states that the lease is governed by Washington law and does not limit the tenant's rights under the Residential Landlord-Tenant Act (Chapter 59.18 RCW). The provided statutes do not conflict with this statement, nor do they address this type of governing law clause specifically. Therefore, this clause is acceptable under the provided law."
+          "explanation": "This clause states that the lease is governed by Washington law and does not limit any tenant rights under the Residential Landlord-Tenant Act (Chapter 59.18 RCW). The provided statutes do not prohibit such a statement and in fact, protecting tenant rights is consistent with the law. Therefore, this clause does not conflict with the provided statutes."
         },
         {
           "id": "230-2a-permissive-hard",
@@ -59,7 +59,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "This severability clause says that if any part of the lease tries to waive your rights under the landlord-tenant law, that part alone won't be enforced but the rest of the lease still applies. This matches the law's approach that invalid parts don't affect the rest of the agreement, so it does not conflict with the provided statutes."
+          "explanation": "This severability clause says that if any part of the lease tries to waive tenant rights under the landlord-tenant law, that part alone is unenforceable but the rest of the lease stays valid. This matches the law's general rule that illegal or invalid parts of the law or lease don't affect the rest. The provided statutes do not prohibit or conflict with such a severability clause."
         },
         {
           "id": "230-2b-prohibited",
@@ -71,7 +71,7 @@
             "RCW 59.18.230(3)"
           ],
           "correct": true,
-          "explanation": "The lease clause that makes the tenant waive the right to participate in class actions against the landlord is not allowed under Washington law. The law specifically prohibits rental agreements from including provisions where tenants give up rights to bring or join class actions, making such clauses unenforceable."
+          "explanation": "The lease clause that makes the tenant waive the right to participate in class actions against the landlord is not allowed under Washington law. The Residential Landlord-Tenant Act specifically prohibits rental agreements from including provisions where tenants give up rights to bring or join class actions. Such clauses are unenforceable and landlords who use them may face penalties."
         },
         {
           "id": "230-2b-permissive",
@@ -80,7 +80,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The clause allows the tenant to bring or join legal actions against the landlord as permitted by law. The provided statutes do not restrict or prohibit tenants from bringing such claims, so this clause does not conflict with the laws given."
+          "explanation": "The clause allows the tenant to bring or join legal actions against the landlord as permitted by law. The provided statutes do not restrict or prohibit tenants from taking such legal actions, so this clause does not conflict with the laws given."
         },
         {
           "id": "230-2b-permissive-hard",
@@ -89,7 +89,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The clause says the landlord won't treat a tenant's participation in a class action or other proceeding against the landlord as a breach or grounds for nonrenewal. The provided laws protect tenants from waiving rights to join class actions and from landlord retaliation, but they do not specifically address this clause. Therefore, this clause does not conflict with the provided statutes."
+          "explanation": "The clause says the landlord won't treat a tenant's participation in a class action or other proceeding against the landlord as a breach or reason not to renew the lease. The provided laws do not address this specific promise or restriction, so there is no conflict with the statutes given."
         },
         {
           "id": "230-2c-prohibited",
@@ -100,7 +100,7 @@
             "RCW 59.18.230"
           ],
           "correct": true,
-          "explanation": "The lease clause prohibits tenants from disclosing rent amounts and lease specials, which is exactly what RCW 59.18.230(2)(c) forbids. Such nondisclosure agreements related to lease details are illegal and unenforceable under Washington law."
+          "explanation": "The lease clause prohibits tenants from disclosing rent amounts and concessions, which conflicts with RCW 59.18.230(2)(c). This statute explicitly forbids rental agreements from including nondisclosure agreements about rent or lease terms, making such clauses unenforceable."
         },
         {
           "id": "230-2c-permissive",
@@ -109,7 +109,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The clause allows tenants to discuss rent and lease terms freely, which aligns with tenant rights. The provided statutes prohibit clauses that restrict tenant disclosures or require nondisclosure agreements, but this clause does not do that. Therefore, it does not conflict with the provided laws."
+          "explanation": "The clause allows tenants to discuss rent and lease terms freely, which does not conflict with any of the provided statutes. The law specifically prohibits clauses that restrict tenant disclosures, but this clause permits discussion, so it is allowed. The provided law does not specifically address this type of clause, so no conflict is found."
         },
         {
           "id": "230-2c-permissive-hard",
@@ -118,7 +118,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The clause about keeping your application materials confidential and not sharing them without your consent does not conflict with any of the provided Washington State landlord-tenant laws. The laws given focus on tenant screening notices, fees, deposits, and certain prohibited lease terms, but do not address confidentiality of application materials."
+          "explanation": "The clause requires the landlord to keep your application materials confidential and not share them without your consent, which is reasonable. The provided statutes do not address confidentiality of application materials, so this clause does not conflict with the laws shown here."
         },
         {
           "id": "230-2d-prohibited",
@@ -147,7 +147,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The clause prohibits anyone from confessing judgment against the tenant, which aligns with the law that forbids rental agreements from authorizing confession of judgment. Since the clause supports the tenant's rights and does not conflict with the provided statutes, it is allowed. The provided law does not explicitly address this exact clause but supports its validity."
+          "explanation": "The clause states that no one is authorized to confess judgment against the tenant, and any such authorization is void. The provided statutes prohibit rental agreements from authorizing confession of judgment against tenants (RCW 59.18.230(2)(d)), so this clause aligns with the law and is allowed. Therefore, there is no conflict with the provided statutes."
         },
         {
           "id": "230-2e-prohibited",
@@ -158,7 +158,7 @@
             "RCW 59.18.250"
           ],
           "correct": true,
-          "explanation": "The clause requires the tenant to pay all of the landlord's attorney fees regardless of the outcome, but Washington law allows attorney fees only to the prevailing party in certain disputes. This clause conflicts with the law because it forces tenants to pay fees even if they win."
+          "explanation": "The clause requires the tenant to pay all of the landlord's attorney fees regardless of the outcome, but Washington law allows attorney fees only to the prevailing party in disputes and prohibits automatic fee shifting regardless of who wins. Therefore, this clause conflicts with the law and is likely unenforceable."
         },
         {
           "id": "230-2e-permissive",
@@ -176,7 +176,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The clause states that each party pays their own attorney fees unless a court orders otherwise under the law. The provided statutes confirm that courts can award attorney fees to the prevailing party in certain cases, so this clause does not conflict with those rules. Therefore, the clause is acceptable under the provided laws."
+          "explanation": "The clause states that each party pays their own attorney fees unless a court orders otherwise under the law. The provided statutes confirm that courts can award reasonable attorney fees to the prevailing party in various landlord-tenant disputes. Therefore, this clause does not conflict with the law and is acceptable as written."
         },
         {
           "id": "230-2f-prohibited",
@@ -194,7 +194,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The clause states that each party is responsible for loss or injury caused by its own negligence and that nothing limits the landlord's legal liability. The provided statutes do not address this general liability clause, so it does not conflict with the Washington Residential Landlord-Tenant Act as given."
+          "explanation": "The clause states that each party is responsible for loss or injury caused by its own negligence and that nothing limits the landlord's legal liability. The provided statutes do not address this general liability clause, so it does not conflict with the law excerpts given."
         },
         {
           "id": "230-2f-permissive-hard",
@@ -214,7 +214,7 @@
             "RCW 59.18.320"
           ],
           "correct": true,
-          "explanation": "The clause requires the parties to use a specific arbitrator (Cascade Arbitration Services) selected at the time of the agreement, but Washington law requires that the arbitrator be agreed upon by the parties when the dispute arises, not in advance. Therefore, this clause conflicts with the law."
+          "explanation": "The clause requires arbitration by a specific arbitrator selected at the time of the lease agreement, but Washington law requires that the arbitrator be agreed upon by both parties when a dispute arises, not in advance. Therefore, this clause conflicts with the law and is likely unenforceable."
         },
         {
           "id": "230-2g-permissive",
@@ -223,7 +223,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The clause states that arbitration will only happen if both parties agree later and that they will select the arbitrator by mutual agreement at that time. This matches the law, which requires mutual agreement on arbitration and on the arbitrator when the dispute arises. Therefore, this clause does not conflict with the provided statutes."
+          "explanation": "The clause states that arbitration will only occur if both parties later agree and that they will select the arbitrator by mutual agreement at that time. This aligns with the law, which requires mutual agreement on arbitration and selection of the arbitrator when the dispute arises. Therefore, the clause does not conflict with the provided statutes."
         },
         {
           "id": "230-2g-permissive-hard",
@@ -232,7 +232,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The lease clause states that either party can propose a mediator or arbitrator after a dispute arises and that no mediator or arbitrator is designated in advance. The provided statutes allow landlords and tenants to agree in writing to mediation or arbitration when a dispute arises, with the arbitrator chosen at that time. Therefore, this clause does not conflict with the law, and the statutes do not prohibit such a clause."
+          "explanation": "The lease clause states that either party can propose a mediator or arbitrator after a dispute arises and that no mediator or arbitrator is designated in advance. The provided statutes allow landlords and tenants to agree in writing to mediation or arbitration when a dispute arises, with the arbitrator agreed upon at that time. Since the clause aligns with these provisions and does not conflict with them, it is acceptable under the law."
         },
         {
           "id": "230-2h-prohibited",
@@ -241,7 +241,7 @@
           "verdict": "green",
           "citations": [],
           "correct": false,
-          "explanation": "The clause states that the tenant agrees to arbitrate disputes and share arbitration costs equally with the landlord. The provided law (RCW 59.18.340) also says that arbitration fees are typically shared equally unless a party cannot pay, in which case fees may be waived or deferred. Since the clause does not conflict with this and the law allows for fee sharing, the clause does not conflict with the provided statutes."
+          "explanation": "The clause states that the tenant agrees to arbitrate disputes and share arbitration costs equally with the landlord. The provided law (RCW 59.18.340) supports that arbitration fees are typically shared equally unless a party cannot pay and signs an affidavit to waive or defer their share. The clause does not conflict with this law, so it is acceptable as written."
         },
         {
           "id": "230-2h-permissive",
@@ -252,7 +252,7 @@
             "RCW 59.18.340"
           ],
           "correct": false,
-          "explanation": "The lease clause requires the landlord to pay the entire cost of arbitration, but Washington law states that arbitration fees are generally shared equally between landlord and tenant unless the arbitrator decides otherwise or a party cannot pay and gets a waiver. Therefore, the clause conflicts with the law by mandating the landlord pay all costs regardless of these conditions."
+          "explanation": "The lease clause requires the landlord to pay the entire arbitration cost, but Washington law says both landlord and tenant should share arbitration fees equally unless one party can't pay and gets a waiver. So, making the landlord pay all costs conflicts with the law."
         },
         {
           "id": "230-2h-permissive-hard",
@@ -263,7 +263,7 @@
             "RCW 59.18.340"
           ],
           "correct": false,
-          "explanation": "The clause requires the landlord to pay the entire cost of arbitration, but Washington law states that arbitration fees are generally shared equally between landlord and tenant unless one party cannot pay and signs an affidavit to waive or defer their share. Therefore, the clause conflicts with the law's fee-sharing provisions."
+          "explanation": "The clause requires the landlord to pay the entire cost of arbitration, but Washington law states that arbitration fees are generally shared equally between landlord and tenant unless a party cannot pay and signs an affidavit to waive or defer their share. Therefore, the clause conflicts with the law's fee-sharing provisions."
         },
         {
           "id": "230-2i-prohibited",
@@ -283,18 +283,16 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The clause states that a $50 late charge applies only if rent is unpaid more than five days after its due date, which aligns with the statute allowing late fees only after five days. The provided law does not specify limits on the amount of late fees in this clause, so this clause does not conflict with the provided statutes."
+          "explanation": "The clause states that a $50 late charge applies only if rent is unpaid more than five days after its due date, which aligns with the statute allowing late fees only after five days. The provided law does not prohibit a specific amount for late fees, so this clause does not conflict with the provided statutes."
         },
         {
           "id": "230-2i-permissive-hard",
           "prohibition": "RCW 59.18.230(2)(i)",
           "kind": "permissive_hard",
           "verdict": "green",
-          "citations": [
-            "RCW 59.18.170"
-          ],
+          "citations": [],
           "correct": true,
-          "explanation": "The lease clause matches the law which says no late fee can be charged if rent is paid within five days after the due date, and late fees can start from the day after the due date if rent is more than five days late. Therefore, this clause complies with the law."
+          "explanation": "The lease clause matches the law exactly: no late fee if rent is paid within five days after due date, and late fees can start from the day after the due date if rent is more than five days late. The provided statutes do not prohibit the amount of the late fee, so this clause does not conflict with the law."
         },
         {
           "id": "230-2j-prohibited",
@@ -305,7 +303,7 @@
             "RCW 59.18.063"
           ],
           "correct": true,
-          "explanation": "Washington law requires landlords to accept personal checks, cashier's checks, or money orders for rent payments and to allow payment by mail unless an accessible on-site location is provided. A clause requiring rent payment only by electronic funds transfer through an online portal conflicts with this requirement because it excludes these mandatory payment methods."
+          "explanation": "Washington law requires landlords to accept rent payments by personal check, cashier's check, or money order, and to allow payment by mail unless an accessible on-site location is provided. A clause requiring rent payment only by electronic funds transfer through an online portal conflicts with this requirement and is therefore not allowed."
         },
         {
           "id": "230-2j-permissive",
@@ -323,7 +321,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The clause states that the landlord provides an online portal for rent payment but also allows tenants to pay by mail or in person. The provided statutes require landlords to accept personal checks or money orders and allow mail payments unless there is an accessible on-site location. This clause complies with those requirements and does not conflict with the law."
+          "explanation": "The clause states that the landlord provides an online portal for rent payment but also allows tenants to pay by mail or in person, which aligns with the landlord's obligation to accept rent payments by mail unless there is an accessible on-site location. The provided statutes do not prohibit offering an online payment option or require landlords to accept only certain payment methods beyond those specified. Therefore, this clause does not conflict with the provided laws."
         },
         {
           "id": "230-2j-gold-clean-verbatim",
@@ -332,7 +330,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The clause states the rent amount, due date, and acceptable payment methods, which aligns with the landlord's obligation to accept personal checks, cashier's checks, money orders, or electronic transfers as payment options. The provided statutes do not prohibit or restrict these terms, so this clause does not conflict with the law."
+          "explanation": "The clause states the rent amount, due date, and acceptable payment methods, which aligns with the landlord's obligation to accept personal checks, cashier's checks, money orders, or electronic transfers as payment options. The provided statutes do not prohibit or restrict these terms, so this clause does not conflict with the relevant Washington law."
         },
         {
           "id": "230-2j-gold-heavy-verbatim",
@@ -341,7 +339,34 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The clause states the rent amount, due date, and acceptable payment methods, which are allowed under Washington law. The provided statutes do not restrict how rent is stated or the payment methods allowed, so this clause does not conflict with the law."
+          "explanation": "The clause states the rent amount, due date, and acceptable payment methods, which are allowed under Washington law. The provided statutes do not restrict how rent is stated or the payment methods a landlord may accept, as long as they accept checks or money orders. Therefore, this clause does not conflict with the provided laws."
+        },
+        {
+          "id": "230-2j-silver-two-methods",
+          "prohibition": "RCW 59.18.230(2)(j)",
+          "kind": "permissive_hard",
+          "verdict": "green",
+          "citations": [],
+          "correct": true,
+          "explanation": "The clause states the rent amount, due date, and acceptable payment methods (check or electronic payment). The provided statutes do not prohibit or restrict these terms. Therefore, this clause does not conflict with the relevant Washington landlord-tenant laws provided."
+        },
+        {
+          "id": "230-2j-silver-clean-verbatim",
+          "prohibition": "RCW 59.18.230(2)(j)",
+          "kind": "permissive_hard",
+          "verdict": "green",
+          "citations": [],
+          "correct": true,
+          "explanation": "The clause states the rent amount and payment methods, which are allowed by law. The provided statutes do not specifically address the exact rent amount or due date, nor do they prohibit payment by check or electronic transfer. Therefore, this clause does not conflict with the provided laws."
+        },
+        {
+          "id": "230-2j-silver-as-directed",
+          "prohibition": "RCW 59.18.230(2)(j)",
+          "kind": "permissive_hard",
+          "verdict": "green",
+          "citations": [],
+          "correct": true,
+          "explanation": "The clause states that rent payments must be made by check or electronic transfer as directed by the landlord. The provided statutes require landlords to accept personal checks, cashier's checks, or money orders, and allow refusal of cash payments. They do not prohibit landlords from requiring electronic transfers or specify all acceptable payment methods. Therefore, this clause does not conflict with the provided laws."
         }
       ]
     },
@@ -350,18 +375,22 @@
       "summary": {
         "prohibited_total": 10,
         "prohibited_red": 10,
-        "permissive_total": 22,
-        "false_reds": 0,
-        "false_red_ids": [],
+        "permissive_total": 25,
+        "false_reds": 3,
+        "false_red_ids": [
+          "230-2j-silver-as-directed",
+          "230-2j-silver-clean-verbatim",
+          "230-2j-silver-two-methods"
+        ],
         "false_reds_easy": 0,
-        "false_reds_hard": 0,
+        "false_reds_hard": 3,
         "verdicts": {
-          "red": 10,
+          "red": 13,
           "yellow": 0,
           "green": 22
         }
       },
-      "cost_usd": 0.01309,
+      "cost_usd": 0.02412,
       "clauses": [
         {
           "id": "230-2a-prohibited",
@@ -372,7 +401,7 @@
             "RCW 59.18.230"
           ],
           "correct": true,
-          "explanation": "The lease clause tries to make the tenant give up all rights under the landlord-tenant law, but Washington law (RCW 59.18.230) says tenants cannot waive or give up their rights or remedies under this chapter. Therefore, this clause is not allowed and conflicts with the law."
+          "explanation": "This clause tries to make the tenant give up all rights under the landlord-tenant law, but Washington law says tenants cannot waive or give up their rights or remedies under this chapter. Therefore, this clause is not allowed and conflicts with the law."
         },
         {
           "id": "230-2a-permissive",
@@ -390,7 +419,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "This clause says that if any part of the lease tries to waive tenant rights under the law, that part is unenforceable but the rest of the lease still applies. The provided statutes do not specifically address severability clauses like this one, so there is no conflict with the law based on the given information."
+          "explanation": "This clause states that if any part of the lease tries to waive tenant rights under the Residential Landlord-Tenant Act, that part is unenforceable but the rest of the lease remains valid. This aligns with the general principle of severability and does not conflict with the provided statutes. The law does not specifically address this exact clause, so it is acceptable as written."
         },
         {
           "id": "230-2b-prohibited",
@@ -410,7 +439,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The clause states that tenants may bring or join legal actions against the landlord, including class actions. The provided law (RCW 59.18.230(2)(b)) prohibits lease clauses that waive or forgo such rights, but does not prohibit clauses affirming these rights. Therefore, this clause does not conflict with the provided statutes."
+          "explanation": "The clause states that tenants may bring or join legal actions against the landlord, including class actions. The provided law (RCW 59.18.230(2)(b)) prohibits lease provisions that waive such rights, but does not prohibit clauses affirming these rights. Therefore, this clause does not conflict with the provided statutes."
         },
         {
           "id": "230-2b-permissive-hard",
@@ -419,7 +448,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The clause protects tenants from being penalized by the landlord for participating in legal actions, including class actions, which aligns with tenant rights. The provided statutes do not specifically address this type of clause, so there is no conflict with the law based on the given extracts."
+          "explanation": "The clause protects tenants from being penalized by the landlord for participating in legal actions, including class actions, which aligns with tenant rights. The provided statutes do not specifically address this type of clause, so there is no conflict with the law based on the given information."
         },
         {
           "id": "230-2c-prohibited",
@@ -430,7 +459,7 @@
             "RCW 59.18.230(2)(c)"
           ],
           "correct": true,
-          "explanation": "This clause requires tenants to keep rent amounts and lease specials confidential, which is not allowed under Washington law. The law prohibits lease agreements from including nondisclosure agreements about rent, concessions, or lease specials."
+          "explanation": "This clause requires tenants to keep rent amounts and lease specials confidential, which is not allowed under Washington law. Tenants cannot be forced to sign agreements that prevent them from sharing details like rent or move-in gifts with others."
         },
         {
           "id": "230-2c-permissive",
@@ -439,7 +468,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The clause allows tenants to discuss rent and lease terms freely, which aligns with Washington law that prohibits nondisclosure agreements restricting such discussions. Since the clause supports tenant rights to share lease information, it does not conflict with the provided statutes."
+          "explanation": "The clause allows tenants to discuss rent and other lease terms freely, which aligns with the law that prohibits nondisclosure agreements restricting such discussions. Since the law does not prohibit tenants from sharing lease information and in fact restricts agreements that prevent it, this clause does not conflict with the provided statutes."
         },
         {
           "id": "230-2c-permissive-hard",
@@ -459,7 +488,7 @@
             "RCW 59.18.230(2)(d)"
           ],
           "correct": true,
-          "explanation": "The clause allowing the landlord's attorney to confess judgment on behalf of the tenant conflicts with Washington law, which prohibits any rental agreement from authorizing a person to confess judgment against the tenant without a court process."
+          "explanation": "The clause allowing the landlord's attorney to confess judgment on behalf of the tenant conflicts with Washington law, which prohibits any rental agreement from authorizing a person to confess judgment on a claim arising from the rental agreement. This means the clause is not allowed and unenforceable."
         },
         {
           "id": "230-2d-permissive",
@@ -468,7 +497,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The clause states that disputes will be decided by a court in the county where the rental property is located, with each party representing themselves. The provided statutes allow landlords and tenants to agree to arbitration or mediation, but do not prohibit resolving disputes in court. Therefore, this clause does not conflict with the provided laws."
+          "explanation": "The clause states that disputes will be decided by a court in the county where the rental property is located, with each party representing themselves. The provided statutes allow landlords and tenants to agree to arbitration or mediation, but do not require it. This clause does not conflict with the statutes because it does not mandate arbitration or mediation, nor does it specify a particular arbitrator in advance. Therefore, the clause is allowed under the provided law."
         },
         {
           "id": "230-2d-permissive-hard",
@@ -477,7 +506,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "This clause states that no one is allowed to confess judgment against the tenant, which aligns with the law that prohibits such authorizations. Since the clause enforces the tenant's rights rather than conflicts with them, it does not violate the provided statutes."
+          "explanation": "This clause states that no one can confess judgment against the tenant without proper legal process, which aligns with the law. The provided statutes prohibit rental agreements from allowing confession of judgment, so this clause complies with the law. Therefore, it does not conflict with the provided statutes."
         },
         {
           "id": "230-2e-prohibited",
@@ -488,7 +517,7 @@
             "RCW 59.18.230(2)(e)"
           ],
           "correct": true,
-          "explanation": "The lease clause requires the tenant to pay all of the landlord's attorneys' fees regardless of the outcome, which conflicts with RCW 59.18.230(2)(e). This law prohibits lease agreements from making tenants agree upfront to pay the landlord's attorney fees except when a court awards those fees as part of a judgment. Therefore, this clause is not allowed under Washington law."
+          "explanation": "The lease clause requires the tenant to pay all of the landlord's attorneys' fees regardless of the outcome, which conflicts with RCW 59.18.230(2)(e). This law prohibits lease agreements from making tenants agree upfront to pay the landlord's attorney fees except when a court awards those fees as part of a judgment."
         },
         {
           "id": "230-2e-permissive",
@@ -497,7 +526,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The clause allows the prevailing party in any action arising from the lease to recover reasonable attorneys' fees and costs as awarded by the court. The provided statutes support awarding attorneys' fees to the prevailing party in various landlord-tenant disputes, and do not prohibit such a clause. Therefore, this clause does not conflict with the provided Washington State laws."
+          "explanation": "The clause allows the prevailing party in any action arising from the lease to recover reasonable attorneys' fees and costs as awarded by the court. The provided statutes support that courts may award reasonable attorneys' fees to the prevailing party in various landlord-tenant disputes. Therefore, this clause does not conflict with the provided laws."
         },
         {
           "id": "230-2e-permissive-hard",
@@ -506,7 +535,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The lease clause states that each party will pay their own attorney fees unless a court orders otherwise under the law. Washington law prohibits lease agreements that require tenants to pay the landlord's attorney fees upfront or by agreement, but allows courts to award fees after judgment. This clause aligns with that by deferring fee responsibility to court decisions. Therefore, it does not conflict with the provided statutes."
+          "explanation": "The lease clause states that each party will pay their own attorney fees unless a court orders otherwise under the law. The provided statutes confirm that courts may award reasonable attorney fees to the prevailing party in certain cases, but do not prohibit parties from agreeing to bear their own fees otherwise. Therefore, this clause does not conflict with the provided laws."
         },
         {
           "id": "230-2f-prohibited",
@@ -517,7 +546,7 @@
             "RCW 59.18.230(2)(f)"
           ],
           "correct": true,
-          "explanation": "The clause tries to limit the landlord's liability and requires the tenant to indemnify the landlord, which is not allowed under Washington law. Tenants cannot agree to waive or limit the landlord's legal responsibility or agree to cover the landlord's costs related to that liability."
+          "explanation": "The clause tries to make the tenant agree that the landlord is not responsible for any injuries or losses and that the tenant will protect the landlord from related claims. However, Washington law (RCW 59.18.230(2)(f)) prohibits lease agreements that limit the landlord's legal liability or require the tenant to indemnify the landlord for that liability. Therefore, this clause conflicts with the law and is not allowed."
         },
         {
           "id": "230-2f-permissive",
@@ -526,7 +555,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "This clause states that each party is responsible for their own negligence and that nothing limits the landlord's legal liability. This aligns with Washington law, which prohibits lease provisions that limit the landlord's liability. Therefore, this clause does not conflict with the provided statutes."
+          "explanation": "This clause states that each party is responsible for their own negligence and that the landlord's legal liability is not limited by the agreement. The provided statutes prohibit agreements that limit the landlord's liability, and this clause explicitly does not limit the landlord's liability. Therefore, this clause does not conflict with the law."
         },
         {
           "id": "230-2f-permissive-hard",
@@ -535,7 +564,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "This clause encourages tenants to get renter's insurance but does not require it or limit the landlord's legal liability. The provided statutes do not prohibit landlords from encouraging renter's insurance or disclaiming coverage of tenant belongings by the landlord's policy. Therefore, this clause does not conflict with the cited Washington laws."
+          "explanation": "This clause encourages tenants to get renter's insurance but does not require it or limit the landlord's legal liability. The provided statutes do not prohibit landlords from encouraging renter's insurance or disclaiming coverage of tenant belongings by the landlord's policy. Therefore, this clause does not conflict with the relevant Washington State laws."
         },
         {
           "id": "230-2g-prohibited",
@@ -546,7 +575,7 @@
             "RCW 59.18.230(2)(g)"
           ],
           "correct": true,
-          "explanation": "The lease clause requires the parties to use a specific arbitrator chosen at the time the agreement is signed, which is prohibited by RCW 59.18.230(2)(g). The law does not allow a rental agreement to specify a particular arbitrator in advance."
+          "explanation": "The lease clause requires the parties to use a specific arbitrator chosen at the time the agreement is signed, which is prohibited by RCW 59.18.230(2)(g). The law does not allow landlords and tenants to agree in advance on a particular arbitrator in the rental agreement."
         },
         {
           "id": "230-2g-permissive",
@@ -555,7 +584,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The clause states that arbitration will only happen if both parties agree later and that they will select the arbitrator by mutual agreement at that time. This matches the law, which requires mutual agreement on arbitration and on the arbitrator when a dispute arises. Therefore, this clause does not conflict with the provided statutes."
+          "explanation": "The clause states that arbitration will only occur if both parties later agree and that they will select the arbitrator by mutual agreement at that time. This aligns with the law, which requires mutual agreement on arbitration and selection of the arbitrator when the dispute arises. Therefore, the clause does not conflict with the provided statutes."
         },
         {
           "id": "230-2g-permissive-hard",
@@ -564,7 +593,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The clause states that either party may propose a mediator or arbitrator after a dispute arises and that no arbitrator or mediator is designated in advance. This aligns with the law, which prohibits agreeing to a specific arbitrator at the time the rental agreement is signed. Since the clause does not conflict with the provided statutes, it is acceptable."
+          "explanation": "The clause states that either party can propose a mediator or arbitrator after a dispute arises and that no arbitrator or mediator is designated in advance. This aligns with the law, which prohibits agreeing to a specific arbitrator at the time of signing the lease. Therefore, this clause does not conflict with the provided statutes."
         },
         {
           "id": "230-2h-prohibited",
@@ -582,9 +611,11 @@
           "prohibition": "RCW 59.18.230(2)(h)",
           "kind": "permissive",
           "verdict": "green",
-          "citations": [],
+          "citations": [
+            "RCW 59.18.230(2)(h)"
+          ],
           "correct": true,
-          "explanation": "The clause requires the landlord to pay the entire cost of arbitration and that the agreement be notarized, which aligns with the requirement that tenants cannot be required to arbitrate disputes unless the landlord pays all arbitration costs and the agreement is notarized. The provided statutes do not prohibit this clause, so it does not conflict with the law."
+          "explanation": "This lease clause requires the landlord to pay all arbitration costs and the agreement to be notarized, which matches the law's requirements. Therefore, it does not conflict with the provided statutes."
         },
         {
           "id": "230-2h-permissive-hard",
@@ -593,7 +624,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The clause requires the landlord to pay all arbitration costs and the arbitration agreement to be notarized, and states the tenant is not required to arbitrate otherwise. This aligns with RCW 59.18.230(2)(h), which prohibits arbitration agreements unless the landlord pays all costs and the agreement is notarized. The clause does not conflict with the provided statutes."
+          "explanation": "The clause requires the landlord to pay all arbitration costs and that the arbitration agreement be notarized, and states the tenant is not required to arbitrate otherwise. This aligns with RCW 59.18.230(2)(h) which prohibits arbitration agreements unless the landlord pays all costs and the agreement is notarized. The clause does not conflict with the provided statutes."
         },
         {
           "id": "230-2i-prohibited",
@@ -605,7 +636,7 @@
             "RCW 59.18.230"
           ],
           "correct": true,
-          "explanation": "The lease requires a $75 late fee immediately after the first day rent is late, plus $10 daily thereafter. Washington law prohibits charging any late fees if rent is paid within five days after the due date. Late fees can only start accruing after the rent is more than five days late. Therefore, this clause conflicts with state law by charging late fees too early."
+          "explanation": "The lease requires a $75 late fee plus $10 per day starting immediately after the first day rent is due, but Washington law prohibits charging any late fees if rent is paid within five days after the due date. Late fees can only start accruing after those five days. Therefore, this clause conflicts with state law and is not allowed."
         },
         {
           "id": "230-2i-permissive",
@@ -614,7 +645,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The lease clause states that a $50 late charge applies only if rent is unpaid more than five days after its due date, which aligns with Washington law that prohibits late fees if rent is paid within five days after the due date. The provided statutes do not prohibit a specific amount for the late fee, so this clause does not conflict with the law."
+          "explanation": "The lease clause states that a $50 late charge applies only if rent is unpaid more than five days after its due date, which aligns with the statute that prohibits late fees if rent is paid within five days after the due date. The provided law does not prohibit a flat $50 late fee after that period, so this clause does not conflict with the provided statutes."
         },
         {
           "id": "230-2i-permissive-hard",
@@ -623,7 +654,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The lease clause matches the law exactly: no late fee if rent is paid within five days after the due date, and late fees can start from the day after the due date if rent is more than five days late. The provided statutes do not prohibit the $50 amount or specify limits on the fee amount, so this clause does not conflict with the law."
+          "explanation": "The lease clause matches the law in Washington State. It says no late fee if rent is paid within five days after due date, and allows a $50 late fee starting the day after the due date if rent is more than five days late. This is exactly what the law permits, so the clause does not conflict with the provided statutes."
         },
         {
           "id": "230-2j-prohibited",
@@ -631,10 +662,11 @@
           "kind": "prohibited",
           "verdict": "red",
           "citations": [
-            "RCW 59.18.230(2)(j)"
+            "RCW 59.18.230(2)(j)",
+            "RCW 59.18.063"
           ],
           "correct": true,
-          "explanation": "The lease clause requires rent to be paid only by electronic funds transfer, which conflicts with RCW 59.18.230(2)(j). This law prohibits rental agreements from requiring tenants to pay rent exclusively through electronic means, so the clause is not allowed."
+          "explanation": "The lease clause requires rent to be paid only by electronic funds transfer, which conflicts with Washington law. The law says landlords cannot require tenants to pay rent exclusively by electronic means and must accept other payment methods like checks or money orders. Therefore, this clause is not allowed under the law."
         },
         {
           "id": "230-2j-permissive",
@@ -643,7 +675,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The clause allows rent payment by personal check, cashier's check, money order, or electronic transfer through the landlord's portal. The provided statutes require landlords to accept personal checks (with some exceptions), cashier's checks, and money orders, and prohibit requiring electronic payments only. This clause does not require electronic payments exclusively and thus does not conflict with the law. The provided statutes do not specifically address online portals or electronic transfers as a payment method, so this clause is allowed."
+          "explanation": "The clause allows rent payment by personal check, cashier's check, money order, or electronic transfer through the landlord's portal. The provided statutes require landlords to accept personal checks, cashier's checks, and money orders (with some exceptions) and prohibit requiring electronic payments only. Since the clause offers multiple payment methods and does not require electronic payment exclusively, it does not conflict with the provided laws."
         },
         {
           "id": "230-2j-permissive-hard",
@@ -652,7 +684,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The lease clause allows tenants to pay rent electronically but also provides alternative payment methods such as mailing a check or delivering payment in person. This complies with Washington law, which prohibits requiring electronic payments only. The provided statutes do not address online portals specifically, so this clause does not conflict with the law."
+          "explanation": "The lease clause allows tenants to pay rent electronically but also provides alternative payment methods such as mailing a check or delivering payment in person. This complies with Washington law, which prohibits requiring rent payment exclusively through electronic means. The provided statutes do not prohibit landlords from offering an online portal as a convenience, as long as other payment options are available."
         },
         {
           "id": "230-2j-gold-clean-verbatim",
@@ -661,7 +693,7 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The lease clause states the rent amount, due date, and acceptable payment methods including personal check, cashier's check, money order, or electronic transfer. The provided statutes require landlords to accept personal checks, cashier's checks, and money orders, and prohibit requiring electronic payments only. Since the clause allows multiple payment methods and does not require electronic payments exclusively, it does not conflict with the provided laws."
+          "explanation": "The lease clause states the rent amount, due date, and acceptable payment methods including personal check, cashier's check, money order, or electronic transfer. The provided statutes do not prohibit these payment methods or the due date specified. Therefore, this clause does not conflict with the provided Washington State landlord-tenant laws."
         },
         {
           "id": "230-2j-gold-heavy-verbatim",
@@ -670,7 +702,40 @@
           "verdict": "green",
           "citations": [],
           "correct": true,
-          "explanation": "The clause states the rent amount, due date, and acceptable payment methods, which are allowed under Washington law. The provided statutes do not restrict how rent is stated or the payment methods allowed, so this clause does not conflict with the law."
+          "explanation": "The clause states the rent amount, due date, and acceptable payment methods, which are allowed under Washington law. The provided statutes do not restrict how rent is stated or the payment methods offered, so this clause does not conflict with the law."
+        },
+        {
+          "id": "230-2j-silver-two-methods",
+          "prohibition": "RCW 59.18.230(2)(j)",
+          "kind": "permissive_hard",
+          "verdict": "red",
+          "citations": [
+            "RCW 59.18.230(2)(j)"
+          ],
+          "correct": false,
+          "explanation": "The lease clause requires rent payment by check or electronic payment only, but Washington law prohibits leases from requiring rent to be paid exclusively by electronic means. The clause conflicts with this rule because it limits payment methods to check or electronic payment, excluding other acceptable methods."
+        },
+        {
+          "id": "230-2j-silver-clean-verbatim",
+          "prohibition": "RCW 59.18.230(2)(j)",
+          "kind": "permissive_hard",
+          "verdict": "red",
+          "citations": [
+            "RCW 59.18.230"
+          ],
+          "correct": false,
+          "explanation": "The lease clause requires rent to be paid by check or electronic transfer only, but Washington law prohibits requiring rent payments exclusively through electronic means. The landlord must allow other payment options besides electronic payments."
+        },
+        {
+          "id": "230-2j-silver-as-directed",
+          "prohibition": "RCW 59.18.230(2)(j)",
+          "kind": "permissive_hard",
+          "verdict": "red",
+          "citations": [
+            "RCW 59.18.230(2)(j)"
+          ],
+          "correct": false,
+          "explanation": "The lease clause requires rent payments only by check or electronic transfer, which conflicts with RCW 59.18.230(2)(j) that prohibits requiring tenants to pay rent exclusively through electronic means. The landlord must allow other payment methods besides electronic transfers."
         }
       ]
     }

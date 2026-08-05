@@ -17,7 +17,7 @@ architecture earned its shape rather than accumulating it.
 | [Prompt injection](#prompt-injection-resistance--the-lease-is-hostile-input) | Can a lease talk to the model? | 5/5 held — after one payload suppressed a whole scan |
 | [Document formats](#document-formats--real-published-leases-and-real-numbering) | Does the pipeline survive documents nobody here wrote? | **6 of 7 conventions failed silently**, and a silent truncation invented two missing protections |
 | [Scan-mode retrieval](#scan-mode-retrieval--one-miss-and-three-fixes-that-did-not-ship) | Does the governing statute reach the judge, and do the candidate fixes work? | **all 40 partial misses are one section**; the fix that closed them (.492 → .984) cost a false red in July |
-| [Permissive vs prohibited](#the-labelled-set-said-the-opposite-and-the-gate-agreed-with-it) | Can the judge tell "you may" from "you must only"? | the labelled set **reversed** that rejection — and found the shipped index reading two prohibitions as green |
+| [Permissive vs prohibited](#the-labelled-set-said-ship-it-the-40-lease-set-said-no) | Can the judge tell "you may" from "you must only"? | the gold set cleared the rejected fix, the 40-lease set failed it again — and **the shipped index reads two prohibitions as green** |
 | [Retrieval ablation](#retrieval-ablation--section-level-n82) | Which pipeline stage actually earns its cost? | naive chunking ties the six-stage pipeline |
 | [Adversarial rephrasing](#adversarial-rephrasing--the-same-82-questions-renter-voice) | Does it hold when renters don't speak statute? | full pipeline wins; the earlier tie was vocabulary leakage |
 | [Hybrid BM25](#hybrid-retrieval-bm25--dense--measured-and-not-shipped) | Does a lexical channel help ask mode? | no — the apparent gain was vocabulary leakage |
@@ -314,28 +314,47 @@ python -m evaluation.eval_scan --collection wa_reference_230split               
 
 Total across all three candidates: **$0.08 spent, $0.70 budgeted**, and the one that needed paying for was the one the free instrument said was worth paying for.
 
-### The labelled set said the opposite, and the gate agreed with it
+### The labelled set said ship it, the 40-lease set said no
 
-The rejection above ended with a condition: shipping the split would need *"a labelled set of permissive-vs-mandatory clause pairs, not a prompt rule written against the one failure this repo has seen — that would be buying a passing number."* That set now exists, in `permissive_pairs.jsonl`: **32 clauses across all ten prohibitions of RCW 59.18.230(2)**, written against the statute text rather than invented, in three kinds.
+The rejection above ended with a condition: shipping the split would need *"a labelled set of permissive-vs-mandatory clause pairs, not a prompt rule written against the one failure this repo has seen — that would be buying a passing number."* That set now exists, in `permissive_pairs.jsonl`: **35 clauses across all ten prohibitions of RCW 59.18.230(2)**, written against the statute text rather than invented, in three kinds. `prohibited` clauses must come back red — included so a "fix" that suppresses false reds by suppressing reds gets caught rather than congratulated. `permissive` clauses are lawful and offer options. **`permissive_hard` clauses are lawful and *name the prohibited thing*:** a CONFIDENTIALITY heading whose nondisclosure duty runs against the landlord, a CONFESSION OF JUDGMENT clause that forbids one, late-charge wording lifted from the statute's own sentence.
 
-The third kind is the one that makes it a test. `prohibited` clauses must come back red — included so that a "fix" which suppresses false reds by suppressing reds gets caught rather than congratulated. `permissive` clauses are lawful and offer the tenant options. **`permissive_hard` clauses are lawful and *name the prohibited thing*:** a CONFIDENTIALITY heading whose nondisclosure duty runs against the landlord, a CONFESSION OF JUDGMENT clause that forbids one, late-charge wording lifted from the statute's own sentence. Testing only the easy cases would have measured almost nothing, because the observed false red was of exactly this shape. The two verbatim gold-set rent clauses are in the set too — a paraphrase could not settle whether the false red reproduces.
+**It cleared the split, and so did the re-run gold gate.** 18/18 red, 18/18 citations, **0 false reds, precision 1.000**, protections 6/6 — identical outcomes to the shipped index plus strict retrieval .492 → .984. The gold set's own false red did not reproduce, in two labelled-set runs or in the gate.
 
-**It reversed the finding.** Two independent runs, same result both times:
+**Then the 40-lease set was run, and it did reproduce.** That set had never seen the split, and it is the widest net available:
 
-| 32 clauses | prohibited flagged red | false reds on the 22 lawful clauses |
+| 40 leases · 61 planted violations | dense (shipped) | enumerated split |
 | --- | --- | --- |
-| dense (shipped) | 8/10 | **2** |
-| enumerated split | **10/10** | **0** |
+| planted violations flagged red | 60/61 | **61/61** |
+| citations correct | 1.000 | 1.000 |
+| missing-protections exact | 39/40 | 39/40 |
+| false reds | 7 | **10** |
+| precision | .8955 | .8592 |
 
-The split is not merely no-worse; it is better on both axes. And the shipped index has a defect of its own that no existing eval could see: it reads the **exculpation (2)(f)** and **arbitration-cost (2)(h)** prohibitions as *green with no citation at all* — the gold set's eighteen planted violations do not include a clause of either shape, so 18/18 recall was never evidence about them. The two false reds under the shipped index are both on (2)(h), both citing RCW 59.18.340 instead.
+Recall went to perfect — the split catches the one violation the shipped index misses. But five false reds are new, and the baseline's seven were already known to be **six-sevenths mislabelled** (a hand audit found them to be genuine violations the generator wrote unprompted), so a raw count comparison would have been dishonest. Each new one was read by hand:
 
-So the paid gate was re-run, and **it passes**: 18/18 red, 18/18 citations, **0 false reds, precision 1.000**, protections 6/6 — identical outcomes to the shipped index, plus strict retrieval .492 → .984. The false red did not reproduce, in either labelled-set run or in the gate.
+| new false red | judged |
+| --- | --- |
+| `012` "by check or electronic payment to Landlord at the address provided" | **real false red** |
+| `029` (the **compliant** lease) "paid by check or electronic transfer to the Landlord's designated account" | **real false red** |
+| `015` "if rent is not received by the fifth of the month, a late fee of $50" | genuine violation, unlabelled |
+| `040` same late-fee shape | genuine violation, unlabelled |
+| `006` deposit held at a named bank, interest to the tenant | borderline — red in the run, **yellow** when re-judged |
 
-**What changed underneath is the interesting part, and it is not the judge.** `judge_clause` and `make_judge_prompt` are unchanged since the rejection apart from a `ScanMeter` → `UsageMeter` annotation, and `retrieval.py`'s diff over the same span is metering plumbing. The *index* changed: `build_enumerated_collection.py` gained `temperature=0` afterwards (commit 210a9e0), the collection was rebuilt, and **the retrieval metric was re-verified at .984 while the paid precision gate was not re-run.** The published "precision 1.000 → .947" therefore described an index that no longer existed. Provider-side drift on `gpt-4.1-mini` is the other candidate and cannot be excluded from outside — which is the case `provenance.py` was written for.
+The two late-fee clauses are real violations: (2)(i) protects rent paid *within five days following* the due date, so rent due the 1st is protected through the 6th, and a fee triggered by non-receipt on the 5th charges inside that window. The deposit clause returned yellow on a re-judge, citing RCW 59.18.270 and .260 on the substantive ground that the statute gives deposit interest to the landlord absent a written agreement.
 
-**Still not flipped, and that is now a decision rather than a constraint.** Enabling it changes what `export_runtime_db.py` exports and what the image ships, and the 40-lease silver set — where precision is a measured lower bound rather than 1.000 — has not been run against the split. Cost of this round: **$0.146** (two labelled-set runs $0.056, gold re-gate $0.090).
+**The two that matter are damning, and the judge convicts itself in writing.** Its explanation for the `012` clause:
 
-The transferable lesson survives intact and is better evidenced than before: a leading indicator is not an outcome. What changed is that the outcome it was traded against had been measured on an index that was later rebuilt, and nobody re-gated it — so the trade was real when it was made and stale by the time it was quoted.
+> The lease clause requires rent payment by check or electronic payment **only**, but Washington law prohibits leases from requiring rent payments exclusively through electronic means.
+
+The word *only* is not in the clause. The judge invented the exclusivity and then applied a rule about exclusivity to it — the July failure, identical in mechanism, and one of the two lands on the compliant lease that exists precisely as a false-positive probe.
+
+**Why the first two gates missed it, which is the part worth keeping.** The gold set is six leases and its two payment clauses list three or four methods — an open menu. The silver set's are bare two-item lists — *"by check or electronic payment"* — which read as closed ones. **My labelled set had the same blind spot as the gold set**, because I wrote its permissive (2)(j) clauses the same way. The three silver clauses are now in it verbatim as `permissive_hard`, and it reproduces the failure: **3 false reds under the split, all on the terse clauses, all citing (2)(j)**. A future attempt at this fix is now testable for **$0.028** instead of $0.6.
+
+**Not shipped, and both indexes carry a real defect in opposite directions.** The shipped index reads the exculpation (2)(f) and arbitration-cost (2)(h) prohibitions as *green with no citation at all* — 8/10 on the labelled set — a silent false **negative** that 18/18 gold recall never covered, because no labelled lease plants a clause of either shape. The split hallucinates exclusivity into permissive payment clauses — a false **positive**, on a compliant lease. This project's position is that a false red is the expensive error, so the default does not move.
+
+The honest next step is neither index: **the judge is inventing a word the text does not contain**, and that is a generation fix, testable against `permissive_pairs.jsonl` for cents rather than against the silver set for dollars. What this round bought is that the failure now lives in a labelled set instead of in one anecdote from a paid run, and that the shipped index's own blind spot is measured rather than unknown.
+
+Cost: **$0.653** — silver re-gate $0.599, labelled-set runs $0.052, five-clause audit $0.002.
 
 ```bash
 python -m evaluation.eval_permissive --both --write     # ≈ $0.028 per collection
