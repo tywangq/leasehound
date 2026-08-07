@@ -16,7 +16,7 @@ import subprocess
 from datetime import datetime, timezone
 
 from leasehound.retrieval import EMBEDDING_MODEL, GENERATION_MODEL, UTILITY_MODEL
-from leasehound.scan import CORPUS_SNAPSHOT
+from leasehound.scan import CORPUS_SNAPSHOT, judge_fingerprint
 
 
 def commit() -> str | None:
@@ -51,5 +51,10 @@ def stamp(models: bool = True) -> dict:
         "utility_model": UTILITY_MODEL,
         "embedding_model": EMBEDDING_MODEL,
         "corpus_snapshot": CORPUS_SNAPSHOT,
+        # The same argument as the models one field up, applied to the other input
+        # that moves: every scan verdict comes from one prompt and one response
+        # schema, both of which have been edited to fix particular failures. Without
+        # this, a changed prompt and a changed model look identical from the artifact.
+        "judge_prompt": judge_fingerprint(),
         **origin,
     }

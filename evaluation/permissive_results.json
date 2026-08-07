@@ -5,8 +5,10 @@
     "embedding_model": "text-embedding-3-large",
     "corpus_snapshot": "2026-07-25",
     "commit": "497484c",
-    "run_at": "2026-08-05"
+    "run_at": "2026-08-05",
+    "judge_prompt": "8226e1565a7a"
   },
+  "_comment": "The judge that ships. `rejected_experiment` below is a quote-and-verify judge built to fix the false reds in these very runs, measured on the same 35 clauses, and not shipped \u2014 see the note above ClauseVerdict in scan.py. Its own numbers are kept because the write-up cites them.",
   "cost_usd": 0.05223,
   "runs": [
     {
@@ -739,5 +741,68 @@
         }
       ]
     }
-  ]
+  ],
+  "rejected_experiment": {
+    "what": "judge asked to quote the clause words its verdict turns on, with the quote checked against the clause in code; plus, in the second variant, a prompt rule that an offered option is not a requirement",
+    "judge_prompt": "932711aa0764",
+    "run_at": "2026-08-05",
+    "cost_usd": 0.05942,
+    "finding": "The premise was wrong. Across all 23 red verdicts in the two runs below, every quote was verbatim from the clause (unverified_reds: []) \u2014 the judge does not insert words. It quotes accurately and over-reads accurate text: on '...by check or electronic transfer as directed by Landlord' it quoted exactly that and concluded electronic payment could be required. No code check reaches that, because nothing was fabricated.",
+    "decision": [
+      "Not shipped: on the shipped index the false reds went 2 -> 3 with the quote field and 2 -> 4 with the prompt rule, buying one extra prohibition caught (8/10 -> 9/10). Precision is the property this scanner defends.",
+      "The gold set could not separate any of the three judges: 18/18 strict, 0 false reds, 6/6 protections exact under all of them. Worth knowing about the gold set \u2014 the 35 labelled clauses here are the only set that moved.",
+      "Kept from the attempt: judge_fingerprint() in the provenance stamp, so a future judge change is attributable from the artifact rather than from somebody's memory of which afternoon it was.",
+      "Left open: the 230-split index paired with the quote judge cleared gold with 0 false reds (it costs 1 with the shipped judge) and scored 10/10 prohibitions with 2 false reds here, beating the live configuration on both axes. Shipping it needs a rebuilt runtime index and a $0.6 re-run of the 40-lease set, and the two false reds are the same payment-clause family that blocked it before."
+    ],
+    "runs": [
+      {
+        "collection": "wa_reference",
+        "summary": {
+          "prohibited_total": 10,
+          "prohibited_red": 9,
+          "permissive_total": 25,
+          "false_reds": 4,
+          "false_red_ids": [
+            "230-2h-permissive",
+            "230-2h-permissive-hard",
+            "230-2j-silver-as-directed",
+            "230-2j-silver-clean-verbatim"
+          ],
+          "false_reds_easy": 1,
+          "false_reds_hard": 3,
+          "verdicts": {
+            "red": 13,
+            "yellow": 0,
+            "green": 22
+          },
+          "unverified_reds": [],
+          "unverified_false_reds": []
+        },
+        "cost_usd": 0.03177
+      },
+      {
+        "collection": "wa_reference_230split",
+        "summary": {
+          "prohibited_total": 10,
+          "prohibited_red": 10,
+          "permissive_total": 25,
+          "false_reds": 2,
+          "false_red_ids": [
+            "230-2j-silver-as-directed",
+            "230-2j-silver-clean-verbatim"
+          ],
+          "false_reds_easy": 0,
+          "false_reds_hard": 2,
+          "verdicts": {
+            "red": 12,
+            "yellow": 0,
+            "green": 23
+          },
+          "unverified_reds": [],
+          "unverified_false_reds": []
+        },
+        "cost_usd": 0.02765
+      }
+    ]
+  }
 }

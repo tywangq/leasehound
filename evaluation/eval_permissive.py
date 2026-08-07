@@ -118,6 +118,28 @@ def run(collection: str, pairs: list[dict]) -> dict:
             "cost_usd": round(meter.cost_usd, 5), "clauses": rows}
 
 
+def preserve(existing: dict | None) -> dict:
+    """Everything in the artifact a fresh run must not delete.
+
+    This file answers a ship/don't-ship question by comparing configurations, so a
+    later run that simply overwrote it would delete the comparison it exists to make.
+    Previous runs keep only their summaries — the per-clause rows are large and git has
+    them — while `rejected_experiment` and its own numbers pass through untouched,
+    because the write-up cites them and nothing will re-measure a judge that was
+    already declined.
+    """
+    if not existing:
+        return {}
+    kept = list(existing.get("superseded", []))
+    for run in existing.get("runs", []):
+        kept.append({"collection": run["collection"], "summary": run["summary"],
+                     "cost_usd": run.get("cost_usd"),
+                     "provenance": run.get("provenance", existing.get("provenance"))})
+    carried = {key: existing[key] for key in ("_comment", "rejected_experiment")
+               if key in existing}
+    return {**carried, "superseded": kept} if kept else carried
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--collection", default=SHIPPED,
@@ -135,10 +157,13 @@ def main() -> None:
 
     runs = [run(collection, pairs) for collection in collections]
     if args.write:
+        existing = (json.loads(RESULTS_PATH.read_text(encoding="utf-8"))
+                    if RESULTS_PATH.exists() else None)
         RESULTS_PATH.write_text(json.dumps(
             {"provenance": stamp(),
              "cost_usd": round(sum(r["cost_usd"] for r in runs), 5),
-             "runs": runs}, indent=2) + "\n", encoding="utf-8")
+             "runs": runs,
+             **preserve(existing)}, indent=2) + "\n", encoding="utf-8")
         print(f"\nwrote {RESULTS_PATH.name}")
 
 
