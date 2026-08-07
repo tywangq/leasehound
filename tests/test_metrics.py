@@ -91,6 +91,46 @@ def test_log_scan_records_the_gate_flag(tmp_path, monkeypatch):
     assert "gate_flagged" not in ordinary
 
 
+def test_the_yellow_share_is_reported_and_attributed(tmp_path, monkeypatch):
+    """Nothing measured yellow. The labelled sets score red against a manifest and
+    count yellow only as a hedge on a planted violation, so a scanner that cautioned
+    on every clause would post zero false reds and look immaculate. This is the share
+    on real traffic — with the judges it rests on, because three of them were measured
+    against these sets in one afternoon and only one ships."""
+    records = [
+        {"clauses": 10, "cost_usd": 0.01, "seconds": 8.0, "llm_calls": 11,
+         "embedding_calls": 10, "judge": "aaaa1111",
+         "verdicts": {"red": 2, "yellow": 1, "green": 7}},
+        {"clauses": 10, "cost_usd": 0.01, "seconds": 9.0, "llm_calls": 11,
+         "embedding_calls": 10,  # written before the field existed
+         "verdicts": {"red": 0, "yellow": 3, "green": 7}},
+    ]
+    summary = metrics.summarize_log(records)
+    assert summary["verdict_clauses"] == 20
+    assert summary["verdict_share"] == {"red": 0.1, "yellow": 0.2, "green": 0.7}
+    assert summary["verdict_judges"] == ["aaaa1111", "unrecorded"]
+
+    # A log with no verdicts recorded reports no share, rather than an all-green one.
+    bare = metrics.summarize_log([{k: v for k, v in records[0].items()
+                                   if k not in ("verdicts", "judge")}])
+    assert "verdict_share" not in bare
+
+
+def test_log_scan_records_an_out_of_state_lease(tmp_path, monkeypatch):
+    """The published cost and latency figures are computed from this log, and a scan
+    of a lease governed by another state's law is a scan whose verdicts nobody should
+    be quoting — the same reason `gate_flagged` is recorded."""
+    monkeypatch.setattr(metrics, "LOG_PATH", tmp_path / "scan_metrics.jsonl")
+    meter = metrics.UsageMeter()
+    elsewhere = metrics.log_scan(meter, "ca_lease.pdf", 3, jurisdiction="ca")
+    ordinary = metrics.log_scan(meter, "lease.md", 3)
+    assert elsewhere["jurisdiction"] == "ca"
+    # The caller passes None when the document's state is the one being applied, so
+    # this function never has to know which state that was — a `!= "wa"` here would
+    # have hard-coded the default and quietly mislabelled every non-WA deployment.
+    assert "jurisdiction" not in ordinary
+
+
 def streamed_usage(prompt=800, completion=120, cached=0):
     return SimpleNamespace(
         prompt_tokens=prompt, completion_tokens=completion,

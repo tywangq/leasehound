@@ -100,10 +100,15 @@ def measure(entry: dict, scan: bool) -> dict:
     # and "rejected as unrelated" now lead to different behaviour in scan_steps —
     # the second one refuses. A probe that recorded only True/False could not tell
     # a recalibration from a regression.
-    kind = classify_document(clauses, meter)
-    accepted = kind == "lease_agreement"
-    result["gate_kind"] = kind
+    check = classify_document(clauses, meter)
+    accepted = check.kind == "lease_agreement"
+    result["gate_kind"] = check.kind
     result["gate_accepted_as_lease"] = accepted
+    # The other half of the same call. These are real WA documents, so the expected
+    # answer is "wa" on every one of them and anything else is a false alarm — which
+    # is the failure that matters, since a mismatch warning that fires on a genuine
+    # Washington lease is worse than no warning at all.
+    result["gate_jurisdiction"] = check.jurisdiction
     if accepted:
         protections = check_protections(clauses, meter)
         result["protections_missing"] = sorted(
@@ -116,7 +121,8 @@ def measure(entry: dict, scan: bool) -> dict:
 
 
 # Keys only a --scan run produces. A free run must not erase them.
-PAID_KEYS = ("gate_kind", "gate_accepted_as_lease", "protections_missing",
+PAID_KEYS = ("gate_kind", "gate_jurisdiction", "gate_accepted_as_lease",
+             "protections_missing",
              "protections_present", "llm_calls", "cost_usd")
 
 

@@ -10,6 +10,15 @@ import leasehound.scan as scan
 from leasehound.scan import base_section, count_verdicts, render_report
 
 
+def gate_returns(kind: str = "lease_agreement", state: str = "wa"):
+    """A stand-in for `classify_document`, which returns a model rather than a kind.
+
+    Jurisdiction defaults to "wa" — the state every scan in these tests applies — so
+    a test that says nothing about jurisdiction gets no mismatch warning.
+    """
+    return lambda clauses, meter=None: scan.DocumentCheck(kind=kind, jurisdiction=state)
+
+
 def finding(index: int, verdict: str, clause: str = "", **kw) -> dict:
     return {
         "index": index,
@@ -103,7 +112,7 @@ def test_an_oversized_document_is_scanned_to_the_cap_rather_than_refused():
     with (
         patch.object(scan, "read_document", lambda path: ""),
         patch.object(scan, "split_clauses_with_mode", lambda text: (clauses, "numbered")),
-        patch.object(scan, "classify_document", lambda c, meter=None: "lease_agreement"),
+        patch.object(scan, "classify_document", gate_returns()),
         patch.object(scan, "scan_clause", judged),
         patch.object(scan, "check_protections",
                      lambda c, meter=None: seen_by_protections.extend(c) or []),
@@ -158,7 +167,8 @@ GATE_CLAUSES = ["1. RENT. Tenant pays $2,000 monthly.", "2. TERM. Month to month
 
 
 @contextmanager
-def gate_says(kind: str, judged_indexes: list | None = None):
+def gate_says(kind: str, judged_indexes: list | None = None, state: str = "wa",
+              logged: list | None = None):
     """Stub the whole deterministic scan around one fixed gate verdict."""
     def judged(clause, index, config, meter=None):
         if judged_indexes is not None:
@@ -166,15 +176,20 @@ def gate_says(kind: str, judged_indexes: list | None = None):
         return {"index": index, "clause": clause, "verdict": "green",
                 "citations": [], "urls": {}, "explanation": "fine"}
 
+    def log(*args, **kwargs):
+        if logged is not None:
+            logged.append(kwargs)
+        return {}
+
     with ExitStack() as stack:
         for patched in (
             patch.object(scan, "read_document", lambda path: ""),
             patch.object(scan, "split_clauses_with_mode",
                          lambda text: (GATE_CLAUSES, "numbered")),
-            patch.object(scan, "classify_document", lambda c, meter=None: kind),
+            patch.object(scan, "classify_document", gate_returns(kind, state)),
             patch.object(scan, "scan_clause", judged),
             patch.object(scan, "check_protections", lambda c, meter=None: []),
-            patch.object(scan, "log_scan", lambda *a, **k: {}),
+            patch.object(scan, "log_scan", log),
             patch.object(scan, "cost_line", lambda record: ""),
         ):
             stack.enter_context(patched)
@@ -241,8 +256,7 @@ def test_a_document_that_fails_the_gate_is_scanned_anyway_and_flagged():
     with (
         patch.object(scan, "read_document", lambda path: ""),
         patch.object(scan, "split_clauses_with_mode", lambda text: (clauses, "numbered")),
-        patch.object(scan, "classify_document",
-                     lambda c, meter=None: "document_about_leases"),
+        patch.object(scan, "classify_document", gate_returns("document_about_leases")),
         patch.object(scan, "scan_clause", judged),
         patch.object(scan, "check_protections", lambda c, meter=None: []),
         patch.object(scan, "log_scan", lambda *a, **k: {}),
@@ -267,6 +281,95 @@ def test_the_report_warns_when_the_document_did_not_read_as_a_lease():
     # `other` document the reader overrode, so naming either makes it false for the
     # other. It claimed "a document about leases" over a banana bread recipe once.
     assert "about leases" not in flagged and "about renting" not in flagged
+
+
+def test_the_judge_fingerprint_moves_with_the_prompt_and_the_schema():
+    """A changed prompt used to look exactly like a changed model from the artifact.
+    Three configurations of the judge were measured in one afternoon and only the
+    commit distinguished them, which is not a distinction anyone reads."""
+    before = scan.judge_fingerprint()
+    assert before == scan.judge_fingerprint(), "the same judge must digest the same"
+    with patch.object(scan, "make_judge_prompt",
+                      lambda clause, chunks: "different rules entirely"):
+        assert scan.judge_fingerprint() != before, "a prompt edit has to show up"
+
+
+def test_unknown_jurisdiction_is_not_a_mismatch():
+    """Most short leases name no state anywhere. A warning that fires on all of them
+    is a warning nobody reads, and it would cost the true ones their credibility."""
+    assert scan.jurisdiction_mismatch("unknown", "wa") is False
+    assert scan.jurisdiction_mismatch("wa", "wa") is False
+    assert scan.jurisdiction_mismatch("WA", "wa") is False, "case is not a mismatch"
+    assert scan.jurisdiction_mismatch("ca", "wa") is True
+
+
+def test_the_report_says_which_law_it_applied_and_stops_calling_it_a_finding():
+    """"Jurisdiction: WA" read as a fact established about the document. It was a
+    setting — `state` is a caller parameter with a default — printed in the position
+    where the report states what it found."""
+    findings = [{"index": 1, "clause": "1. RENT.", "verdict": "green",
+                 "citations": [], "urls": {}, "explanation": "fine"}]
+    report = scan.render_report(findings, "x.md", "wa", [])
+    assert "Judged against: WA law" in report
+    assert "Jurisdiction: WA" not in report
+
+
+def test_an_out_of_state_lease_is_warned_about_in_both_directions():
+    """A California lease used to come back with a full set of Washington verdicts
+    and nothing anywhere saying so: the gate accepted it (it IS a residential lease),
+    and the disclaimer's "judged against RCW 59.18" reads as scope, not as an error.
+
+    Both directions of wrongness are asserted because only one is intuitive. A reader
+    braced for "we may have missed something" will not think of "the clause we
+    flagged red is perfectly legal where you live"."""
+    findings = [{"index": 1, "clause": "1. RENT.", "verdict": "green",
+                 "citations": [], "urls": {}, "explanation": "fine"}]
+    warned = scan.render_report(findings, "ca_lease.pdf", "wa", [], jurisdiction="ca")
+    assert "CA" in warned and "WA" in warned
+    assert "flagged red here may be perfectly enforceable" in warned
+    assert "marked clear may be void" in warned
+    # And it sits above the verdicts, not in a footnote below them.
+    assert warned.index("🌎") < warned.index("Judged against") + 400
+    # Silent on a Washington lease, and on one that names no state at all.
+    for jurisdiction in ("wa", "unknown"):
+        quiet = scan.render_report(findings, "x.md", "wa", [], jurisdiction=jurisdiction)
+        assert "🌎" not in quiet
+
+
+def test_an_out_of_state_lease_is_still_scanned_and_the_mismatch_is_logged():
+    """The warning is the whole intervention: refusing would be worse, because the
+    Washington reading of a California lease is *some* information and the visitor
+    asked for it. But the log has to know, since the published cost and latency
+    figures are computed from it and these verdicts are not quotable."""
+    judged, logged = [], []
+    with gate_says("lease_agreement", judged, state="ca", logged=logged):
+        result = scan.scan_lease("ca_lease.pdf")
+
+    assert judged == [1, 2, 3], "an out-of-state lease is still a lease"
+    assert result.jurisdiction == "ca"
+    assert logged[-1]["jurisdiction"] == "ca"
+
+    matching = []
+    with gate_says("lease_agreement", [], state="wa", logged=matching):
+        scan.scan_lease("wa_lease.pdf")
+    # None rather than "wa": the scan decides whether there is anything to report and
+    # log_scan writes the field only when there is, so its presence in a record is
+    # itself the signal. (What the record ends up holding is pinned in test_metrics.)
+    assert matching[-1]["jurisdiction"] is None
+
+
+def test_the_mismatch_arrives_as_its_own_step_not_as_a_gate_flag():
+    """A California lease is a residential lease, so the gate is right to accept it
+    and "this may not be a lease" is the wrong thing to say about it. What is wrong
+    is the law being applied."""
+    with gate_says("lease_agreement", state="or"):
+        steps = [step for step in scan.scan_steps("text", "or_lease.pdf")]
+
+    jurisdiction = [s for s in steps if s.kind == "jurisdiction"]
+    assert len(jurisdiction) == 1
+    assert jurisdiction[0].document_state == "or"
+    assert not [s for s in steps if s.kind == "gate_flagged"]
+    assert steps[-1].result.gate_flagged is False
 
 
 def test_a_refused_report_never_reads_as_a_clean_bill_of_health():
@@ -300,7 +403,8 @@ def test_the_split_step_reports_both_counts_before_anything_is_spent():
     gate_calls = []
     with (
         patch.object(scan, "classify_document",
-                     lambda c, meter=None: gate_calls.append(1) or "lease_agreement"),
+                     lambda c, meter=None: gate_calls.append(1) or
+                     scan.DocumentCheck(kind="lease_agreement", jurisdiction="wa")),
         patch.object(scan, "scan_clause", lambda clause, index, config, meter=None: {
             "index": index, "clause": clause, "verdict": "green",
             "citations": [], "urls": {}, "explanation": "fine"}),
@@ -333,7 +437,7 @@ def test_one_orchestration_serves_both_the_cli_and_the_ui():
     with (
         patch.object(scan, "read_document", lambda path: "whatever"),
         patch.object(scan, "split_clauses_with_mode", lambda text: (clauses, "numbered")),
-        patch.object(scan, "classify_document", lambda c, meter=None: "lease_agreement"),
+        patch.object(scan, "classify_document", gate_returns()),
         patch.object(scan, "scan_clause", one_clause),
         patch.object(scan, "check_protections", lambda c, meter=None: protections),
         patch.object(scan, "log_scan", lambda *a, **k: {}),

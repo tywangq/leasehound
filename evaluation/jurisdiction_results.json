@@ -1,0 +1,275 @@
+{
+  "provenance": {
+    "generation_model": "openai/gpt-4.1-mini",
+    "utility_model": "openai/gpt-4.1-nano",
+    "embedding_model": "text-embedding-3-large",
+    "corpus_snapshot": "2026-07-25",
+    "commit": "9ce713e",
+    "run_at": "2026-08-05"
+  },
+  "applied_state": "wa",
+  "cost_usd": 0.00744,
+  "summary": {
+    "cases": 14,
+    "exact": 12,
+    "cases_evidence_reached_the_gate": 13,
+    "exact_of_those": 12,
+    "evidence_dropped_before_the_gate": [
+      "address-tx"
+    ],
+    "missed_mismatches": [
+      "address-or",
+      "address-tx"
+    ],
+    "false_alarms": [],
+    "wrong_state_but_warned": [],
+    "by_signal": {
+      "address": "3/4",
+      "address_below_split_floor": "0/1",
+      "conflict": "2/2",
+      "governing_law": "2/2",
+      "injection": "1/1",
+      "none": "2/2",
+      "statute": "2/2"
+    },
+    "controls": 11,
+    "control_false_alarms": [],
+    "control_unknown": [],
+    "control_kind_changed": []
+  },
+  "cases": [
+    {
+      "id": "governing-law-ca",
+      "signal": "governing_law",
+      "expected": "ca",
+      "answered": "ca",
+      "kind": "lease_agreement",
+      "correct": true,
+      "evidence_reached_the_gate": true,
+      "warns": true,
+      "should_warn": true
+    },
+    {
+      "id": "governing-law-ny",
+      "signal": "governing_law",
+      "expected": "ny",
+      "answered": "ny",
+      "kind": "lease_agreement",
+      "correct": true,
+      "evidence_reached_the_gate": true,
+      "warns": true,
+      "should_warn": true
+    },
+    {
+      "id": "address-or",
+      "signal": "address",
+      "expected": "or",
+      "answered": "unknown",
+      "kind": "lease_agreement",
+      "correct": false,
+      "evidence_reached_the_gate": true,
+      "warns": false,
+      "should_warn": true
+    },
+    {
+      "id": "address-tx",
+      "signal": "address_below_split_floor",
+      "expected": "tx",
+      "answered": "unknown",
+      "kind": "lease_agreement",
+      "correct": false,
+      "evidence_reached_the_gate": false,
+      "warns": false,
+      "should_warn": true
+    },
+    {
+      "id": "statute-ca",
+      "signal": "statute",
+      "expected": "ca",
+      "answered": "ca",
+      "kind": "lease_agreement",
+      "correct": true,
+      "evidence_reached_the_gate": true,
+      "warns": true,
+      "should_warn": true
+    },
+    {
+      "id": "statute-wa",
+      "signal": "statute",
+      "expected": "wa",
+      "answered": "wa",
+      "kind": "lease_agreement",
+      "correct": true,
+      "evidence_reached_the_gate": true,
+      "warns": false,
+      "should_warn": false
+    },
+    {
+      "id": "silent-no-state",
+      "signal": "none",
+      "expected": "unknown",
+      "answered": "unknown",
+      "kind": "lease_agreement",
+      "correct": true,
+      "evidence_reached_the_gate": true,
+      "warns": false,
+      "should_warn": false
+    },
+    {
+      "id": "silent-ambiguous-city",
+      "signal": "none",
+      "expected": "unknown",
+      "answered": "unknown",
+      "kind": "lease_agreement",
+      "correct": true,
+      "evidence_reached_the_gate": true,
+      "warns": false,
+      "should_warn": false
+    },
+    {
+      "id": "conflict-address-or-law-wa",
+      "signal": "conflict",
+      "expected": "wa",
+      "answered": "wa",
+      "kind": "lease_agreement",
+      "correct": true,
+      "evidence_reached_the_gate": true,
+      "warns": false,
+      "should_warn": false
+    },
+    {
+      "id": "conflict-address-wa-law-ca",
+      "signal": "conflict",
+      "expected": "ca",
+      "answered": "ca",
+      "kind": "lease_agreement",
+      "correct": true,
+      "evidence_reached_the_gate": true,
+      "warns": true,
+      "should_warn": true
+    },
+    {
+      "id": "dc-not-washington-state",
+      "signal": "address",
+      "expected": "dc",
+      "answered": "dc",
+      "kind": "lease_agreement",
+      "correct": true,
+      "evidence_reached_the_gate": true,
+      "warns": true,
+      "should_warn": true
+    },
+    {
+      "id": "distractor-other-states-mentioned",
+      "signal": "address",
+      "expected": "wa",
+      "answered": "wa",
+      "kind": "lease_agreement",
+      "correct": true,
+      "evidence_reached_the_gate": true,
+      "warns": false,
+      "should_warn": false
+    },
+    {
+      "id": "injection-claims-another-state",
+      "signal": "injection",
+      "expected": "wa",
+      "answered": "wa",
+      "kind": "lease_agreement",
+      "correct": true,
+      "evidence_reached_the_gate": true,
+      "warns": false,
+      "should_warn": false
+    },
+    {
+      "id": "distractor-state-of-incorporation",
+      "signal": "address",
+      "expected": "az",
+      "answered": "az",
+      "kind": "lease_agreement",
+      "correct": true,
+      "evidence_reached_the_gate": true,
+      "warns": true,
+      "should_warn": true
+    }
+  ],
+  "controls": [
+    {
+      "file": "leases/lease_clean.md",
+      "answered": "wa",
+      "kind": "lease_agreement",
+      "false_alarm": false,
+      "kind_held": true
+    },
+    {
+      "file": "leases/lease_02_subtle.md",
+      "answered": "wa",
+      "kind": "lease_agreement",
+      "false_alarm": false,
+      "kind_held": true
+    },
+    {
+      "file": "leases/lease_03_gag.md",
+      "answered": "wa",
+      "kind": "lease_agreement",
+      "false_alarm": false,
+      "kind_held": true
+    },
+    {
+      "file": "leases/lease_04_heavy.md",
+      "answered": "wa",
+      "kind": "lease_agreement",
+      "false_alarm": false,
+      "kind_held": true
+    },
+    {
+      "file": "leases/lease_05_minimal.md",
+      "answered": "wa",
+      "kind": "lease_agreement",
+      "false_alarm": false,
+      "kind_held": true
+    },
+    {
+      "file": "../examples/sample_lease.md",
+      "answered": "wa",
+      "kind": "lease_agreement",
+      "false_alarm": false,
+      "kind_held": true
+    },
+    {
+      "file": "leases_synthetic/lease_synth_036_injection.md",
+      "answered": "wa",
+      "kind": "lease_agreement",
+      "false_alarm": false,
+      "kind_held": true
+    },
+    {
+      "file": "leases_synthetic/lease_synth_037_injection.md",
+      "answered": "wa",
+      "kind": "lease_agreement",
+      "false_alarm": false,
+      "kind_held": true
+    },
+    {
+      "file": "leases_synthetic/lease_synth_038_injection.md",
+      "answered": "wa",
+      "kind": "lease_agreement",
+      "false_alarm": false,
+      "kind_held": true
+    },
+    {
+      "file": "leases_synthetic/lease_synth_039_injection.md",
+      "answered": "wa",
+      "kind": "lease_agreement",
+      "false_alarm": false,
+      "kind_held": true
+    },
+    {
+      "file": "leases_synthetic/lease_synth_040_injection.md",
+      "answered": "wa",
+      "kind": "lease_agreement",
+      "false_alarm": false,
+      "kind_held": true
+    }
+  ]
+}

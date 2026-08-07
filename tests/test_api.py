@@ -17,6 +17,16 @@ import leasehound.scan as scan
 from leasehound.api import TOKEN_ENV, api
 from leasehound.retrieval import Result
 
+
+def gate_returns(kind: str = "lease_agreement", state: str = "wa"):
+    """A stand-in for `classify_document`, which returns a model rather than a kind.
+
+    Jurisdiction defaults to "wa" — the state every scan in these tests applies — so
+    a test that says nothing about jurisdiction gets no mismatch warning.
+    """
+    return lambda clauses, meter=None: scan.DocumentCheck(kind=kind, jurisdiction=state)
+
+
 TOKEN = "test-token"
 
 
@@ -37,8 +47,7 @@ def stub_pipeline(monkeypatch):
                 "urls": {"RCW 59.18.230": "https://example.test/230"},
                 "explanation": "Void under the prohibited-provisions section."}
 
-    monkeypatch.setattr(scan, "classify_document",
-                        lambda clauses, meter=None: "lease_agreement")
+    monkeypatch.setattr(scan, "classify_document", gate_returns())
     monkeypatch.setattr(scan, "scan_clause", one_clause)
     monkeypatch.setattr(scan, "check_protections", lambda clauses, meter=None: [
         {"name": "Deposit location", "status": "missing", "requirement": "Name the bank.",
@@ -95,11 +104,28 @@ def test_a_scan_returns_the_verdicts_the_cost_and_the_report(client, stub_pipeli
     assert "LeaseHound scan report" in body["report_markdown"]
 
 
+def test_the_summary_reports_the_document_state_beside_the_applied_one(
+        client, stub_pipeline, monkeypatch):
+    """Two fields, because the whole point is that they can disagree. A caller with
+    only `state` cannot tell a Washington lease from a California one judged against
+    Washington law, and those are not the same answer."""
+    monkeypatch.setattr(scan, "classify_document", gate_returns(state="ca"))
+    body = post_scan(client, lease(3)).json()
+    assert body["summary"]["state"] == "wa", "the law that was applied"
+    assert body["summary"]["jurisdiction"] == "ca", "the law the document points to"
+    assert "🌎" in body["report_markdown"]
+
+    monkeypatch.setattr(scan, "classify_document", gate_returns())
+    agreed = post_scan(client, lease(3)).json()
+    assert agreed["summary"]["jurisdiction"] == "wa"
+    assert "🌎" not in agreed["report_markdown"]
+
+
 def test_an_unrelated_document_is_refused_and_says_so_in_the_summary(
         client, stub_pipeline, monkeypatch):
     """Zeroes are the trap. A caller reading red/yellow/green without `refused`
     would see 0/0/0 and conclude the document is clean, when nothing was read."""
-    monkeypatch.setattr(scan, "classify_document", lambda clauses, meter=None: "other")
+    monkeypatch.setattr(scan, "classify_document", gate_returns("other"))
     summary = post_scan(client, lease(3)).json()["summary"]
     assert summary["refused"] is True
     assert summary["clauses_judged"] == 0

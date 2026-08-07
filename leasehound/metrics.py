@@ -146,7 +146,7 @@ def log_scan(meter: UsageMeter, source: str, clauses: int,
              verdicts: dict | None = None, missing: int | None = None,
              split_mode: str | None = None, cache_hit: bool = False,
              gate_flagged: bool = False, clauses_total: int | None = None,
-             refused: bool = False) -> dict:
+             refused: bool = False, jurisdiction: str | None = None) -> dict:
     """Append one scan's metrics to the log; returns the record for display.
 
     The record is also printed to stdout: on Cloud Run the container filesystem
@@ -161,6 +161,14 @@ def log_scan(meter: UsageMeter, source: str, clauses: int,
     }
     if verdicts is not None:
         record["verdicts"] = verdicts
+        # Which judge produced them. The verdict shares published from this log are
+        # the only measurement of how often the middle verdict gets used, and today
+        # they span an unrecorded mixture: three judge configurations were measured in
+        # one afternoon and only one of them ships. Imported here rather than at module
+        # scope because scan.py imports this module.
+        from leasehound.scan import judge_fingerprint
+
+        record["judge"] = judge_fingerprint()
     if missing is not None:
         record["missing_protections"] = missing
     if split_mode is not None:
@@ -178,6 +186,14 @@ def log_scan(meter: UsageMeter, source: str, clauses: int,
         # marked. Averaged in, a visitor uploading a recipe silently lowers the
         # project's published cost-per-scan.
         record["refused"] = True
+    if jurisdiction is not None:
+        # Passed only when it is NOT the state whose law was applied, so the field's
+        # presence is itself the signal (the caller knows which state that was; this
+        # function does not, and a `!= "wa"` here would have hard-coded the default).
+        # Recorded because the published cost and latency figures are computed from
+        # this log, and a scan of an out-of-state lease is a scan whose verdicts
+        # nobody should be quoting — the same reason `gate_flagged` is here.
+        record["jurisdiction"] = jurisdiction
     if clauses_total is not None and clauses_total != clauses:
         # Over the clause cap: `clauses` is what was judged, this is what the
         # document holds. Verdict counts here describe a prefix, so a cost-per-clause
@@ -307,6 +323,41 @@ def summarize_log(records: list[dict], clause_range: tuple[int, int] | None = No
         "mean_embedding_calls": round(sum(r["embedding_calls"] for r in paid) / n, 1),
         "partial_scans": sum(1 for r in paid if r.get("clauses_total")),
         "gate_flagged": sum(1 for r in paid if r.get("gate_flagged")),
+        "jurisdiction_mismatches": sum(1 for r in paid if r.get("jurisdiction")),
+        # How often each verdict is actually used, over every clause these scans
+        # judged. Yellow is here because nothing else measured it: the labelled sets
+        # score red against a manifest and count yellow only as a hedge on a planted
+        # violation, so a scanner that cautioned on every clause would post zero false
+        # reds and look immaculate. This says what the shipped judge really does with
+        # the middle verdict, on real traffic, for free.
+        **verdict_shares(paid),
+    }
+
+
+def verdict_shares(records: list[dict]) -> dict:
+    """Red / yellow / green as shares of the clauses judged, or {} if unrecorded.
+
+    Rows written before `verdicts` existed are skipped rather than counted as
+    all-green, and the denominator says how many scans the shares actually rest on.
+    """
+    with_verdicts = [r for r in records if r.get("verdicts")]
+    judged = sum(sum(r["verdicts"].values()) for r in with_verdicts)
+    if not judged:
+        return {}
+    return {
+        "verdict_scans": len(with_verdicts),
+        "verdict_clauses": judged,
+        # Which judges these shares rest on. "unrecorded" is every row written before
+        # the field existed, which is most of them — and more than a footnote, because
+        # three judge configurations were measured against these sets in one afternoon
+        # and a share averaged over them belongs to none of them. Listed rather than
+        # filtered: dropping rows to make one number clean would throw away real
+        # measurements to flatter it.
+        "verdict_judges": sorted({r.get("judge", "unrecorded") for r in with_verdicts}),
+        "verdict_share": {
+            verdict: round(sum(r["verdicts"][verdict] for r in with_verdicts) / judged, 4)
+            for verdict in ("red", "yellow", "green")
+        },
     }
 
 

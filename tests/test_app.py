@@ -15,6 +15,15 @@ from leasehound.app import (
 from leasehound.retrieval import Result
 
 
+def gate_returns(kind: str = "lease_agreement", state: str = "wa"):
+    """A stand-in for `classify_document`, which returns a model rather than a kind.
+
+    Jurisdiction defaults to "wa" — the state every scan in these tests applies — so
+    a test that says nothing about jurisdiction gets no mismatch warning.
+    """
+    return lambda clauses, meter=None: scan.DocumentCheck(kind=kind, jurisdiction=state)
+
+
 def chunk(section: str) -> Result:
     return Result(page_content="text", metadata={"section": section, "url": f"https://law/{section}"})
 
@@ -110,8 +119,7 @@ def test_second_scan_of_identical_content_makes_no_api_calls(monkeypatch, tmp_pa
     monkeypatch.setattr(app, "read_document", lambda path: lease_text)
     # Stubbed on leasehound.scan, not on app: there is one orchestration now, and
     # the UI reaches these stages through it rather than calling them itself.
-    monkeypatch.setattr(scan, "classify_document",
-                        lambda clauses, meter=None: "lease_agreement")
+    monkeypatch.setattr(scan, "classify_document", gate_returns())
     monkeypatch.setattr(scan, "scan_clauses", fake_scan_clauses)
     monkeypatch.setattr(scan, "check_protections", lambda clauses, meter=None: [])
     monkeypatch.setattr(metrics, "LOG_PATH", tmp_path / "scan_metrics.jsonl")
@@ -158,6 +166,40 @@ def test_the_override_phrase_reaches_the_scan_and_is_not_answered_as_a_question(
     assert seen == {"question": "what about my deposit?", "scan_anyway": False}
 
 
+def test_an_out_of_state_lease_is_scanned_with_the_wrong_law_named_in_chat(
+        monkeypatch, tmp_path):
+    """The report carries the warning too, but a visitor watching the scan happen
+    should not have to open the panel to learn that the law being applied is not the
+    law that governs their tenancy."""
+    import leasehound.metrics as metrics
+
+    filler = "The parties agree to the terms set forth in this provision as written. "
+    text = "\n\n".join(f"{i}. HEADING. {filler}" for i in range(1, 4))
+
+    def fake_scan_clauses(clauses, config, meter=None):
+        for i, clause in enumerate(clauses, start=1):
+            yield {"index": i, "clause": clause, "verdict": "green",
+                   "citations": [], "urls": {}, "explanation": "fine"}
+
+    monkeypatch.setattr(app, "read_document", lambda path: text)
+    monkeypatch.setattr(scan, "classify_document", gate_returns(state="ca"))
+    monkeypatch.setattr(scan, "scan_clauses", fake_scan_clauses)
+    monkeypatch.setattr(scan, "check_protections", lambda clauses, meter=None: [])
+    monkeypatch.setattr(metrics, "LOG_PATH", tmp_path / "scan_metrics.jsonl")
+    app._scan_cache.clear()
+
+    history: list = []
+    frames = list(app.scan_flow(Path("ca_lease.pdf"), "key", history, "", "", []))
+
+    said = [m.get("content") or "" for m in history]
+    assert any("CA law" in m for m in said), "the state has to be named, not implied"
+    # Not the not-a-lease line: this IS a residential lease and the gate accepted it.
+    assert not any(app.NOT_A_LEASE in m for m in said)
+    # The scan finished and pinned a report, warning and all.
+    report = frames[-1][2]
+    assert "🌎" in report and "Judged against: WA law" in report
+
+
 def test_a_refused_scan_leaves_ask_mode_on_law_only_context(monkeypatch, tmp_path):
     """The subtle half of refusing. Pinning an empty panel would read as "0 red
     flags", and setting the report context would tell ask mode it has the scan
@@ -175,7 +217,7 @@ def test_a_refused_scan_leaves_ask_mode_on_law_only_context(monkeypatch, tmp_pat
                "citations": [], "urls": {}, "explanation": "bad"}
 
     monkeypatch.setattr(app, "read_document", lambda path: text)
-    monkeypatch.setattr(scan, "classify_document", lambda clauses, meter=None: "other")
+    monkeypatch.setattr(scan, "classify_document", gate_returns("other"))
     monkeypatch.setattr(scan, "scan_clauses", fake_scan_clauses)
     monkeypatch.setattr(scan, "check_protections", lambda clauses, meter=None: [])
     monkeypatch.setattr(metrics, "LOG_PATH", tmp_path / "scan_metrics.jsonl")
@@ -217,8 +259,7 @@ def test_a_long_lease_is_scanned_partially_instead_of_being_turned_away(monkeypa
                    "citations": [], "urls": {}, "explanation": "fine"}
 
     monkeypatch.setattr(app, "read_document", lambda path: lease_text)
-    monkeypatch.setattr(scan, "classify_document",
-                        lambda clauses, meter=None: "lease_agreement")
+    monkeypatch.setattr(scan, "classify_document", gate_returns())
     monkeypatch.setattr(scan, "scan_clauses", fake_scan_clauses)
     monkeypatch.setattr(scan, "check_protections",
                         lambda clauses, meter=None: protections_saw.extend(clauses) or [])

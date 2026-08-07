@@ -86,6 +86,14 @@ class ScanSummary(BaseModel):
                     "judged: `red`/`yellow`/`green` are all zero because nothing was "
                     "looked at, NOT because the lease is clean. Re-send with "
                     "`scan_anyway=true` to override.")
+    jurisdiction: str = Field(
+        default="unknown",
+        description="The state whose law the DOCUMENT points to — its governing-law "
+                    "clause, the premises address, or the statutes it cites — or "
+                    "'unknown' when it names none. Compare it with `state`, which is "
+                    "the law that was actually applied: when they differ, every "
+                    "citation in the report is to a statute that does not govern this "
+                    "tenancy, and the verdicts are wrong rather than merely uncertain.")
     red: int
     yellow: int
     green: int
@@ -152,7 +160,7 @@ def scan_response(result: ScanResult, source: str, state: str) -> ScanResponse:
             source=source, state=state, split_mode=result.split_mode,
             clauses_total=result.clauses_total, clauses_judged=result.clauses_judged,
             partial=result.partial, gate_flagged=result.gate_flagged,
-            refused=result.refused,
+            refused=result.refused, jurisdiction=result.jurisdiction,
             red=counts["red"], yellow=counts["yellow"], green=counts["green"],
             missing_protections=sum(
                 1 for p in result.protections if p["status"] == "missing"),
@@ -162,7 +170,8 @@ def scan_response(result: ScanResult, source: str, state: str) -> ScanResponse:
         protections=[Protection(**p) for p in result.protections],
         report_markdown=render_report(
             result.findings, source, state, result.protections,
-            result.gate_flagged, result.clauses_total, result.refused),
+            result.gate_flagged, result.clauses_total, result.refused,
+            result.jurisdiction),
     )
 
 
