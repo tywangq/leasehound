@@ -84,6 +84,16 @@ def evaluate_lease(entry: dict, leases_dir: Path, keep_raw: bool = False,
     # wrong clause — printed numbers and indexes disagree by one in some leases.
     citations: dict[str, list[str]] = {}
     false_red_clauses: dict[str, str] = {}
+    # Yellow on a clause with nothing planted in it used to fall through both arms of
+    # this loop and vanish. That made a scanner which cautions on everything score
+    # perfectly on the property this project defends most loudly: it would post zero
+    # false reds while telling a renter that half their lease is questionable. Lenient
+    # recall counts yellow on a PLANTED clause and so does not see it either.
+    #
+    # Recorded with the clause text, like false reds, so the next paid run makes the
+    # cautions auditable instead of merely counted — one of these is a defensible
+    # "fact-dependent" reading and another is noise, and only the text says which.
+    cautions: dict[str, str] = {}
     for finding in findings:
         number = printed_number(finding["clause"])
         if number in expected_red:
@@ -100,6 +110,8 @@ def evaluate_lease(entry: dict, leases_dir: Path, keep_raw: bool = False,
         elif finding["verdict"] == "red":
             false_reds.append(number)
             false_red_clauses[str(number)] = finding["clause"][:300]
+        elif finding["verdict"] == "yellow":
+            cautions[str(number)] = finding["clause"][:300]
 
     reported_missing = {p["name"] for p in protections if p["status"] == "missing"}
     result["gate_flagged"] = gate_flagged
@@ -125,6 +137,12 @@ def evaluate_lease(entry: dict, leases_dir: Path, keep_raw: bool = False,
         # project declines, so these appear from the next legitimate run onward.
         "citations_by_clause": {k: citations[k] for k in sorted(citations)},
         "false_red_clauses": {k: false_red_clauses[k] for k in sorted(false_red_clauses)},
+        # Cautions on clauses the manifest says nothing about. On a lease with no
+        # planted violations at all, every one of these is a caution over a clause the
+        # label set calls fine.
+        "unplanted_yellows": sorted(int(k) for k in cautions),
+        "unplanted_yellow_clauses": {k: cautions[k] for k in sorted(cautions)},
+        "clauses_judged": len(findings),
         "protections_expected": sorted(expected_missing),
         "protections_reported": sorted(reported_missing),
         "protections_exact": reported_missing == expected_missing,
@@ -139,6 +157,13 @@ def summarize(results: list[dict]) -> dict:
     citation_hits = sum(r["citation_hits"] for r in results)
     protections_exact = sum(1 for r in results if r["protections_exact"])
 
+    # The caution rate, over the clauses where a caution is the pipeline's own idea
+    # rather than a hedge on something planted. Reported as a rate because the
+    # degenerate scanner this guards against is the one that yellows everything: on a
+    # clean lease "0 false reds" and "every clause is questionable" are the same score.
+    judged = sum(r.get("clauses_judged", 0) for r in results)
+    unplanted_yellows = sum(len(r.get("unplanted_yellows", [])) for r in results)
+
     summary = {
         "leases": len(results),
         "planted_violations": planted,
@@ -147,6 +172,10 @@ def summarize(results: list[dict]) -> dict:
         "precision": round(strict / (strict + false_reds), 4) if strict + false_reds else 1.0,
         "citation_accuracy": round(citation_hits / strict, 4) if strict else None,
         "false_reds": false_reds,
+        "unplanted_yellows": unplanted_yellows,
+        "unplanted_yellow_rate": (round(unplanted_yellows / judged, 4)
+                                  if judged else None),
+        "clauses_judged": judged,
         "protections_exact_leases": f"{protections_exact}/{len(results)}",
     }
     rejected = sum(1 for r in results if r.get("rejected"))
