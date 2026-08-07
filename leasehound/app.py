@@ -141,6 +141,15 @@ ALREADY_SNIFFED = "🐕 Already sniffed this one — the report is still on the 
 # clauses there are only after splitting, so there is a real moment with nothing
 # to count, and "0/0 clauses sniffed" would be a worse way to fill it.
 SNIFF_STARTING = "🐕 Reading the document…"
+# The gate is an API call and takes about a second, and for that second the UI used
+# to be showing "0/N clauses sniffed" beside an opening report panel — so a document
+# that was about to be refused had already been announced as a scan in progress, and
+# the refusal read as the app changing its mind. Nothing about the clauses is claimed
+# until the gate has answered, and the panel does not open until the first verdict.
+CHECKING_IS_A_LEASE = (
+    "🐕 {count} clauses. One quick sniff first — is this actually a residential "
+    "lease? Nothing gets judged until that comes back."
+)
 CACHED_SNIFF = (
     "🐕 The hound has sniffed this exact lease before — here's the saved report, "
     "no fresh API calls. Attach a different lease to watch a live scan."
@@ -176,6 +185,19 @@ NOT_ABOUT_RENTING = (
     f"If it really is a lease, attach it again with **{SCAN_ANYWAY_PHRASE}** in the "
     "message. It has to be re-attached because your upload is deleted the moment its "
     "text is read — the hound doesn't keep a copy waiting for a second opinion."
+)
+# A different failure from NOT_A_LEASE, and it needs its own words: this document IS
+# a residential lease, the gate is right to accept it, and what is wrong is the law
+# being applied to it. Both directions of wrongness are spelled out because only one
+# is intuitive — a reader expects "we may have missed something", not "the clause we
+# flagged is fine where you live".
+WRONG_STATE = (
+    "🌎 This lease points to **{document} law**, and the hound only knows "
+    "**Washington** (RCW 59.18). It'll finish the scan, but every section it cites "
+    "will be a Washington statute that doesn't govern a {document} tenancy — so a red "
+    "flag below may be perfectly enforceable where this lease actually lives, and a "
+    "clause the hound calls clear may be void there with nothing in the report to say "
+    "so. Read it as a Washington-shaped guess, not as a verdict on your rights."
 )
 PARTIAL_SCAN = (
     "🐕 This document splits into {count} clauses — long-form agreements really do run "
@@ -383,12 +405,13 @@ def scan_flow(path, key, history, report, scanned, context_base, question="",
     # and two copies of a sequence that spends money stay in step only by luck.
     history.append({"role": "assistant", "content": SNIFF_STARTING})
     # A fresh scan makes any previous report stale immediately: law-only context
-    # until the new report lands.
+    # until the new report lands. The panel column stays CLOSED through the gate —
+    # opening it here meant a refusal had to close it again a second later.
     yield _out(history, box=gr.update(interactive=False),
-               report=f"🐕 Sniffing `{name}` — the report will appear here.",
-               state="", context=LAW_ONLY_CONTEXT, source="",
-               stop=gr.update(visible=True), col=gr.update(visible=True),
+               report="", state="", context=LAW_ONLY_CONTEXT, source="",
+               stop=gr.update(visible=True), col=gr.update(visible=False),
                actions=gr.update(visible=False))
+    panel_open = False
     try:
         for step in scan_steps(text, name, state=DEMO_STATE, scan_anyway=scan_anyway):
             if step.kind == "split":
@@ -400,10 +423,14 @@ def scan_flow(path, key, history, report, scanned, context_base, question="",
                     history.insert(-1, {"role": "assistant", "content": PARTIAL_SCAN.format(
                         count=step.total, limit=MAX_CLAUSES,
                         rest=f"{step.judged + 1}–{step.total}")})
-                history[-1]["content"] = progress_line(0, step.judged)
+                history[-1]["content"] = CHECKING_IS_A_LEASE.format(count=step.total)
                 yield _out(history)
             elif step.kind == "gate_flagged":
                 history.insert(-1, {"role": "assistant", "content": NOT_A_LEASE})
+                yield _out(history)
+            elif step.kind == "jurisdiction":
+                history.insert(-1, {"role": "assistant", "content": WRONG_STATE.format(
+                    document=step.document_state.upper())})
                 yield _out(history)
             elif step.kind == "gate_refused":
                 # Replaces the progress line rather than sitting above it: there is
@@ -413,7 +440,18 @@ def scan_flow(path, key, history, report, scanned, context_base, question="",
                 yield _out(history)
             elif step.kind == "clause":
                 history[-1]["content"] = progress_line(step.judged, step.total)
-                yield _out(history)
+                if not panel_open:
+                    # The first verdict is the earliest moment a report is certain to
+                    # be coming, so it is when the panel opens. There is no
+                    # "gate accepted" step to key on — the gate only announces itself
+                    # when it has something to say — and inventing one to open a panel
+                    # would put a UI concern into the pipeline's step vocabulary.
+                    panel_open = True
+                    yield _out(history, col=gr.update(visible=True),
+                               report=f"🐕 Sniffing `{name}` — the report will "
+                                      f"appear here.")
+                else:
+                    yield _out(history)
             elif step.kind == "protections":
                 history[-1]["content"] = (
                     "🐕 One more pass — checking the protections the law requires…")
@@ -451,10 +489,14 @@ def scan_summary(result: ScanResult) -> str:
     counts = count_verdicts(result.findings)
     coverage = (f" — across clauses 1–{result.clauses_judged} of {result.clauses_total}"
                 if result.partial else "")
+    # Same order as the report's own summary line and its sections: everything
+    # actionable first, "clear" last. Three orderings of the same four counts is what
+    # this used to be.
     return (
         f"🐕 Sniff complete{coverage}: 🚩 {counts['red']} red · "
-        f"⚠️ {counts['yellow']} caution · ✅ {counts['green']} clear · "
-        f"🔍 {missing_protections(result)} missing protections. "
+        f"⚠️ {counts['yellow']} caution · "
+        f"🔍 {missing_protections(result)} missing protections · "
+        f"✅ {counts['green']} clear. "
         "Full report on the right — ask me about any clause."
     )
 
@@ -464,7 +506,8 @@ def finished_scan(result: ScanResult, name, key, history, context_base, question
     in chat. Shared by the fresh and the cached path, which had drifted to calling
     `render_report` with different arguments for the same report."""
     report = render_report(result.findings, name, DEMO_STATE, result.protections,
-                           result.gate_flagged, result.clauses_total)
+                           result.gate_flagged, result.clauses_total,
+                           jurisdiction=result.jurisdiction)
     yield _out(history, box=gr.update(interactive=True),
                report=report, state=report,
                context=report_context(name), source=key,
@@ -556,6 +599,9 @@ def on_trash():
 # Copy is client-side only — no server round-trip. Feedback: the copy icon
 # itself becomes a checkmark in place for a moment (swapping the img src to a
 # data URI; a check.svg on disk wouldn't be on Gradio's allowed-files list).
+# Selected by the button's own id, not by its place in the row: this read
+# `#report-actions button img` — the first button — and the checkmark moved to the
+# delete icon the moment the row was reordered.
 # The js handler must return a list (Gradio maps it to outputs).
 CHECK_ICON = (
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" '
@@ -565,7 +611,7 @@ CHECK_ICON = (
 COPY_JS = f"""
 (report) => {{
     navigator.clipboard.writeText(report);
-    const img = document.querySelector('#report-actions button img');
+    const img = document.querySelector('#copy-report img');
     if (img) {{
         if (!img.dataset.copyIcon) img.dataset.copyIcon = img.src;
         img.src = 'data:image/svg+xml;utf8,' + encodeURIComponent({CHECK_ICON!r});
@@ -709,7 +755,13 @@ with gr.Blocks(title="LeaseHound") as demo:
             # we do not.
             with gr.Row(visible=False, elem_id="report-actions") as report_actions:
                 trash_button = gr.Button("", icon=str(ICONS / "trash.svg"), size="sm")
-                copy_button = gr.Button("", icon=str(ICONS / "copy.svg"), size="sm")
+                # elem_id because COPY_JS has to find THIS button's icon to swap it
+                # for a checkmark. It used to select the first button in the row,
+                # which was this one until the row was reordered to match Gradio's
+                # chat toolbar — after which clicking copy put the checkmark on the
+                # delete button. Position is not identity.
+                copy_button = gr.Button("", icon=str(ICONS / "copy.svg"), size="sm",
+                                        elem_id="copy-report")
                 download_button = gr.DownloadButton("", icon=str(ICONS / "download.svg"), size="sm")
             report_output = gr.Markdown("", elem_classes="report-panel")
 
