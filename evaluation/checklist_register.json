@@ -1,0 +1,134 @@
+{
+  "_comment": "Every RCW 59.18 section that evaluation/eval_checklist_coverage.py finds to impose a duty satisfiable only by text in the rental agreement, with a decision for each. Written after the first sweep, which found 16 candidates against a five-item checklist. The point of the file is that the exclusions are recorded somewhere other than in somebody's head: a requirement that is not on the checklist is never looked for, so its absence from a lease is invisible to the scanner AND to every eval here, because they score reported-missing against a manifest and a requirement nobody wrote down appears in neither.\n\nThese are readings of statute text, not legal advice, and they are written down so a reader can disagree with a specific one. The quoted words are from corpus/wa/statutes/ at the snapshot in scan.CORPUS_SNAPSHOT.",
+  "criterion": "An item belongs on the checklist only if the statute is satisfiable ONLY by text in the lease, or by a document the lease must record delivering. Absence from the text has to be evidence of non-compliance — otherwise 'missing' is a guess about the world, and this scanner's most defensible property is that it produces no false reds. Verbatim from the comment above scan.PROTECTION_CHECKLIST.",
+  "entries": [
+    {
+      "section": "RCW 59.18.260",
+      "duty": "(1) Where a deposit is collected, the rental agreement shall be in writing and shall include the terms and conditions under which the deposit may be withheld.",
+      "status": "in_checklist",
+      "checklist_item": "Deposit withholding terms",
+      "why": "Squarely lease text: the statute names the rental agreement as the place the terms must appear. A lease that collects a deposit and is silent about withholding violates it on the face of the document."
+    },
+    {
+      "section": "RCW 59.18.260",
+      "duty": "(2)-(3) No deposit may be collected unless a written checklist describing the unit's condition is provided at the commencement of the tenancy, signed and dated by both landlord and tenant.",
+      "status": "in_checklist",
+      "checklist_item": "Move-in condition checklist",
+      "why": "A co-signed document delivered at commencement — the parenthetical half of the criterion. (5) makes the landlord liable for the whole deposit if it is missing, so absence is non-compliance with a named consequence."
+    },
+    {
+      "section": "RCW 59.18.060",
+      "duty": "(12) Provide written fire safety and protection information; the notice 'must be signed by the landlord ... and tenant with copies provided to both parties' and '(c) must be provided to new tenants at the time the lease or rental agreement is signed'.",
+      "status": "in_checklist",
+      "checklist_item": "Fire safety information",
+      "why": "Also the parenthetical half: co-signed, and delivered at signing by the statute's own words. Closer to the lease than a posted notice can be, and provable from the document set the lease belongs to."
+    },
+    {
+      "section": "RCW 59.18.060",
+      "duty": "(14) Provide information about the health hazards of indoor mold. 'Information may be provided in written format individually to each tenant, or may be posted in a visible, public location at the dwelling unit property.'",
+      "status": "in_checklist_but_fails_the_criterion",
+      "checklist_item": "Mold information",
+      "why": "This is the same disjunction the criterion was written to exclude. scan.py names RCW 59.18.060(16) — name and address 'by a statement on the rental agreement OR by a notice conspicuously posted' — as the example of what does not belong, and (14) has the identical shape two subsections earlier. A lease silent about mold can be fully compliant with a poster in the lobby, so 'missing' here is a guess about the world.",
+      "recommendation": "Remove, or reword the item to report only that the LEASE does not address mold rather than that the requirement is unmet. Not changed here: the 46 manifests in leases/ and leases_synthetic/ record expected-missing sets that are matched exactly, so dropping an item means re-labelling all of them plus a paid re-run of both sets."
+    },
+    {
+      "section": "RCW 59.18.270",
+      "duty": "The landlord 'shall provide the tenant with a written receipt for the deposit and shall provide written notice of the name and address and location of the depository'.",
+      "status": "in_checklist_but_fails_the_criterion",
+      "checklist_item": "Deposit location disclosure",
+      "why": "A written notice, with nothing tying it to the rental agreement: not required to be in it, not required to be signed by both parties, not required to be delivered at signing. The sweep classified this section as satisfiable_elsewhere and did not offer it as a candidate at all — the checklist item cites a statute the audit does not think qualifies. Consistent with the separate finding that this item produced a false 'present' on the HUD model lease.",
+      "recommendation": "Same as the mold item, and for the same reason it is not changed here."
+    },
+    {
+      "section": "RCW 59.18.285",
+      "duty": "'If any moneys are paid to the landlord as a nonrefundable fee, the rental agreement shall be in writing and shall clearly specify that the fee is nonrefundable.' If it does not, 'the fee must be treated as a refundable deposit'.",
+      "status": "missing_from_checklist",
+      "why": "The same shape as RCW 59.18.260(1), which is on the checklist: conditional on money being collected, and satisfiable only by words in the rental agreement. It is also the one candidate here with money attached for the tenant — an undesignated 'nonrefundable' cleaning or admin fee is refundable by operation of this section, and nothing in the scanner says so.",
+      "recommendation": "Add. Blocked by the same manifest re-labelling as the two removals: this item would newly report as missing on any labelled lease that charges a fee without designating it, and protections_exact is an exact set match. Doing all three changes in one pass is the cheap ordering."
+    },
+    {
+      "section": "RCW 59.18.140",
+      "duty": "(1) Reasonable obligations or restrictions are enforceable only if brought to the tenant's attention at the time of the initial agreement.",
+      "status": "excluded",
+      "why": "About whether a rule is ENFORCEABLE, not about what the agreement must disclose. A lease that omits a house rule has simply not imposed it, which is not a protection the tenant is missing."
+    },
+    {
+      "section": "RCW 59.18.170",
+      "duty": "(3) refers to 'the date rent is due in the rental agreement' when a tenant on governmental assistance proposes a different due date.",
+      "status": "excluded",
+      "why": "Presupposes a due date rather than requiring one be stated. The sweep read the presupposition as a duty. Every real lease states a due date, so an item here would never fire on a true positive."
+    },
+    {
+      "section": "RCW 59.18.210",
+      "duty": "Tenancies from year to year must be created by an express written contract.",
+      "status": "excluded",
+      "why": "Absence means the tenancy is not year-to-year, not that the lease is non-compliant. The same reasoning excludes RCW 59.18.360 and 59.18.415 below."
+    },
+    {
+      "section": "RCW 59.18.230",
+      "duty": "(2) Ten kinds of provision may not be included in a rental agreement, and are void if they are.",
+      "status": "excluded",
+      "why": "The boundary between the scanner's two passes, and worth stating: this is what the clause-by-clause judge exists for. The negative-space pass reports what a lease FAILS to say; 230(2) is about what it must not say. Putting it here would double-report every red flag as a missing protection."
+    },
+    {
+      "section": "RCW 59.18.257",
+      "duty": "(2) A landlord who maintains a website advertising rental units must disclose certain information on it.",
+      "status": "excluded",
+      "why": "Satisfied on a website. The lease is not the place, and most landlords have no website."
+    },
+    {
+      "section": "RCW 59.18.312",
+      "duty": "(6) The landlord must provide a form to the sheriff to be served on the tenant regarding stored property.",
+      "status": "excluded",
+      "why": "A document produced during an eviction and delivered to the sheriff. Nothing about it can be present or absent in a lease signed beforehand."
+    },
+    {
+      "section": "RCW 59.18.360",
+      "duty": "An agreement exempting a single-family dwelling from specified provisions must be in writing.",
+      "status": "excluded",
+      "why": "Conditional on the landlord seeking an exemption, and its absence favours the tenant: no writing, no exemption, so the chapter applies in full. Reporting it as a missing protection would tell a renter something is wrong when the default is the protective one."
+    },
+    {
+      "section": "RCW 59.18.415",
+      "duty": "A lease of a single-family dwelling exempted from the chapter's provisions must meet written requirements.",
+      "status": "excluded",
+      "why": "Conditional on the landlord seeking the single-family exemption, and its absence favours the tenant in the same way RCW 59.18.360 does: no written exemption, no exemption, so the chapter applies in full. Reporting it as missing would alarm a renter whose default position is the protective one."
+    },
+    {
+      "section": "RCW 59.18.550",
+      "duty": "(1)(d) Requirements a dwelling must satisfy to qualify as 'drug and alcohol free housing', which the section says 'requires a rental agreement'.",
+      "status": "excluded",
+      "why": "Conditions for a dwelling to BE a housing category, not requirements on leases generally. A lease that does not satisfy them is an ordinary tenancy with the chapter's ordinary protections."
+    },
+    {
+      "section": "RCW 59.18.575",
+      "duty": "Victim protection: a tenant who notifies the landlord in writing, with a protection order or a qualified third party's written record, may terminate the rental agreement and quit the premises.",
+      "status": "excluded",
+      "why": "Every writing in this section is the TENANT's, and the landlord duty it creates is to release them. Nothing has to appear in the agreement. Offered as a candidate by the second sweep and not the first, which is the clearest single example of why this file exists rather than the sweep alone."
+    },
+    {
+      "section": "RCW 59.18.610",
+      "duty": "(3) Installment schedules for deposits, nonrefundable fees and last month's rent 'must be in writing and signed by the landlord and the tenant'.",
+      "status": "excluded",
+      "why": "Conditional on the tenant having requested installments, which happens after signing. A lease with no installment schedule is not out of compliance; a landlord who refuses a request is, and that is conduct."
+    },
+    {
+      "section": "RCW 59.18.650",
+      "duty": "(1)(b)-(c) Provisions about tenancies that continue month-to-month after a fixed term expires.",
+      "status": "excluded",
+      "why": "Constrains how a tenancy may be ENDED, not what the agreement must state. The sweep over-read 'rental agreement that provides for' as a drafting requirement."
+    },
+    {
+      "section": "RCW 59.18.670",
+      "duty": "(1)(f) Where a landlord waives a deposit in favour of a fee in lieu, a disclosure form is required.",
+      "status": "excluded",
+      "why": "The strongest of the excluded candidates and the one to revisit first after RCW 59.18.285. Conditional on the landlord offering a fee in lieu, and the statute asks for a separate form rather than lease text — but the fee in lieu is itself a lease term, so a lease that charges one and carries no disclosure is a real gap. Excluded for now because the criterion is about lease text and this is a form; recorded so the next person does not have to rediscover it."
+    },
+    {
+      "section": "RCW 59.18.740",
+      "duty": "(8) A landlord who restricts or prohibits window-mounted portable cooling devices must do so in the rental agreement, with written evidence of any insurance restriction provided to the tenant.",
+      "status": "excluded",
+      "why": "Absence favours the tenant: no restriction in the agreement means no restriction. This belongs to the clause-by-clause pass, which should flag an unsupported restriction that IS present."
+    }
+  ]
+}

@@ -1,0 +1,551 @@
+{
+  "provenance": {
+    "generation_model": "openai/gpt-4.1-mini",
+    "utility_model": "openai/gpt-4.1-nano",
+    "embedding_model": "text-embedding-3-large",
+    "corpus_snapshot": "2026-07-25",
+    "judge_prompt": "8226e1565a7a",
+    "commit": "9ce713e",
+    "run_at": "2026-08-05"
+  },
+  "cost_usd": 0.04053,
+  "summary": {
+    "checklist_items_failing_criterion": [
+      "Deposit location disclosure",
+      "Mold information"
+    ],
+    "requirements_missing_from_checklist": [
+      "RCW 59.18.285"
+    ],
+    "sections_swept": 98,
+    "candidates": 14,
+    "candidate_sections": [
+      "RCW 59.18.060",
+      "RCW 59.18.210",
+      "RCW 59.18.230",
+      "RCW 59.18.260",
+      "RCW 59.18.285",
+      "RCW 59.18.312",
+      "RCW 59.18.360",
+      "RCW 59.18.415",
+      "RCW 59.18.550",
+      "RCW 59.18.575",
+      "RCW 59.18.610",
+      "RCW 59.18.650",
+      "RCW 59.18.670",
+      "RCW 59.18.740"
+    ],
+    "undecided_candidates": [],
+    "register_entries_not_found": [
+      "RCW 59.18.140",
+      "RCW 59.18.170",
+      "RCW 59.18.257",
+      "RCW 59.18.270"
+    ],
+    "checklist_items": [
+      "Deposit location disclosure",
+      "Deposit withholding terms",
+      "Fire safety information",
+      "Mold information",
+      "Move-in condition checklist"
+    ],
+    "checklist_items_unclaimed": [],
+    "by_kind": {
+      "lease_text_required": 14,
+      "satisfiable_elsewhere": 17,
+      "no_text_duty": 67
+    }
+  },
+  "sections": [
+    {
+      "section": "RCW 59.18.010",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.020",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.030",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.040",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.050",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.055",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.057",
+      "kind": "no_text_duty",
+      "duty": "RCW 59.18.057(1) requires that every 14-day notice to pay rent or vacate must be in a specific written form, but it does not require this form or its terms to be included in the rental agreement itself."
+    },
+    {
+      "section": "RCW 59.18.058",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.060",
+      "kind": "lease_text_required",
+      "duty": "Subsection (12)(c) requires that the landlord provide a written notice or checklist disclosing fire safety and protection information to new tenants at the time the lease or rental agreement is signed."
+    },
+    {
+      "section": "RCW 59.18.063",
+      "kind": "no_text_duty",
+      "duty": "RCW 59.18.063 does not require any specific provision or text to be included in the written rental agreement regarding receipts or payment methods."
+    },
+    {
+      "section": "RCW 59.18.065",
+      "kind": "satisfiable_elsewhere",
+      "duty": "RCW 59.18.065 requires the landlord to provide an executed copy of the written rental agreement to each tenant who signs it, but does not require this provision to be included in the rental agreement text itself."
+    },
+    {
+      "section": "RCW 59.18.070",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.075",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.080",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.085",
+      "kind": "no_text_duty",
+      "duty": "This section does not require any specific information or terms to be included in the written rental agreement itself; it imposes duties and penalties on landlords but does not mandate lease text disclosures (subsection 1-6)."
+    },
+    {
+      "section": "RCW 59.18.090",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.100",
+      "kind": "no_text_duty",
+      "duty": "This section does not require any specific provision to be included in the written rental agreement; it governs procedures and remedies related to repairs and rent deductions but does not mandate lease text content (RCW 59.18.100)."
+    },
+    {
+      "section": "RCW 59.18.110",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.115",
+      "kind": "no_text_duty",
+      "duty": "RCW 59.18.115 does not require any specific information or terms to be included in the written rental agreement itself; it sets procedures and remedies involving notices, inspections, certifications, and escrow accounts that are separate from the rental agreement text."
+    },
+    {
+      "section": "RCW 59.18.120",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.125",
+      "kind": "satisfiable_elsewhere",
+      "duty": "The landlord must provide written notification of intent to enter an individual unit for inspection, including date, approximate time, inspector identity, and tenant rights, as required by subsection (7)(a)."
+    },
+    {
+      "section": "RCW 59.18.130",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.140",
+      "kind": "satisfiable_elsewhere",
+      "duty": "The landlord must provide written notice of any increase in the amount of rent to each affected tenant, but this notice requirement can be satisfied outside the rental agreement text (subsection (3))."
+    },
+    {
+      "section": "RCW 59.18.150",
+      "kind": "satisfiable_elsewhere",
+      "duty": "RCW 59.18.150(6) requires the landlord to provide the tenant with at least two days' written notice before entry, specifying the exact time and date or a time period for entry, and a telephone number for the tenant to communicate objections or rescheduling requests, but it does not explicitly require this notice to be included in the written rental agreement itself."
+    },
+    {
+      "section": "RCW 59.18.160",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.170",
+      "kind": "satisfiable_elsewhere",
+      "duty": "RCW 59.18.170(3) requires that the rental agreement specify the rent due date, as the tenant may propose a change to this date in writing, which the landlord must agree to under certain conditions."
+    },
+    {
+      "section": "RCW 59.18.180",
+      "kind": "satisfiable_elsewhere",
+      "duty": "RCW 59.18.180 requires the landlord to give the tenant written notice specifying the tenant's noncompliance before certain remedies, but it does not require this notice to be included in the rental agreement itself (subsection (1))."
+    },
+    {
+      "section": "RCW 59.18.190",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.200",
+      "kind": "satisfiable_elsewhere",
+      "duty": "This section requires the landlord to provide written notice to tenants in certain situations (e.g., changing to a policy excluding children, converting to condominium, demolition or substantial rehabilitation), but it does not require these notices or any other information to be included in the written rental agreement itself (subsection 2)."
+    },
+    {
+      "section": "RCW 59.18.210",
+      "kind": "lease_text_required",
+      "duty": "RCW 59.18.210 requires that tenancies from year to year must be created by an express written contract (subsection)."
+    },
+    {
+      "section": "RCW 59.18.220",
+      "kind": "no_text_duty",
+      "duty": "This section does not require any specific term or notice to be included in the written rental agreement itself; it governs the tenant's right to terminate a tenancy early under certain military circumstances and the notice the tenant must provide to the landlord."
+    },
+    {
+      "section": "RCW 59.18.230",
+      "kind": "lease_text_required",
+      "duty": "Subsection (2) prohibits certain provisions from being included in the rental agreement, effectively requiring that the rental agreement not contain these prohibited provisions."
+    },
+    {
+      "section": "RCW 59.18.240",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.250",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.253",
+      "kind": "satisfiable_elsewhere",
+      "duty": "RCW 59.18.253(2) requires that a landlord who charges a fee or deposit to hold a dwelling unit must provide the prospective tenant with a receipt and a written statement of the conditions under which the fee or deposit may be retained immediately upon payment."
+    },
+    {
+      "section": "RCW 59.18.255",
+      "kind": "no_text_duty",
+      "duty": "This section does not require any specific provision to be included in the written rental agreement (RCW 59.18.255)."
+    },
+    {
+      "section": "RCW 59.18.257",
+      "kind": "satisfiable_elsewhere",
+      "duty": "RCW 59.18.257(1)(a) requires the landlord to notify the prospective tenant in writing or by posting about the types of information accessed for screening, denial criteria, consumer report details, and acceptance of reusable tenant screening reports before obtaining tenant information."
+    },
+    {
+      "section": "RCW 59.18.260",
+      "kind": "lease_text_required",
+      "duty": "RCW 59.18.260(1) requires that if a deposit is collected, the written rental agreement must include the terms and conditions under which the deposit or portion thereof may be withheld by the landlord upon termination of the lease."
+    },
+    {
+      "section": "RCW 59.18.270",
+      "kind": "satisfiable_elsewhere",
+      "duty": "The landlord must provide the tenant with a written receipt for the deposit and written notice of the name, address, and location of the depository and any subsequent changes (RCW 59.18.270)."
+    },
+    {
+      "section": "RCW 59.18.280",
+      "kind": "satisfiable_elsewhere",
+      "duty": "RCW 59.18.280 requires the landlord to provide a full and specific written statement with documentation of any deposit retention within 30 days after tenancy termination or abandonment, but does not require this to be included in the rental agreement itself (subsection (1))."
+    },
+    {
+      "section": "RCW 59.18.283",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.285",
+      "kind": "lease_text_required",
+      "duty": "RCW 59.18.285 requires that if any nonrefundable fees are paid to the landlord, the written rental agreement must clearly specify that the fee is nonrefundable."
+    },
+    {
+      "section": "RCW 59.18.290",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.300",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.310",
+      "kind": "no_text_duty",
+      "duty": "This section does not require any terms or disclosures to be included in the written rental agreement; it governs landlord remedies and procedures after tenant abandonment and default, including notice requirements that can be satisfied by mailing notices outside the lease (subsection (2))."
+    },
+    {
+      "section": "RCW 59.18.312",
+      "kind": "lease_text_required",
+      "duty": "RCW 59.18.312(6) requires the landlord to provide a form to the sheriff for delivery to the tenant upon service of a writ of restitution, which the tenant may use to request storage of their property."
+    },
+    {
+      "section": "RCW 59.18.315",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.320",
+      "kind": "satisfiable_elsewhere",
+      "duty": "RCW 59.18.320(1) requires that the landlord and tenant may agree in writing to submit to arbitration, but it does not require this agreement to be included in the rental agreement itself."
+    },
+    {
+      "section": "RCW 59.18.330",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.340",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.350",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.352",
+      "kind": "no_text_duty",
+      "duty": "RCW 59.18.352 requires that a tenant who terminates the rental agreement under this section must provide written notice to the landlord (subsection on termination and written notice)."
+    },
+    {
+      "section": "RCW 59.18.354",
+      "kind": "no_text_duty",
+      "duty": "RCW 59.18.354 does not require any specific written disclosure or terms to be included in the rental agreement itself."
+    },
+    {
+      "section": "RCW 59.18.360",
+      "kind": "lease_text_required",
+      "duty": "RCW 59.18.360 requires that any exemption agreement from specified provisions must be in writing and meet certain conditions, including not appearing in a standard form lease, thus requiring the exemption agreement to be a separate written document, not part of the standard rental agreement (subsection)."
+    },
+    {
+      "section": "RCW 59.18.363",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.365",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.367",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.368",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.369",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.370",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.380",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.390",
+      "kind": "no_text_duty",
+      "duty": "RCW 59.18.390 does not require any specific information or terms to be included in the written rental agreement."
+    },
+    {
+      "section": "RCW 59.18.400",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.410",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.412",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.415",
+      "kind": "lease_text_required",
+      "duty": "RCW 59.18.415 requires that any lease of a single-family dwelling exempted from the chapter's provisions must have tenant's attorney approval on the face of the agreement."
+    },
+    {
+      "section": "RCW 59.18.420",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.430",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.435",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.440",
+      "kind": "no_text_duty",
+      "duty": "This section does not require any specific information or terms to be included in the written rental agreement."
+    },
+    {
+      "section": "RCW 59.18.450",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.500",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.510",
+      "kind": "no_text_duty",
+      "duty": "This section does not require any terms or disclosures to be included in the written rental agreement regarding gang-related activity or the procedures for notice and unlawful detainer actions (RCW 59.18.510)."
+    },
+    {
+      "section": "RCW 59.18.550",
+      "kind": "lease_text_required",
+      "duty": "RCW 59.18.550(1)(d) requires that the rental agreement be in writing and include specific provisions regarding drug and alcohol use, participation in a recovery program, verification requirements, testing rights, and termination rights for tenants in drug and alcohol free housing."
+    },
+    {
+      "section": "RCW 59.18.570",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.575",
+      "kind": "lease_text_required",
+      "duty": "RCW 59.18.575 requires that if a tenant changes or adds locks due to victimization by the landlord, the tenant must deliver written notice to the landlord within seven days including a copy of a valid order for protection or a written record of a report signed by a qualified third party (subsection 4(a))."
+    },
+    {
+      "section": "RCW 59.18.580",
+      "kind": "no_text_duty",
+      "duty": "This section does not require any information or statement to be included in the written rental agreement (RCW 59.18.580)."
+    },
+    {
+      "section": "RCW 59.18.585",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.590",
+      "kind": "satisfiable_elsewhere",
+      "duty": "RCW 59.18.590 requires that any designation of a person to act for the tenant on the tenant's death must be in writing and separate from the rental agreement (subsection (1)(b))."
+    },
+    {
+      "section": "RCW 59.18.595",
+      "kind": "satisfiable_elsewhere",
+      "duty": "Subsection (5) requires that any notices sent by the landlord under this section must include a mailing address, any address used for the receipt of electronic communications, and a telephone number of the landlord."
+    },
+    {
+      "section": "RCW 59.18.610",
+      "kind": "lease_text_required",
+      "duty": "RCW 59.18.610(3) requires that all installment payment schedules must be in writing and signed by the landlord and the tenant."
+    },
+    {
+      "section": "RCW 59.18.620",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.625",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.630",
+      "kind": "no_text_duty",
+      "duty": "RCW 59.18.630 does not require any terms or provisions to be included in the written rental agreement."
+    },
+    {
+      "section": "RCW 59.18.640",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.650",
+      "kind": "lease_text_required",
+      "duty": "RCW 59.18.650(1)(b)(i) and (1)(c)(i) require that the rental agreement specify the initial lease period length (between six and 12 months or 12 months or more) to determine if the landlord may end the tenancy without cause at the end of the initial period or specified period, respectively."
+    },
+    {
+      "section": "RCW 59.18.670",
+      "kind": "lease_text_required",
+      "duty": "RCW 59.18.670(1)(f)(iii) requires that the landlord provide the disclosure form about the fee in lieu of a security deposit option to the tenant with any lease and renewal that includes this option."
+    },
+    {
+      "section": "RCW 59.18.700",
+      "kind": "satisfiable_elsewhere",
+      "duty": "Subsection (2) requires that if a landlord increases rent above the allowed amount under an exemption, the landlord must include facts supporting the exemption in the written notice of the rent increase."
+    },
+    {
+      "section": "RCW 59.18.710",
+      "kind": "no_text_duty",
+      "duty": "This section does not require any specific information or terms to be included in the written rental agreement; it only defines exemptions to rent increase limits and does not impose a written-disclosure duty on the landlord."
+    },
+    {
+      "section": "RCW 59.18.720",
+      "kind": "satisfiable_elsewhere",
+      "duty": "RCW 59.18.720(1)(a) requires that a landlord must provide a tenant with notice of rent increases in a form substantially the same as the form provided in subsection (3), which is a written notice separate from the rental agreement, not the rental agreement itself."
+    },
+    {
+      "section": "RCW 59.18.730",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.740",
+      "kind": "lease_text_required",
+      "duty": "RCW 59.18.740(8) requires that if a landlord restricts or prohibits installation of window-mounted portable cooling devices, the landlord must notify tenants in their leases of their rights, responsibilities, and any such restrictions or prohibitions."
+    },
+    {
+      "section": "RCW 59.18.750",
+      "kind": "no_text_duty",
+      "duty": "RCW 59.18.750 requires that if a tenant requests, the landlord must offer an alternative key that does not use biometric or mobile device software, but it does not require this to be included in the written rental agreement."
+    },
+    {
+      "section": "RCW 59.18.755",
+      "kind": "satisfiable_elsewhere",
+      "duty": "RCW 59.18.755(2) requires the landlord to provide tenants, either upon initial lease signing or within five days of smart access system installation, a written policy describing specified privacy information if not included in the developer's privacy policy, but this may be provided separately from the rental agreement."
+    },
+    {
+      "section": "RCW 59.18.760",
+      "kind": "no_text_duty",
+      "duty": "RCW 59.18.760 does not require any information about smart access systems or user data collection to be included in the written rental agreement."
+    },
+    {
+      "section": "RCW 59.18.900",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.911",
+      "kind": "no_text_duty",
+      "duty": ""
+    },
+    {
+      "section": "RCW 59.18.912",
+      "kind": "no_text_duty",
+      "duty": ""
+    }
+  ]
+}

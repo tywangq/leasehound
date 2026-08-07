@@ -22,8 +22,11 @@ from evaluation.eval_real_formats import carry_paid_results
 
 EVAL_DIR = Path(__file__).parent.parent / "evaluation"
 README = EVAL_DIR / "README.md"
-# Question sets and labelled clause sets the evals read, not results they write.
-INPUT_SETS = {"tests.jsonl", "tests_adversarial.jsonl", "permissive_pairs.jsonl"}
+# Question sets, labelled clause sets, and the checklist register: things the evals
+# READ, not results they write. The register is here because it holds decisions rather
+# than measurements — tests/test_checklist_register.py is what keeps it honest.
+INPUT_SETS = {"tests.jsonl", "tests_adversarial.jsonl", "permissive_pairs.jsonl",
+              "jurisdiction_cases.jsonl", "checklist_register.json"}
 
 
 def result_files() -> list[Path]:
