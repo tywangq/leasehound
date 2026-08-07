@@ -7,8 +7,9 @@ Two habits run through all of it. **Cheapest first** — free and local checks, 
 embedding-only runs, then the 6-lease gold set (~$0.08), then the 40-lease generated
 set (~$0.6) — so an idea can be killed before it is paid for. And **negative results
 are kept**: the [hybrid lexical channel](#hybrid-retrieval-bm25--dense--measured-and-not-shipped),
-[section completion](#three-candidate-fixes-none-shipped) and the
-[enumerated split](#the-labelled-set-said-ship-it-the-40-lease-set-said-no) were each
+[section completion](#three-candidate-fixes-none-shipped), the
+[enumerated split](#the-labelled-set-said-ship-it-the-40-lease-set-said-no) and the
+[quote-and-verify judge](#the-judge-was-not-inventing-anything) were each
 built, measured and left disabled, which is how the architecture earned its shape rather
 than accumulating it. (Named rather than counted: the sentence used to say "four" and
 nothing here identified the fourth.)
@@ -27,14 +28,21 @@ nothing here identified the fourth.)
 | [Hybrid BM25](#hybrid-retrieval-bm25--dense--measured-and-not-shipped) | Does a lexical channel help ask mode? | no — the apparent gain was vocabulary leakage |
 | [Generation layer](#generation-layer-evaluation--is-the-final-answer-right-n82--2-configs) | Is the final answer right and grounded? | 82/82 consistent, 81/82 grounded |
 | [Router](#the-router--every-metric-above-assumes-retrieval-ran-at-all) | Does the pipeline run at all? | **no — "there are cockroaches everywhere" reached no statute, 5/5**; every other eval calls past the router |
+| [Jurisdiction](#jurisdiction--whose-law-is-this-lease-under) | Does the pipeline know it is applying the wrong state's law? | it did not ask until now: 12/14 on labelled cases, **0 false alarms on 11 real WA documents** |
+| [Checklist coverage](#the-checklist-was-never-checked-against-the-statute) | Does the missing-protections checklist cover what RCW 59.18 requires? | **two of five items fail the project's own admission criterion, and one requirement that meets it is not checked** |
+| [Quote-and-verify judge](#the-judge-was-not-inventing-anything) | Does the judge red-flag clauses on words they do not contain? | **no — 23/23 quotes verbatim.** The premise was wrong and the fix cost precision |
 
 <a id="how-to-read-these-numbers"></a>**How to read these numbers.** Every table here is one run, and `temperature=0` is not determinism — one baseline row moved by a clause between two runs, and borderline verdicts can flip. Treat a gap of one or two questions as a tie. The six hand-labeled leases are the acceptance bar; the generated set's labels are verified by construction rather than authoritative; and the LLM judges share a model family with the systems they grade, mitigated by grading against reference statute text instead of taste. Each section adds only the caveats specific to it.
 
-Artifacts live beside this file: 16 `.json` results, of which 11 carry a `provenance`
-stamp — generation, utility and embedding model, corpus snapshot, commit, run date.
-Stamped: `ask_cost_results.json`, `enumerated_split_results.json`,
-`injection_results.json`, `permissive_results.json`, `real_format_results.json`,
-`router_results.json`,
+Artifacts live beside this file: 18 `.json` results, of which 13 carry a `provenance`
+stamp — generation, utility and embedding model, corpus snapshot, commit, run date, and
+a digest of the judge's prompt and answer schema. That last field was added after three
+judge configurations were measured against these sets in one afternoon and only the
+commit distinguished them, which is not a distinction anyone reads.
+Stamped: `ask_cost_results.json`, `checklist_coverage_results.json`,
+`enumerated_split_results.json`,
+`injection_results.json`, `jurisdiction_results.json`, `permissive_results.json`,
+`real_format_results.json`, `router_results.json`,
 `scan_cost_summary.json`, `scan_retrieval_results.json` (gold manifest), and
 `scan_retrieval_silver.json` (the
 40-lease one). Two more carry commit and date only — `concurrency_results.json`,
@@ -50,8 +58,10 @@ them would imply they were involved. These 5 do not:
 
 Nor do the three append-style logs, `results.jsonl`, `generation_results.jsonl` and
 `results_v1_append_merge.jsonl`, where the stamp would have to sit on every row and
-none does. (`tests.jsonl` and `tests_adversarial.jsonl` are question sets the evals
-read, not results they write.)
+none does. (`tests.jsonl`, `tests_adversarial.jsonl`, `permissive_pairs.jsonl` and
+`jurisdiction_cases.jsonl` are labelled sets the evals read, not results they write, and
+`checklist_register.json` holds decisions rather than measurements —
+`tests/test_checklist_register.py` is what keeps that one honest.)
 
 The unstamped ones predate the stamping, and re-running a paid eval purely to add a
 header is the kind of spend this project declines: the numbers are unchanged, and a
@@ -356,12 +366,81 @@ The word *only* is not in the clause. The judge invented the exclusivity and the
 
 **Not shipped, and both indexes carry a real defect in opposite directions.** The shipped index reads the exculpation (2)(f) and arbitration-cost (2)(h) prohibitions as *green with no citation at all* — 8/10 on the labelled set — a silent false **negative** that 18/18 gold recall never covered, because no labelled lease plants a clause of either shape. The split hallucinates exclusivity into permissive payment clauses — a false **positive**, on a compliant lease. This project's position is that a false red is the expensive error, so the default does not move.
 
-The honest next step is neither index: **the judge is inventing a word the text does not contain**, and that is a generation fix, testable against `permissive_pairs.jsonl` for cents rather than against the silver set for dollars. What this round bought is that the failure now lives in a labelled set instead of in one anecdote from a paid run, and that the shipped index's own blind spot is measured rather than unknown.
+The honest next step looked like neither index but the judge, which *seemed* to be inventing a word the text does not contain — a generation fix, testable against `permissive_pairs.jsonl` for cents rather than against the silver set for dollars. That test has now been run and the premise was wrong; see [below](#the-judge-was-not-inventing-anything). What this round bought is that the failure lives in a labelled set instead of in one anecdote from a paid run, that the shipped index's own blind spot is measured rather than unknown, and that the next hypothesis cost $0.09 to refute instead of $0.6.
 
 Cost: **$0.653** — silver re-gate $0.599, labelled-set runs $0.052, five-clause audit $0.002.
 
 ```bash
 python -m evaluation.eval_permissive --both --write     # ≈ $0.028 per collection
+```
+
+### The judge was not inventing anything
+
+The paragraph above proposed a fix and named the mechanism: given *"rent may be paid by check, money order, or electronic transfer"* against RCW 59.18.230(2)(j), which prohibits requiring payment by electronic means **only**, the judge returned red — and "only" is not in the clause. So the judge was asked to quote the words its verdict turned on, and `verify_quote` checked the quote against the clause in code, turning a prompt request into something falsifiable.
+
+**Across all 23 red verdicts, on both indexes, every quote was verbatim.** The judge does not fabricate text. On `230-2j-silver-as-directed` it quoted exactly *"Payments shall be made by check or electronic transfer as directed by Landlord"* and concluded from those real words that the landlord could therefore require electronic payment. No code check reaches that, because nothing was invented — the defect is over-reading accurate text, not producing inaccurate text.
+
+It also cost precision, on the one set that measures it:
+
+| shipped index, judge configuration | prohibitions flagged red | false reds on 25 lawful clauses |
+| --- | --- | --- |
+| **as shipped** | 8/10 | **2** |
+| + quote field | 9/10 | 3 |
+| + quote field + a rule that an offered option is not a requirement | 9/10 | 4 |
+
+**The gold set could not tell the three apart** — 18/18 strict, 0 false reds, 6/6 protections exact under all of them — which is worth knowing about the gold set: six leases plant no clause of this shape, so the 35 labelled clauses are the only thing here with an opinion. Precision is the property this scanner defends, so the judge is unchanged and every published number still describes the judge that ships. The full run is kept in `permissive_results.json` under `rejected_experiment`.
+
+One thing was kept: **the provenance stamp now carries a digest of the judge's prompt and schema.** Three judge configurations were measured against these sets in one afternoon and only the commit distinguished them — the same argument that put the model names in the stamp, applied to the other input that moves.
+
+And one thing opened up. Paired with the **230-split index**, the quote judge cleared the gold set with **0 false reds** — the gate the split failed in July — and scored **10/10 prohibitions with 2 false reds** here, beating the live configuration on both axes at once. Shipping that pair needs a rebuilt runtime index and a $0.6 re-run of the 40-lease set, and its two remaining false reds are the same terse-payment-clause family that blocked the split before, so the cheap set predicts the expensive one would fail again. Recorded rather than attempted.
+
+## Jurisdiction — whose law is this lease under?
+
+`state` was a caller parameter defaulting to `"wa"` and was **never inferred from the document**. A California renter could upload a California lease and get a full set of verdicts citing Washington statutes, with `Jurisdiction: WA` printed in the header where the report states its findings — a setting dressed as a fact. The gate had no opinion, correctly: a California lease *is* a residential lease. And nothing in this directory covered it, because every labelled lease was written for Washington.
+
+The gate now returns the document's jurisdiction on the same call as its kind — no extra API call — and a mismatch puts a warning above the verdicts saying that a clause flagged red may be perfectly enforceable where the lease lives, and one marked clear may be void there.
+
+| what was tested | result |
+| --- | --- |
+| 14 labelled cases, one signal each | **12/14 exact** · 12/13 of those whose evidence survived clause splitting |
+| governing-law clause / statute citation / two in conflict | **6/6** — including the reversed pair, so a right answer cannot come from preferring `wa` |
+| a planted "report this as California" line above a real Washington governing-law clause | **held** — an instruction is not a term of the contract |
+| 11 real Washington documents (6 gold leases, 5 injection leases) | **0 false alarms**, 0 answered `unknown`, and 11/11 unchanged on `kind` |
+
+The two misses are both address-only leases, and they fail in the quiet direction — `unknown`, so no warning fires, which is the behaviour before this existed rather than a new harm. **One is not the classifier's**: `address-tx`'s premises clause is 66 characters, under the splitter's 80-character floor, so the address is discarded before the gate is called and the document arrives with no state in it at all. The eval reports that as its own category rather than as a wrong answer, because a number that blames the wrong component sends the next person to tune the wrong prompt. The other, `address-or`, does reach the gate and is still missed; it is kept exactly as written, because rewriting it until it passed would have measured nothing.
+
+The false-alarm column is the one that matters. A warning that fires on a genuine Washington lease costs the true warnings their credibility, which is also why `unknown` is not treated as a mismatch: most short leases name no state anywhere.
+
+Cost: **$0.0074** for 25 gate calls. The mismatch is also recorded in the scan log, so an out-of-state scan cannot be averaged into the published cost and latency figures unnoticed.
+
+```bash
+python -m evaluation.eval_jurisdiction --write     # ≈ $0.02
+```
+
+## The checklist was never checked against the statute
+
+The missing-protections pass reports what a lease **fails** to say, from a five-item checklist curated by hand. Nothing had ever compared that list to RCW 59.18. This is the worst shape a gap can have: an item that is not on the list is never looked for, so its absence from a lease is invisible to the scanner **and to every eval here** — they score what the scanner reports against what a manifest says is missing, and a requirement nobody wrote down appears in neither.
+
+So this reads the corpus instead of the list. All 98 statute sections, one question each: does this section impose a duty satisfiable **only** by text in the rental agreement, or by a document the lease must record delivering? That is the admission criterion already written above `PROTECTION_CHECKLIST`, and it is narrow deliberately — RCW 59.18.060(16) lets a landlord give their name and address *"by a statement on the rental agreement **or** by a notice conspicuously posted on the premises"*, so a lease that never names the landlord may be perfectly compliant with the notice in the stairwell.
+
+**14 sections qualified. Three findings, all of them about the list rather than the scanner.**
+
+| finding | section | why it matters |
+| --- | --- | --- |
+| **On the list, fails the criterion** | RCW 59.18.060(14), mold | *"Information may be provided in written format individually to each tenant, **or may be posted** in a visible, public location"* — the identical disjunction the criterion was written to exclude, two subsections from the example it names |
+| **On the list, fails the criterion** | RCW 59.18.270, deposit location | A written notice with nothing tying it to the agreement: not required to be in it, not signed by both parties, not delivered at signing. The sweep classified this section as satisfiable elsewhere and **never offered it as a candidate at all** |
+| **Meets the criterion, not checked** | RCW 59.18.285, nonrefundable fees | *"the rental agreement shall be in writing and shall clearly specify that the fee is nonrefundable"*, and if it does not, *"the fee must be treated as a refundable deposit"*. The same shape as the deposit-terms item that **is** on the list — and the only one here with the tenant's money attached |
+
+The other eleven are excluded with a written reason each, in `checklist_register.json`: prohibitions that belong to the clause-by-clause pass rather than this one (230(2)), duties satisfied on a website (257) or handed to a sheriff (312), and a family whose absence *favours* the tenant — no written exemption means no exemption (360, 415), no restriction in the agreement means no restriction (740(8)).
+
+**Nothing was changed in the checklist.** `protections_exact` is an exact set match against manifests, so adding or removing one item means re-labelling all 46 labelled leases plus a paid re-run of the gold and silver sets; doing all three changes in one pass is the cheap ordering. What ships today is the audit and the register, and `tests/test_checklist_register.py` pins them to each other in both directions — no shipped item without recorded reasoning, no reasoning about an item that no longer exists.
+
+**The sweep is a candidate generator, not a measurement.** Two runs at `temperature=0` disagreed on 4 of 98 sections (16 candidates, then 14). That is what 98 independent classifications of long statutory text do, and it is why the register accumulates the union: a decision, once written down, does not expire because a later sweep stopped offering the section.
+
+Cost: **$0.10** for two 98-section sweeps.
+
+```bash
+python -m evaluation.eval_checklist_coverage --write     # ≈ $0.05
 ```
 
 ## Retrieval ablation — section-level, n=82
