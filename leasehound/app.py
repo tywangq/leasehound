@@ -137,19 +137,19 @@ LAW_ONLY_CONTEXT = (
     "Scan a lease and it will know your report too."
 )
 ALREADY_SNIFFED = "🐕 Already sniffed this one — the report is still on the right."
-# Shown between the upload and the first clause count. The scan knows how many
-# clauses there are only after splitting, so there is a real moment with nothing
-# to count, and "0/0 clauses sniffed" would be a worse way to fill it.
-SNIFF_STARTING = "🐕 Reading the document…"
-# The gate is an API call and takes about a second, and for that second the UI used
-# to be showing "0/N clauses sniffed" beside an opening report panel — so a document
-# that was about to be refused had already been announced as a scan in progress, and
-# the refusal read as the app changing its mind. Nothing about the clauses is claimed
-# until the gate has answered, and the panel does not open until the first verdict.
-CHECKING_IS_A_LEASE = (
-    "🐕 {count} clauses. One quick sniff first — is this actually a residential "
-    "lease? Nothing gets judged until that comes back."
-)
+# Everything before the first verdict: reading the document, splitting it, and the
+# gate call. The pair to ask mode's "🐕 Thinking…", and short for the same reason —
+# it is on screen for about a second, and a sentence nobody can finish reading before
+# it is replaced is worse than no sentence. The first draft explained what the gate
+# was doing and how the refusal worked, which was true, unreadable, and immediately
+# followed by the refusal it was explaining.
+#
+# What it must NOT say is anything about clauses. For that second the UI used to show
+# "0/N clauses sniffed" beside an opening report panel, so a document about to be
+# refused had already been announced as a scan in progress and the refusal read as
+# the app changing its mind. Nothing is claimed about the clauses until the gate has
+# answered, and the panel does not open until the first verdict.
+SNIFF_STARTING = "🐕 Sniffing…"
 CACHED_SNIFF = (
     "🐕 The hound has sniffed this exact lease before — here's the saved report, "
     "no fresh API calls. Attach a different lease to watch a live scan."
@@ -423,8 +423,11 @@ def scan_flow(path, key, history, report, scanned, context_base, question="",
                     history.insert(-1, {"role": "assistant", "content": PARTIAL_SCAN.format(
                         count=step.total, limit=MAX_CLAUSES,
                         rest=f"{step.judged + 1}–{step.total}")})
-                history[-1]["content"] = CHECKING_IS_A_LEASE.format(count=step.total)
-                yield _out(history)
+                    # The only thing this step has to say. SNIFF_STARTING stays on
+                    # screen through the gate otherwise: splitting is instant and free,
+                    # so a second message for it would flash past unread, and the
+                    # clause count arrives a moment later in the progress line anyway.
+                    yield _out(history)
             elif step.kind == "gate_flagged":
                 history.insert(-1, {"role": "assistant", "content": NOT_A_LEASE})
                 yield _out(history)
