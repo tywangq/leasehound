@@ -551,10 +551,16 @@ class ScanStep:
     chat messages, the HTTP API only wants the outcome. So the core yields the
     events and says nothing about how they look. The final step carries `result`,
     which is what makes one plain loop enough for every caller.
+
+    `split` and `judging` carry the same two counts at two different moments, and the
+    difference between them is the point: `split` means "nothing has been spent yet,
+    here is how big this document is", and `judging` means "the gate accepted, this
+    many clauses are about to be judged". Anything a caller *promises* about the scan
+    belongs on the second one.
     """
 
-    kind: Literal["split", "gate_flagged", "gate_refused", "jurisdiction", "clause",
-                  "protections", "done"]
+    kind: Literal["split", "gate_flagged", "gate_refused", "jurisdiction", "judging",
+                  "clause", "protections", "done"]
     finding: dict | None = None
     judged: int = 0  # clauses that will be judged, i.e. after the cap
     total: int = 0  # clauses the document splits into, before the cap
@@ -640,6 +646,17 @@ def scan_steps(text: str, source: str, state: str = "wa",
         yield ScanStep("jurisdiction", total=len(clauses),
                        document_state=check.jurisdiction)
 
+    # The gate accepted, so a scan is now definitely going to happen and this is the
+    # first moment anything may be promised about it. `split` reports the counts
+    # before a cent is spent, which is what a caller needs to size a progress bar —
+    # but announcing the clause cap there means announcing it before the gate has
+    # spoken, and a long document that was about to be refused got told "this splits
+    # into 214 clauses, the first 60 will be judged" and *then* told it was not a
+    # lease. Both callers had that bug because both keyed the cap notice off `split`;
+    # fixing it in each of them would have been the same fix written twice, so the
+    # pipeline says when the promise becomes safe to make instead.
+    yield ScanStep("judging", judged=len(judged), total=len(clauses))
+
     findings: list[dict] = []
     for finding in scan_clauses(judged, config, meter):
         findings.append(finding)
@@ -680,7 +697,11 @@ def scan_lease(path: str | Path, state: str = "wa", collection: str | None = Non
     try:
         for step in scan_steps(read_document(path), str(path), state, collection,
                                scan_anyway):
-            if step.kind == "split":
+            if step.kind == "judging":
+                # On `judging` rather than `split`: the cap notice is a promise about a
+                # scan, and on `split` the gate has not yet said whether there will be
+                # one. A 214-clause resume used to be told which 60 clauses would be
+                # judged and then told it was not a lease.
                 if step.partial:
                     print(f"⚠️  {path} splits into {step.total} clauses; judging the first "
                           f"{step.judged} — the {MAX_CLAUSES}-clause cap bounds what one "
@@ -706,7 +727,12 @@ def scan_lease(path: str | Path, state: str = "wa", collection: str | None = Non
                     progress.close()
                     progress = None
                 print("🐕 Checking required protections…")
-            else:
+            elif step.kind == "done":
+                # Named rather than left as `else`. When the cap notice moved to
+                # `judging`, `split` stopped being handled here and fell through to
+                # this branch, which dereferences `step.result` — a new step kind
+                # should be ignored by a caller that has nothing to say about it, not
+                # crash on the way to the result.
                 print(f"{cost_line(step.result.record)} — logged to logs/scan_metrics.jsonl")
                 return step.result
     finally:

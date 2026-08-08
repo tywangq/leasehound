@@ -261,8 +261,13 @@ def answer_question(
             result.record = log_ask(
                 meter, retrieved=len(chunks), routed=routed,
                 with_report=report_context,
+                # Same guard as the UI warning, for the same reason: a greeting that
+                # happens to mention Oregon is not a question answered with the wrong
+                # state's law, and logging it as one would inflate a count that exists
+                # to say how often this demo answers out-of-state renters.
                 jurisdiction=(routing.jurisdiction
-                              if jurisdiction_mismatch(routing.jurisdiction, CORPUS_STATE)
+                              if routed and jurisdiction_mismatch(
+                                  routing.jurisdiction, CORPUS_STATE)
                               else None))
 
     result.stream = metered()

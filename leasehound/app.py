@@ -367,7 +367,11 @@ def answer_flow(question, history, report, context_base):
             },
         ] + context_history
     answered = answer_question(question, context_history, report_context=bool(report))
-    if jurisdiction_mismatch(answered.jurisdiction, DEMO_STATE):
+    # `routed` guards it: the warning is about the ANSWER being Washington law, and the
+    # chitchat path has no legal content to be wrong about. "Hi, I'm in Oregon" would
+    # otherwise get a paragraph about which statutes the hound carries in reply to a
+    # greeting.
+    if answered.routed and jurisdiction_mismatch(answered.jurisdiction, DEMO_STATE):
         # Above the answer, not below it: a renter reading "your landlord cannot do
         # that" has already acted on it by the time they reach a footnote. Inserted
         # rather than replacing "🐕 Thinking…", because the answer is still coming —
@@ -415,6 +419,13 @@ def scan_flow(path, key, history, report, scanned, context_base, question="",
                  missing=missing_protections(result), split_mode=result.split_mode,
                  cache_hit=True, clauses_total=result.clauses_total)
         history.append({"role": "assistant", "content": CACHED_SNIFF})
+        # The report carries the jurisdiction warning either way, but a cached scan
+        # skips every step that narrates one — so the second visitor to attach a
+        # California lease saw it only if they opened the panel, while the first was
+        # told in chat. Same document, same finding, two different experiences.
+        if jurisdiction_mismatch(result.jurisdiction, DEMO_STATE):
+            history.append({"role": "assistant", "content": WRONG_STATE.format(
+                document=result.jurisdiction.upper())})
         yield from finished_scan(result, name, key, history, context_base, question)
         return
 
@@ -430,23 +441,26 @@ def scan_flow(path, key, history, report, scanned, context_base, question="",
                report="", state="", context=LAW_ONLY_CONTEXT, source="",
                stop=gr.update(visible=True), col=gr.update(visible=False),
                actions=gr.update(visible=False))
-    panel_open = False
     try:
         for step in scan_steps(text, name, state=DEMO_STATE, scan_anyway=scan_anyway):
-            if step.kind == "split":
-                # Over the cap the scan goes ahead on a prefix. Refusing meant a
+            if step.kind == "judging":
+                # The gate has accepted, so this is the first moment a scan may be
+                # promised. Over the cap it goes ahead on a prefix — refusing meant a
                 # visitor who uploaded a real WA housing agreement (270 clauses) got
-                # nothing at all, which is worse than 60 judged clauses that say
-                # which 210 they aren't.
+                # nothing at all, which is worse than 60 judged clauses that say which
+                # 210 they aren't. Keyed off `judging` and not `split` because a long
+                # document that was about to be refused used to be told which 60 of its
+                # clauses would be judged, and only then told it was not a lease.
                 if step.partial:
                     history.insert(-1, {"role": "assistant", "content": PARTIAL_SCAN.format(
                         count=step.total, limit=MAX_CLAUSES,
                         rest=f"{step.judged + 1}–{step.total}")})
-                    # The only thing this step has to say. SNIFF_STARTING stays on
-                    # screen through the gate otherwise: splitting is instant and free,
-                    # so a second message for it would flash past unread, and the
-                    # clause count arrives a moment later in the progress line anyway.
-                    yield _out(history)
+                # And the panel opens here rather than on the first verdict, which is
+                # what it had to key on before this step existed. 0/N is honest now:
+                # it appears only once N clauses are certain to be judged.
+                history[-1]["content"] = progress_line(0, step.judged)
+                yield _out(history, col=gr.update(visible=True),
+                           report=f"🐕 Sniffing `{name}` — the report will appear here.")
             elif step.kind == "gate_flagged":
                 history.insert(-1, {"role": "assistant", "content": NOT_A_LEASE})
                 yield _out(history)
@@ -462,23 +476,18 @@ def scan_flow(path, key, history, report, scanned, context_base, question="",
                 yield _out(history)
             elif step.kind == "clause":
                 history[-1]["content"] = progress_line(step.judged, step.total)
-                if not panel_open:
-                    # The first verdict is the earliest moment a report is certain to
-                    # be coming, so it is when the panel opens. There is no
-                    # "gate accepted" step to key on — the gate only announces itself
-                    # when it has something to say — and inventing one to open a panel
-                    # would put a UI concern into the pipeline's step vocabulary.
-                    panel_open = True
-                    yield _out(history, col=gr.update(visible=True),
-                               report=f"🐕 Sniffing `{name}` — the report will "
-                                      f"appear here.")
-                else:
-                    yield _out(history)
+                yield _out(history)
             elif step.kind == "protections":
                 history[-1]["content"] = (
                     "🐕 One more pass — checking the protections the law requires…")
                 yield _out(history)
-            elif step.result.refused:
+            elif step.kind == "done" and step.result.refused:
+                # `step.kind == "done"` is named rather than left to an `else`. It used
+                # to be one, and when the cap notice moved off `split` that step fell
+                # through to here and dereferenced a `result` that is None on every
+                # step but the last. A caller with nothing to say about a step kind
+                # should ignore it, not crash on the way to the result.
+                #
                 # Not cached, and no panel pinned. The cache serves finished
                 # reports and a hit is rendered as one, so keeping refusals out of
                 # it costs one cheap classification call and keeps every other
@@ -490,7 +499,7 @@ def scan_flow(path, key, history, report, scanned, context_base, question="",
                            stop=gr.update(visible=False),
                            col=gr.update(visible=False),
                            actions=gr.update(visible=False))
-            else:
+            elif step.kind == "done":
                 cache_put(digest, step.result)
                 history[-1]["content"] = scan_summary(step.result)
                 yield from finished_scan(step.result, name, key, history,

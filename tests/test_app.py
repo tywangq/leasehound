@@ -269,6 +269,43 @@ def test_a_refused_scan_leaves_ask_mode_on_law_only_context(monkeypatch, tmp_pat
     app._scan_cache.clear()
 
 
+def test_a_long_document_that_is_refused_is_never_promised_a_scan(monkeypatch, tmp_path):
+    """Found by uploading a long non-lease: the app said "this splits into N clauses,
+    the first 60 will be judged" and only then said it was not a lease. The cap notice
+    is a promise about a scan, and at that point the gate had not said there would be
+    one — so it now waits for the pipeline's `judging` step, which fires only after the
+    gate accepts."""
+    import leasehound.metrics as metrics
+
+    filler = "The parties agree to the terms set forth in this provision as written. "
+    total = app.MAX_CLAUSES + 30
+    text = "\n\n".join(f"{i}. HEADING. {filler}" for i in range(1, total + 1))
+    judged = []
+
+    def fake_scan_clauses(clauses, config, meter=None):
+        judged.extend(clauses)
+        return iter(())
+
+    monkeypatch.setattr(app, "read_document", lambda path: text)
+    monkeypatch.setattr(scan, "classify_document", gate_returns("other"))
+    monkeypatch.setattr(scan, "scan_clauses", fake_scan_clauses)
+    monkeypatch.setattr(scan, "check_protections", lambda clauses, meter=None: [])
+    monkeypatch.setattr(metrics, "LOG_PATH", tmp_path / "scan_metrics.jsonl")
+    app._scan_cache.clear()
+
+    history: list = []
+    frames = list(app.scan_flow(Path("very_long_resume.pdf"), "k", history, "", "", []))
+
+    chat = " ".join(m["content"] for m in history)
+    assert app.NOT_ABOUT_RENTING in chat, "it is still refused"
+    assert judged == [], "and nothing is judged"
+    assert str(app.MAX_CLAUSES) not in chat, (
+        "the clause cap must not be mentioned for a scan that never happens")
+    assert "won't get a verdict" not in chat
+    # And no report was ever pinned. (_out's positional contract: report is 3rd.)
+    assert not any(frame[2] for frame in frames if isinstance(frame[2], str))
+
+
 def test_a_long_lease_is_scanned_partially_instead_of_being_turned_away(monkeypatch, tmp_path):
     """The demo's likeliest visitor action is uploading a real lease, and real WA
     housing agreements run to 270 clauses. Refusing over the cap meant that visitor
