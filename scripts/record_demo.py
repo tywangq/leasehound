@@ -212,11 +212,64 @@ def show_question_with_answer(page, question: str) -> None:
     page.wait_for_timeout(700)
 
 
+def question_asked(page, question: str) -> bool:
+    """Whether the question has actually reached the chat as a sent message."""
+    return page.evaluate(
+        """(q) => [...document.querySelectorAll('.chat-col .message')]
+               .some(m => m.innerText.trim().startsWith(q.slice(0, 30)))""",
+        question,
+    )
+
+
 def ask(page, question: str) -> None:
+    """Fallback path: type the question. Only used if its chip has gone missing."""
     box = page.get_by_placeholder("Attach a lease, or ask about renting")
     box.click()
     box.fill(question)
     box.press("Enter")
+
+
+def click_chip(page, text: str, frames: list | None, what: str):
+    """Click an example chip the way a visitor does, with the pointer drawn in.
+
+    Both of the recording's interactions are chip clicks, and only one of them used
+    to look like one: the question was typed into the box by Playwright, so the GIF
+    showed a scan being started by a click and then an answer arriving from nowhere.
+    A reader watching for what to do next had one example, not two.
+    """
+    chip = page.get_by_text(text, exact=False).first
+    chip.wait_for(state="visible", timeout=PHASE_TIMEOUT_S * 1000)
+    # Measured and drawn with the page pinned at the top, because that is the layout
+    # the frame shows. The question chips sit at y≈850 in a 900px viewport, so the
+    # last of the three is below the fold and the first is only just above it.
+    at = centre_of(chip)
+    if frames is not None:
+        frames.append(frame(page, cursor=at, hold_ms=HOLD_BEFORE_CLICK_MS))
+    print(f"clicking {what}…")
+    # Dispatched on the button from inside the page, not driven through the mouse.
+    #
+    # A chip does not submit itself: the app catches the click on `document`, polls
+    # for the composer to fill, then presses send (see EXAMPLES_JS in app.py). A
+    # synthesised mouse click has to survive Playwright's own scroll-into-view, which
+    # races PIN_PAGE — every captured frame scrolls the window back to the top — and
+    # during a recording it lost that race every time while working perfectly when
+    # nothing was screenshotting. The listener is on `document`, so an in-page click
+    # goes through exactly the handler a visitor's click reaches; the difference is
+    # only in how the event is produced, and the pointer drawn into the frame is at
+    # the coordinates the button really occupies.
+    page.evaluate(
+        """(label) => { const button = [...document.querySelectorAll(
+               '#example-scan button, #example-prompts button')]
+               .find(b => b.innerText.includes(label)); if (button) button.click(); }""",
+        text[:40],
+    )
+    page.evaluate(PIN_PAGE)
+    if frames is not None:
+        # The ripple, then the same pointer without it — by the second frame the app
+        # has replaced the chips with what the click set off.
+        frames.append(frame(page, cursor=at, ring=True, hold_ms=HOLD_ON_CLICK_MS))
+        frames.append(frame(page, cursor=at, hold_ms=HOLD_ON_CLICK_MS))
+    return at
 
 
 def shared_palette(images: list[Image.Image]) -> Image.Image:
@@ -368,30 +421,17 @@ def record(url: str, still_only: bool) -> None:
 
         frames: list[Frame] | None = None if still_only else []
 
-        chip = page.get_by_text(SAMPLE_CHIP, exact=False).first
-        chip.wait_for(state="visible", timeout=PHASE_TIMEOUT_S * 1000)
         # The opening second, which the recording did not have: capture started on
         # the first poll AFTER the click, so the GIF began on a page already
         # scanning. A reader saw a counter moving and never saw what set it off.
-        # One held frame with the pointer on the chip is the whole fix.
-        at = centre_of(chip)
-        if frames is not None:
-            frames.append(frame(page, cursor=at, hold_ms=HOLD_BEFORE_CLICK_MS))
-        print(f"clicking {SAMPLE_CHIP!r}…")
-        chip.click()
-        if frames is not None:
-            # Two frames of the click: the ripple, then the same pointer without it.
-            # Between them the app has replaced the chips with "0/N clauses sniffed",
-            # so the counter's start is on screen rather than inferred.
-            frames.append(frame(page, cursor=at, ring=True, hold_ms=HOLD_ON_CLICK_MS))
-            frames.append(frame(page, cursor=at, hold_ms=HOLD_ON_CLICK_MS))
+        click_chip(page, SAMPLE_CHIP, frames, repr(SAMPLE_CHIP))
         # The report PANEL appearing, not a chat message: the fresh path ends with a
         # "Full report on the right" summary and the cached path does not, so keying
         # on that string worked exactly once and then hung for three minutes.
         wait_until(page, panel_pinned(page), "a report was pinned", frames)
         print("  scan finished")
         if frames is not None:
-            # The finished report, before the question starts typing over it. The
+            # The finished report, on its own, before anything is asked of it. The
             # verdict counts are the point of the whole scan and they used to be on
             # screen for one frame's worth of real time.
             frames.append(frame(page, hold_ms=HOLD_ON_REPORT_MS))
@@ -408,8 +448,39 @@ def record(url: str, still_only: bool) -> None:
                 )
             print("  (cache hit — fine for the still, which shows the finished state)")
 
-        print(f"asking: {STILL_QUESTION}")
-        ask(page, STILL_QUESTION)
+        # The second click, and the reason the GIF shows two. Scanning and asking are
+        # the product's two modes and both are one click from the same screen; typing
+        # the question in made the answer look like it arrived on its own.
+        # The panel appearing is not the scan being over. `panel_pinned` goes true on
+        # the yield that pins the report, while the scan's Gradio event is still open
+        # — and a chip click during an open event fills the composer and never gets
+        # sent. It cost three recordings to find, because outside a recording the gap
+        # closes before a human could click into it. The stop button going away and
+        # the composer coming back are the app's own signals that it is idle.
+        wait_until(page, lambda: page.evaluate(
+            """() => { const box = document.querySelector('.chat-col .multimodal-textbox');
+                   const stop = [...document.querySelectorAll('button')]
+                       .find(b => b.innerText.includes('Call off the hound'));
+                   return !box.querySelector('textarea').disabled
+                          && !(stop && stop.offsetParent); }"""),
+            "the scan finished settling", frames, timeout_s=30)
+        if page.get_by_text(STILL_QUESTION, exact=False).count():
+            click_chip(page, STILL_QUESTION, frames, f"the question chip: {STILL_QUESTION}")
+            # Confirmed, not assumed. A chip does not submit itself: the click is
+            # caught by a document-level listener that polls for the box to fill and
+            # then presses send, and that handoff loses the race often enough against
+            # a recording that screenshots continuously. Waiting on the question
+            # appearing in the chat — rather than on the answer, three minutes later —
+            # turns a silent failure into a two-second one with somewhere to go.
+            try:
+                wait_until(page, lambda: question_asked(page, STILL_QUESTION),
+                           "the question was sent", frames, timeout_s=8)
+            except TimeoutError:
+                print("  (the chip click did not submit — typing the question instead)")
+                ask(page, STILL_QUESTION)
+        else:
+            print(f"asking (chip not found, typing): {STILL_QUESTION}")
+            ask(page, STILL_QUESTION)
         wait_until(page, lambda: ANSWER_DONE_MARK in chat_text(page),
                    "the answer finished", frames)
         print("  answer finished")
