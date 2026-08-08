@@ -228,7 +228,7 @@ pydub==0.25.1
     # via gradio
 pygments==2.20.0
     # via rich
-pypdf==6.14.2
+pypdf==6.15.0
     # via leasehound (pyproject.toml)
 pypika==0.51.1
     # via chromadb
