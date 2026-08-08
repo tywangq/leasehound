@@ -59,18 +59,28 @@ def evaluate_lease(entry: dict, leases_dir: Path, keep_raw: bool = False,
     if entry.get("category"):
         result["category"] = entry["category"]
 
-    try:
-        scan = scan_lease(path, collection=collection)
-        findings, protections = scan.findings, scan.protections
-        gate_flagged = scan.gate_flagged
-    except SystemExit as stop:
+    scan = scan_lease(path, collection=collection)
+    findings, protections = scan.findings, scan.protections
+    gate_flagged = scan.gate_flagged
+    if scan.refused:
+        # This branch used to be `except SystemExit`, and it had quietly stopped
+        # firing: refusing was a raise when the gate answered yes-or-no, and became a
+        # `refused` result when it grew three kinds. A refused lease still scored 0
+        # recall — the manifest supplies `planted` either way — but the loud "REFUSED
+        # by the pipeline" line never printed, so a gate regression would have looked
+        # like a judge that suddenly missed every violation in a lease.
+        #
+        # The scoring is unchanged and deliberate: an attack that suppresses the scan
+        # must cost recall rather than crash the eval, so every planted violation
+        # counts as missed.
         return {
             **result,
-            "rejected": str(stop),
+            "rejected": "the gate refused this document as unrelated to renting",
             "planted": sorted(expected_red),
             "flagged_red": [], "flagged_yellow": [],
             "missed": sorted(expected_red),
             "false_reds": [], "citation_hits": 0,
+            "unplanted_yellows": [], "clauses_judged": 0,
             "protections_expected": sorted(expected_missing),
             "protections_reported": [],
             "protections_exact": not expected_missing,

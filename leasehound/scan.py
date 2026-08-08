@@ -816,7 +816,11 @@ def render_report(
         return "\n".join([
             "# LeaseHound scan report",
             "",
-            f"**Document:** `{source}` · **Judged against:** {state.upper()} law"
+            # No "judged against" line here, because nothing was judged. It said
+            # "Judged against: WA law" over a document the gate had just refused —
+            # the same species of wrong as the "Jurisdiction: WA" this replaced,
+            # which stated a setting in the position where a report states findings.
+            f"**Document:** `{source}` · **Not judged**"
             f" · **Date:** {date.today().isoformat()}",
             "",
             GATE_REFUSED,

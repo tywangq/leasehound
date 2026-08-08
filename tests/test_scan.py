@@ -372,6 +372,19 @@ def test_the_mismatch_arrives_as_its_own_step_not_as_a_gate_flag():
     assert steps[-1].result.gate_flagged is False
 
 
+def test_a_refusal_does_not_claim_a_law_was_applied():
+    """"Judged against: WA law" sat over a document the gate had just refused — the
+    same species of wrong as the "Jurisdiction: WA" it replaced, which stated a
+    setting in the position where a report states what it found."""
+    refused = scan.render_report([], "resume.pdf", "wa", [], gate_flagged=True,
+                                 clauses_total=9, refused=True)
+    assert "Judged against" not in refused
+    assert "Not judged" in refused
+    # The ordinary report still says which law it applied, because it applied one.
+    scanned = scan.render_report([finding(1, "green")], "lease.md", "wa", [])
+    assert "Judged against: WA law" in scanned
+
+
 def test_a_refused_report_never_reads_as_a_clean_bill_of_health():
     """The dangerous rendering is the plausible one: a refusal has no findings, and
     the ordinary header would print "0 red flags" over a document nobody judged."""
