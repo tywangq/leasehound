@@ -12,6 +12,7 @@ from leasehound.app import (
     sources_footer,
     strip_footer,
 )
+from leasehound.metrics import UsageMeter
 from leasehound.retrieval import Result
 
 
@@ -164,6 +165,33 @@ def test_the_override_phrase_reaches_the_scan_and_is_not_answered_as_a_question(
     list(app._respond({"text": "what about my deposit?", "files": [str(upload)]},
                       [], "", ""))
     assert seen == {"question": "what about my deposit?", "scan_anyway": False}
+
+
+def test_a_question_naming_another_state_is_warned_about_above_the_answer(
+        monkeypatch, tmp_path):
+    """Above, not below. A renter reading "your landlord cannot do that" has acted on
+    it by the time they reach a footnote — and the answer still arrives, because the
+    Washington answer is not nothing, it is just not theirs."""
+    import leasehound.answer as answer_module
+    import leasehound.metrics as metrics
+
+    def fake_answer(question, history=None, config=None, report_context=False):
+        return answer_module.AskResult(
+            stream=iter(["Under RCW 59.18.230, no."]), chunks=[], meter=UsageMeter(),
+            routed=True, jurisdiction="ca")
+
+    monkeypatch.setattr(app, "answer_question", fake_answer)
+    monkeypatch.setattr(metrics, "ASK_LOG_PATH", tmp_path / "ask_metrics.jsonl")
+
+    history: list = [{"role": "user", "content": "In California, can they keep my deposit?"}]
+    list(app.answer_flow("In California, can they keep my deposit?", history, "", []))
+
+    said = [m.get("content") or "" for m in history]
+    warning = next(i for i, m in enumerate(said) if "🌎" in m)
+    answered = next(i for i, m in enumerate(said) if "RCW 59.18.230, no." in m)
+    assert warning < answered, "the warning has to arrive before the answer it qualifies"
+    assert "CA" in said[warning]
+    assert "Washington" in said[warning]
 
 
 def test_an_out_of_state_lease_is_scanned_with_the_wrong_law_named_in_chat(

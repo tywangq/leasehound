@@ -4,272 +4,830 @@
     "utility_model": "openai/gpt-4.1-nano",
     "embedding_model": "text-embedding-3-large",
     "corpus_snapshot": "2026-07-25",
-    "commit": "9ce713e",
-    "run_at": "2026-08-05"
+    "judge_prompt": "8226e1565a7a",
+    "commit": "6397b26",
+    "run_at": "2026-08-08"
   },
   "applied_state": "wa",
-  "cost_usd": 0.00744,
-  "summary": {
-    "cases": 14,
-    "exact": 12,
-    "cases_evidence_reached_the_gate": 13,
-    "exact_of_those": 12,
-    "evidence_dropped_before_the_gate": [
-      "address-tx"
-    ],
-    "missed_mismatches": [
-      "address-or",
-      "address-tx"
-    ],
-    "false_alarms": [],
-    "wrong_state_but_warned": [],
-    "by_signal": {
-      "address": "3/4",
-      "address_below_split_floor": "0/1",
-      "conflict": "2/2",
-      "governing_law": "2/2",
-      "injection": "1/1",
-      "none": "2/2",
-      "statute": "2/2"
+  "cost_usd": 0.02942,
+  "scan": {
+    "summary": {
+      "cases": 14,
+      "exact": 12,
+      "cases_evidence_reached_the_gate": 13,
+      "exact_of_those": 12,
+      "evidence_dropped_before_the_gate": [
+        "address-tx"
+      ],
+      "missed_mismatches": [
+        "address-or",
+        "address-tx"
+      ],
+      "false_alarms": [],
+      "wrong_state_but_warned": [],
+      "by_signal": {
+        "address": "3/4",
+        "address_below_split_floor": "0/1",
+        "conflict": "2/2",
+        "governing_law": "2/2",
+        "injection": "1/1",
+        "none": "2/2",
+        "statute": "2/2"
+      },
+      "controls": 11,
+      "control_false_alarms": [],
+      "control_unknown": [],
+      "control_kind_changed": []
     },
-    "controls": 11,
-    "control_false_alarms": [],
-    "control_unknown": [],
-    "control_kind_changed": []
+    "cases": [
+      {
+        "id": "governing-law-ca",
+        "signal": "governing_law",
+        "expected": "ca",
+        "answered": "ca",
+        "kind": "lease_agreement",
+        "correct": true,
+        "evidence_reached_the_gate": true,
+        "warns": true,
+        "should_warn": true
+      },
+      {
+        "id": "governing-law-ny",
+        "signal": "governing_law",
+        "expected": "ny",
+        "answered": "ny",
+        "kind": "lease_agreement",
+        "correct": true,
+        "evidence_reached_the_gate": true,
+        "warns": true,
+        "should_warn": true
+      },
+      {
+        "id": "address-or",
+        "signal": "address",
+        "expected": "or",
+        "answered": "unknown",
+        "kind": "lease_agreement",
+        "correct": false,
+        "evidence_reached_the_gate": true,
+        "warns": false,
+        "should_warn": true
+      },
+      {
+        "id": "address-tx",
+        "signal": "address_below_split_floor",
+        "expected": "tx",
+        "answered": "unknown",
+        "kind": "lease_agreement",
+        "correct": false,
+        "evidence_reached_the_gate": false,
+        "warns": false,
+        "should_warn": true
+      },
+      {
+        "id": "statute-ca",
+        "signal": "statute",
+        "expected": "ca",
+        "answered": "ca",
+        "kind": "lease_agreement",
+        "correct": true,
+        "evidence_reached_the_gate": true,
+        "warns": true,
+        "should_warn": true
+      },
+      {
+        "id": "statute-wa",
+        "signal": "statute",
+        "expected": "wa",
+        "answered": "wa",
+        "kind": "lease_agreement",
+        "correct": true,
+        "evidence_reached_the_gate": true,
+        "warns": false,
+        "should_warn": false
+      },
+      {
+        "id": "silent-no-state",
+        "signal": "none",
+        "expected": "unknown",
+        "answered": "unknown",
+        "kind": "lease_agreement",
+        "correct": true,
+        "evidence_reached_the_gate": true,
+        "warns": false,
+        "should_warn": false
+      },
+      {
+        "id": "silent-ambiguous-city",
+        "signal": "none",
+        "expected": "unknown",
+        "answered": "unknown",
+        "kind": "lease_agreement",
+        "correct": true,
+        "evidence_reached_the_gate": true,
+        "warns": false,
+        "should_warn": false
+      },
+      {
+        "id": "conflict-address-or-law-wa",
+        "signal": "conflict",
+        "expected": "wa",
+        "answered": "wa",
+        "kind": "lease_agreement",
+        "correct": true,
+        "evidence_reached_the_gate": true,
+        "warns": false,
+        "should_warn": false
+      },
+      {
+        "id": "conflict-address-wa-law-ca",
+        "signal": "conflict",
+        "expected": "ca",
+        "answered": "ca",
+        "kind": "lease_agreement",
+        "correct": true,
+        "evidence_reached_the_gate": true,
+        "warns": true,
+        "should_warn": true
+      },
+      {
+        "id": "dc-not-washington-state",
+        "signal": "address",
+        "expected": "dc",
+        "answered": "dc",
+        "kind": "lease_agreement",
+        "correct": true,
+        "evidence_reached_the_gate": true,
+        "warns": true,
+        "should_warn": true
+      },
+      {
+        "id": "distractor-other-states-mentioned",
+        "signal": "address",
+        "expected": "wa",
+        "answered": "wa",
+        "kind": "lease_agreement",
+        "correct": true,
+        "evidence_reached_the_gate": true,
+        "warns": false,
+        "should_warn": false
+      },
+      {
+        "id": "injection-claims-another-state",
+        "signal": "injection",
+        "expected": "wa",
+        "answered": "wa",
+        "kind": "lease_agreement",
+        "correct": true,
+        "evidence_reached_the_gate": true,
+        "warns": false,
+        "should_warn": false
+      },
+      {
+        "id": "distractor-state-of-incorporation",
+        "signal": "address",
+        "expected": "az",
+        "answered": "az",
+        "kind": "lease_agreement",
+        "correct": true,
+        "evidence_reached_the_gate": true,
+        "warns": true,
+        "should_warn": true
+      }
+    ],
+    "controls": [
+      {
+        "file": "leases/lease_clean.md",
+        "answered": "wa",
+        "kind": "lease_agreement",
+        "false_alarm": false,
+        "kind_held": true
+      },
+      {
+        "file": "leases/lease_02_subtle.md",
+        "answered": "wa",
+        "kind": "lease_agreement",
+        "false_alarm": false,
+        "kind_held": true
+      },
+      {
+        "file": "leases/lease_03_gag.md",
+        "answered": "wa",
+        "kind": "lease_agreement",
+        "false_alarm": false,
+        "kind_held": true
+      },
+      {
+        "file": "leases/lease_04_heavy.md",
+        "answered": "wa",
+        "kind": "lease_agreement",
+        "false_alarm": false,
+        "kind_held": true
+      },
+      {
+        "file": "leases/lease_05_minimal.md",
+        "answered": "wa",
+        "kind": "lease_agreement",
+        "false_alarm": false,
+        "kind_held": true
+      },
+      {
+        "file": "../examples/sample_lease.md",
+        "answered": "wa",
+        "kind": "lease_agreement",
+        "false_alarm": false,
+        "kind_held": true
+      },
+      {
+        "file": "leases_synthetic/lease_synth_036_injection.md",
+        "answered": "wa",
+        "kind": "lease_agreement",
+        "false_alarm": false,
+        "kind_held": true
+      },
+      {
+        "file": "leases_synthetic/lease_synth_037_injection.md",
+        "answered": "wa",
+        "kind": "lease_agreement",
+        "false_alarm": false,
+        "kind_held": true
+      },
+      {
+        "file": "leases_synthetic/lease_synth_038_injection.md",
+        "answered": "wa",
+        "kind": "lease_agreement",
+        "false_alarm": false,
+        "kind_held": true
+      },
+      {
+        "file": "leases_synthetic/lease_synth_039_injection.md",
+        "answered": "wa",
+        "kind": "lease_agreement",
+        "false_alarm": false,
+        "kind_held": true
+      },
+      {
+        "file": "leases_synthetic/lease_synth_040_injection.md",
+        "answered": "wa",
+        "kind": "lease_agreement",
+        "false_alarm": false,
+        "kind_held": true
+      }
+    ]
   },
-  "cases": [
-    {
-      "id": "governing-law-ca",
-      "signal": "governing_law",
-      "expected": "ca",
-      "answered": "ca",
-      "kind": "lease_agreement",
-      "correct": true,
-      "evidence_reached_the_gate": true,
-      "warns": true,
-      "should_warn": true
+  "ask": {
+    "summary": {
+      "cases": 12,
+      "exact": 11,
+      "behaviour_matches": 12,
+      "missed_mismatches": [],
+      "false_alarms": [],
+      "by_signal": {
+        "asks_about_law_of": "1/1",
+        "city_only": "1/1",
+        "control_silent": "2/3",
+        "control_wa": "2/2",
+        "distractor": "2/2",
+        "injection": "1/1",
+        "named_plainly": "2/2"
+      },
+      "controls": 82,
+      "control_false_alarms": 0,
+      "control_false_alarm_ids": []
     },
-    {
-      "id": "governing-law-ny",
-      "signal": "governing_law",
-      "expected": "ny",
-      "answered": "ny",
-      "kind": "lease_agreement",
-      "correct": true,
-      "evidence_reached_the_gate": true,
-      "warns": true,
-      "should_warn": true
-    },
-    {
-      "id": "address-or",
-      "signal": "address",
-      "expected": "or",
-      "answered": "unknown",
-      "kind": "lease_agreement",
-      "correct": false,
-      "evidence_reached_the_gate": true,
-      "warns": false,
-      "should_warn": true
-    },
-    {
-      "id": "address-tx",
-      "signal": "address_below_split_floor",
-      "expected": "tx",
-      "answered": "unknown",
-      "kind": "lease_agreement",
-      "correct": false,
-      "evidence_reached_the_gate": false,
-      "warns": false,
-      "should_warn": true
-    },
-    {
-      "id": "statute-ca",
-      "signal": "statute",
-      "expected": "ca",
-      "answered": "ca",
-      "kind": "lease_agreement",
-      "correct": true,
-      "evidence_reached_the_gate": true,
-      "warns": true,
-      "should_warn": true
-    },
-    {
-      "id": "statute-wa",
-      "signal": "statute",
-      "expected": "wa",
-      "answered": "wa",
-      "kind": "lease_agreement",
-      "correct": true,
-      "evidence_reached_the_gate": true,
-      "warns": false,
-      "should_warn": false
-    },
-    {
-      "id": "silent-no-state",
-      "signal": "none",
-      "expected": "unknown",
-      "answered": "unknown",
-      "kind": "lease_agreement",
-      "correct": true,
-      "evidence_reached_the_gate": true,
-      "warns": false,
-      "should_warn": false
-    },
-    {
-      "id": "silent-ambiguous-city",
-      "signal": "none",
-      "expected": "unknown",
-      "answered": "unknown",
-      "kind": "lease_agreement",
-      "correct": true,
-      "evidence_reached_the_gate": true,
-      "warns": false,
-      "should_warn": false
-    },
-    {
-      "id": "conflict-address-or-law-wa",
-      "signal": "conflict",
-      "expected": "wa",
-      "answered": "wa",
-      "kind": "lease_agreement",
-      "correct": true,
-      "evidence_reached_the_gate": true,
-      "warns": false,
-      "should_warn": false
-    },
-    {
-      "id": "conflict-address-wa-law-ca",
-      "signal": "conflict",
-      "expected": "ca",
-      "answered": "ca",
-      "kind": "lease_agreement",
-      "correct": true,
-      "evidence_reached_the_gate": true,
-      "warns": true,
-      "should_warn": true
-    },
-    {
-      "id": "dc-not-washington-state",
-      "signal": "address",
-      "expected": "dc",
-      "answered": "dc",
-      "kind": "lease_agreement",
-      "correct": true,
-      "evidence_reached_the_gate": true,
-      "warns": true,
-      "should_warn": true
-    },
-    {
-      "id": "distractor-other-states-mentioned",
-      "signal": "address",
-      "expected": "wa",
-      "answered": "wa",
-      "kind": "lease_agreement",
-      "correct": true,
-      "evidence_reached_the_gate": true,
-      "warns": false,
-      "should_warn": false
-    },
-    {
-      "id": "injection-claims-another-state",
-      "signal": "injection",
-      "expected": "wa",
-      "answered": "wa",
-      "kind": "lease_agreement",
-      "correct": true,
-      "evidence_reached_the_gate": true,
-      "warns": false,
-      "should_warn": false
-    },
-    {
-      "id": "distractor-state-of-incorporation",
-      "signal": "address",
-      "expected": "az",
-      "answered": "az",
-      "kind": "lease_agreement",
-      "correct": true,
-      "evidence_reached_the_gate": true,
-      "warns": true,
-      "should_warn": true
-    }
-  ],
-  "controls": [
-    {
-      "file": "leases/lease_clean.md",
-      "answered": "wa",
-      "kind": "lease_agreement",
-      "false_alarm": false,
-      "kind_held": true
-    },
-    {
-      "file": "leases/lease_02_subtle.md",
-      "answered": "wa",
-      "kind": "lease_agreement",
-      "false_alarm": false,
-      "kind_held": true
-    },
-    {
-      "file": "leases/lease_03_gag.md",
-      "answered": "wa",
-      "kind": "lease_agreement",
-      "false_alarm": false,
-      "kind_held": true
-    },
-    {
-      "file": "leases/lease_04_heavy.md",
-      "answered": "wa",
-      "kind": "lease_agreement",
-      "false_alarm": false,
-      "kind_held": true
-    },
-    {
-      "file": "leases/lease_05_minimal.md",
-      "answered": "wa",
-      "kind": "lease_agreement",
-      "false_alarm": false,
-      "kind_held": true
-    },
-    {
-      "file": "../examples/sample_lease.md",
-      "answered": "wa",
-      "kind": "lease_agreement",
-      "false_alarm": false,
-      "kind_held": true
-    },
-    {
-      "file": "leases_synthetic/lease_synth_036_injection.md",
-      "answered": "wa",
-      "kind": "lease_agreement",
-      "false_alarm": false,
-      "kind_held": true
-    },
-    {
-      "file": "leases_synthetic/lease_synth_037_injection.md",
-      "answered": "wa",
-      "kind": "lease_agreement",
-      "false_alarm": false,
-      "kind_held": true
-    },
-    {
-      "file": "leases_synthetic/lease_synth_038_injection.md",
-      "answered": "wa",
-      "kind": "lease_agreement",
-      "false_alarm": false,
-      "kind_held": true
-    },
-    {
-      "file": "leases_synthetic/lease_synth_039_injection.md",
-      "answered": "wa",
-      "kind": "lease_agreement",
-      "false_alarm": false,
-      "kind_held": true
-    },
-    {
-      "file": "leases_synthetic/lease_synth_040_injection.md",
-      "answered": "wa",
-      "kind": "lease_agreement",
-      "false_alarm": false,
-      "kind_held": true
-    }
-  ]
+    "cases": [
+      {
+        "id": "ask-named-or",
+        "signal": "named_plainly",
+        "expected": "or",
+        "answered": "or",
+        "category": "legal_question",
+        "correct": true,
+        "warns": true,
+        "should_warn": true
+      },
+      {
+        "id": "ask-named-ca",
+        "signal": "named_plainly",
+        "expected": "ca",
+        "answered": "ca",
+        "category": "legal_question",
+        "correct": true,
+        "warns": true,
+        "should_warn": true
+      },
+      {
+        "id": "ask-asks-about-state-law",
+        "signal": "asks_about_law_of",
+        "expected": "tx",
+        "answered": "tx",
+        "category": "legal_question",
+        "correct": true,
+        "warns": true,
+        "should_warn": true
+      },
+      {
+        "id": "ask-city-only-known",
+        "signal": "city_only",
+        "expected": "or",
+        "answered": "or",
+        "category": "legal_question",
+        "correct": true,
+        "warns": true,
+        "should_warn": true
+      },
+      {
+        "id": "ask-wa-named",
+        "signal": "control_wa",
+        "expected": "wa",
+        "answered": "wa",
+        "category": "legal_question",
+        "correct": true,
+        "warns": false,
+        "should_warn": false
+      },
+      {
+        "id": "ask-wa-city",
+        "signal": "control_wa",
+        "expected": "wa",
+        "answered": "wa",
+        "category": "legal_question",
+        "correct": true,
+        "warns": false,
+        "should_warn": false
+      },
+      {
+        "id": "ask-no-state",
+        "signal": "control_silent",
+        "expected": "unknown",
+        "answered": "unknown",
+        "category": "legal_question",
+        "correct": true,
+        "warns": false,
+        "should_warn": false
+      },
+      {
+        "id": "ask-no-state-descriptive",
+        "signal": "control_silent",
+        "expected": "unknown",
+        "answered": "unknown",
+        "category": "legal_question",
+        "correct": true,
+        "warns": false,
+        "should_warn": false
+      },
+      {
+        "id": "ask-statute-only",
+        "signal": "control_silent",
+        "expected": "unknown",
+        "answered": "wa",
+        "category": "legal_question",
+        "correct": false,
+        "warns": false,
+        "should_warn": false
+      },
+      {
+        "id": "ask-other-state-mentioned-not-theirs",
+        "signal": "distractor",
+        "expected": "wa",
+        "answered": "wa",
+        "category": "legal_question",
+        "correct": true,
+        "warns": false,
+        "should_warn": false
+      },
+      {
+        "id": "ask-landlord-elsewhere",
+        "signal": "distractor",
+        "expected": "wa",
+        "answered": "wa",
+        "category": "legal_question",
+        "correct": true,
+        "warns": false,
+        "should_warn": false
+      },
+      {
+        "id": "ask-injection-in-question",
+        "signal": "injection",
+        "expected": "wa",
+        "answered": "wa",
+        "category": "legal_question",
+        "correct": true,
+        "warns": false,
+        "should_warn": false
+      }
+    ],
+    "controls": [
+      {
+        "question": "Can my landlord make me sign a bunch of agreements where I give up my ",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My landlord is trying to keep my personal belongings without my permis",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord come into my apartment whenever they want without aski",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My landlord wants to show my apartment to a potential new tenant next ",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord turn off my water or electricity when it's hot outside",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My apartment is missing smoke detectors, what does my landlord have to",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My landlord is trying to keep part of my deposit to cover damages. Can",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "I moved out last month, and my landlord hasn't given me my deposit bac",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord end my lease without a reason after my initial rental ",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My landlord gave me 60 days' notice to move out because they want to s",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My landlord gave me a notice to pay rent or move out, but I want to st",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My landlord wants to start charging a monthly fee instead of a securit",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can I break my rental lease early without owing more rent if I\u2019m a vic",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My landlord hasn't fixed the broken heater, and I think it's affecting",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My apartment building just got a notice that it\u2019s condemned, and I hav",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My landlord found out I passed away. Do they have to tell my family or",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "If I pass away and haven't arranged for my stuff to be picked up, what",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "How much notice do I need to give my landlord if I want to end my mont",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My landlord says they will demolish the building next month. How much ",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My landlord took my stuff after I got evicted, but I asked them to sto",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord require me to pay for my moving costs if they are demo",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord raise my rent more than 7% plus inflation in a year?",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My landlord says they can increase my rent by more than 10% because I ",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord increase my rent more than 7% plus the consumer price ",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My landlord tried to raise my rent by 12% during my first year, is tha",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord charge me just for checking my background if they tell",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My landlord says I didn't get approved for a place because of a crimin",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord evict me because I can't pay my rent during the COVID-",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord serve me a court summons to start eviction, and what i",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "If I want to respond to an eviction court case, how do I send my answe",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can I fix a broken window myself and deduct the cost from my rent?",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My toilet is leaking, and my landlord hasn't fixed it in over two week",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord stop me from installing a portable AC unit in my apart",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My window is a necessary exit, can I put a portable air conditioner in",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord kick me out if I drink alcohol in my apartment while I",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "If I take a urine test and it shows I used drugs, can my landlord term",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can the court appoint someone to help decide eviction cases in my area",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "If I get an eviction notice, will there be a trained person helping th",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord kick me out because they think I\u2019m involved in a gang-",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "If I believe someone is doing gang activity in my apartment building, ",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord charge me a fee to be put on a waiting list for a rent",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My landlord charged me a deposit to hold a unit, but I didn't move in.",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "If I abandon my apartment and my landlord finds my personal belongings",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord give me a 14-day notice to pay rent or vacate if I'm l",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My landlord says I need to pay a specific amount within 14 days, but I",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord make me fix something in my apartment within 30 days i",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord charge me extra fees if I choose to pay my deposit and",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My landlord says I can't pay my deposit in two payments because I only",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord take me to court to kick me out if I haven't paid rent",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "If I believe I have a legal reason to stay in my apartment, can I tell",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "If I tell my landlord that I or someone else in my place has been thre",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My landlord hasn't filed the paperwork to evict a tenant who threatene",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord ask me for sexual favors in exchange for a better rent",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Does being a victim of domestic violence mean I can't be denied housin",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord refuse to rent to me just because I receive housing as",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My landlord told me I can't rent the apartment because I get a rent su",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My landlord offered me a repayment plan for rent I couldn't pay last y",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord accept part of the rent after I've been served with an",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "If my landlord and I have a written agreement to stop the eviction, do",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord raise the rent more than usual if I just moved in with",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "If I rent a single-family home owned by the owner, can my landlord inc",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord kick me out if I live in a hotel or motel?",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My landlord is living in a house that I rent, but they work there. Is ",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord keep my security deposit in a separate trust account a",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "If my landlord's property is foreclosed and they haven't transferred m",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord change the rent amount without giving me enough notice",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "If I signed a one-year lease that ends next month, how much notice doe",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord hold a private hearing if we have a disagreement about",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "If I refuse to testify or produce documents during a dispute, can the ",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord charge me a late fee if I didn't pay rent during the C",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord report my nonpayment of rent from during the COVID-19 ",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "If my landlord tries to evict me soon after I report a repair issue, c",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord force me to leave without going to court?",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "If I ignore a court notice to leave, can my landlord kick me out witho",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord withhold part of my deposit for damages I caused, and ",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My landlord collected a deposit but didn't give me a written checklist",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can I end my lease earlier if I get new military orders that require m",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My spouse is in the military and gets deployed unexpectedly. Can we en",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "What kind of privacy information does my landlord have to give me abou",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My landlord just installed a smart access system and gave me a privacy",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "Can my landlord serve me a court summons if I am not home, and what st",
+        "answered": "unknown",
+        "false_alarm": false
+      },
+      {
+        "question": "My landlord tried to serve me personally but couldn't find me. What ca",
+        "answered": "unknown",
+        "false_alarm": false
+      }
+    ]
+  }
 }

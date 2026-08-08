@@ -25,6 +25,11 @@ from litellm import completion
 from pydantic import BaseModel, Field
 from tqdm import tqdm
 
+from leasehound.jurisdiction import (
+    UNKNOWN_JURISDICTION,
+    Jurisdiction,
+    jurisdiction_mismatch,
+)
 from leasehound.metrics import UsageMeter, cost_line, log_scan
 from leasehound.retrieval import (
     GENERATION_MODEL,
@@ -347,21 +352,6 @@ def check_protections(clauses: list[str], meter: UsageMeter | None = None) -> li
 # model; it runs once per scan, so the extra cost is negligible.
 DocumentKind = Literal["lease_agreement", "document_about_leases", "other"]
 
-# Which state's law the DOCUMENT points to, as distinct from the one being applied.
-# An enum rather than a free string so the answer is comparable to `state` without
-# normalising "California" / "CA" / "Calif." by hand — a structured-output enum
-# cannot come back as a value this code has no branch for.
-US_STATES = (
-    "al", "ak", "az", "ar", "ca", "co", "ct", "de", "fl", "ga", "hi", "id", "il",
-    "in", "ia", "ks", "ky", "la", "me", "md", "ma", "mi", "mn", "ms", "mo", "mt",
-    "ne", "nv", "nh", "nj", "nm", "ny", "nc", "nd", "oh", "ok", "or", "pa", "ri",
-    "sc", "sd", "tn", "tx", "ut", "vt", "va", "wa", "wv", "wi", "wy", "dc",
-)
-UNKNOWN_JURISDICTION = "unknown"
-# Literal takes a tuple at runtime exactly as it takes a series of literals, which is
-# what keeps the 51 codes in one list instead of two that can drift.
-Jurisdiction = Literal[(*US_STATES, UNKNOWN_JURISDICTION)]  # type: ignore[valid-type]
-
 
 class DocumentCheck(BaseModel):
     kind: DocumentKind = Field(
@@ -443,17 +433,6 @@ def classify_document(clauses: list[str],
     if meter is not None:
         meter.add_completion(response)
     return DocumentCheck.model_validate_json(response.choices[0].message.content)
-
-
-def jurisdiction_mismatch(document_state: str, applied_state: str) -> bool:
-    """Whether the law being applied is not the law the document points to.
-
-    "unknown" is not a mismatch. Most short leases name no state anywhere, and a
-    warning that fires on every one of them is a warning nobody reads — the cost of
-    a false alarm here is the credibility of the true ones.
-    """
-    return (document_state != UNKNOWN_JURISDICTION
-            and document_state.lower() != applied_state.lower())
 
 
 def scan_config(state: str = "wa", collection: str | None = None) -> PipelineConfig:

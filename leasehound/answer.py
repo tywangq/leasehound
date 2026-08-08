@@ -19,6 +19,11 @@ from typing import Literal
 from litellm import completion
 from pydantic import BaseModel, Field
 
+from leasehound.jurisdiction import (
+    UNKNOWN_JURISDICTION,
+    Jurisdiction,
+    jurisdiction_mismatch,
+)
 from leasehound.metrics import UsageMeter, log_ask
 from leasehound.retrieval import (
     GENERATION_MODEL,
@@ -30,6 +35,22 @@ from leasehound.retrieval import (
 
 
 class Route(BaseModel):
+    # Two answers from the router call, for the price of the one it already makes —
+    # the same trade scan's gate makes for the same reason. Ask mode had the gap scan
+    # mode just closed: the corpus is Washington's, and a renter in Oregon typing
+    # "my landlord kept my whole deposit" got RCW 59.18 with nothing saying it does
+    # not govern them. The context line says the hound knows Washington law, which is
+    # a disclosure; it is not an answer to a question that named somewhere else.
+    jurisdiction: Jurisdiction = Field(
+        description="Two-letter code for the US state the USER'S OWN MESSAGE says "
+        "they rent in, or whose law they are asking about — 'I'm in Portland, "
+        "Oregon' is 'or', 'does California law let my landlord...' is 'ca'. Answer "
+        "'unknown' when the message names no state, which is the common case. Judge "
+        "ONLY from the user's message: not from the conversation history, not from "
+        "any document quoted in it, and not from the statutes under discussion — this "
+        "assistant only knows Washington law, so Washington appearing in an earlier "
+        "answer is not evidence about where the user lives."
+    )
     category: Literal["legal_question", "scan_request", "small_talk"] = Field(
         description="legal_question: asks about rental law, tenant rights, a lease "
         "clause, or what the scan report means. ALSO any message that merely "
@@ -73,10 +94,22 @@ you can't scan from words alone.
 # at 1/5, which is the shape of a model at its limit rather than an unclear spec.
 ROUTER_MODEL = GENERATION_MODEL
 
+# The only law this corpus holds, and therefore the only law any answer is about. Not
+# a caller parameter the way scan's `state` is — ask mode has no document to take a
+# jurisdiction from and no second corpus to switch to — so it is stated once here
+# rather than defaulted in three signatures.
+CORPUS_STATE = "wa"
+
 
 @llm_retry
-def needs_retrieval(question: str, history: list | None = None, meter=None) -> bool:
-    """Router: skip the whole retrieval pipeline for messages that aren't legal questions."""
+def route(question: str, history: list | None = None, meter=None) -> Route:
+    """Router: skip the whole retrieval pipeline for messages that aren't legal questions.
+
+    Returns the whole route rather than the bool it used to, for the reason
+    `classify_document` does the same in scan.py: the call already knows more than
+    the caller was being told, and the part it was throwing away — which state the
+    asker named — is the part that decides whether the answer is about them.
+    """
     message = (
         f"Conversation so far:\n{history or '(none)'}\n\n"
         f"User message:\n{question}\n\n"
@@ -89,7 +122,12 @@ def needs_retrieval(question: str, history: list | None = None, meter=None) -> b
     )
     if meter is not None:
         meter.add_completion(response)
-    return Route.model_validate_json(response.choices[0].message.content).category == "legal_question"
+    return Route.model_validate_json(response.choices[0].message.content)
+
+
+def needs_retrieval(question: str, history: list | None = None, meter=None) -> bool:
+    """The router's routing half alone, for callers that want nothing else."""
+    return route(question, history, meter).category == "legal_question"
 
 
 SYSTEM_PROMPT = """
@@ -164,6 +202,10 @@ class AskResult:
     # retrieval, no sources footer. Empty `chunks` means the same thing, but only
     # by coincidence — retrieval returning nothing would look identical.
     routed: bool
+    # The state the question named, or "unknown" — which is the common case and is
+    # not a mismatch. Kept separate from the state whose law this corpus holds,
+    # because the interesting case is the two disagreeing.
+    jurisdiction: str = UNKNOWN_JURISDICTION
     record: dict | None = field(default=None)
 
 
@@ -195,7 +237,8 @@ def answer_question(
     """
     config = config or PipelineConfig()
     meter = UsageMeter()
-    routed = needs_retrieval(question, history, meter)
+    routing = route(question, history, meter)
+    routed = routing.category == "legal_question"
     if routed:
         chunks = fetch_context(question, config, history, meter)
         messages = make_messages(question, history or [], chunks)
@@ -208,14 +251,19 @@ def answer_question(
         )
     response = completion(model=GENERATION_MODEL, messages=messages, stream=True,
                           stream_options=STREAM_USAGE)
-    result = AskResult(stream=iter(()), chunks=chunks, meter=meter, routed=routed)
+    result = AskResult(stream=iter(()), chunks=chunks, meter=meter, routed=routed,
+                       jurisdiction=routing.jurisdiction)
 
     def metered() -> Iterator[str]:
         try:
             yield from stream_text(response, meter, GENERATION_MODEL)
         finally:
-            result.record = log_ask(meter, retrieved=len(chunks), routed=routed,
-                                    with_report=report_context)
+            result.record = log_ask(
+                meter, retrieved=len(chunks), routed=routed,
+                with_report=report_context,
+                jurisdiction=(routing.jurisdiction
+                              if jurisdiction_mismatch(routing.jurisdiction, CORPUS_STATE)
+                              else None))
 
     result.stream = metered()
     return result

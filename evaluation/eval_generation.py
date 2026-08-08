@@ -94,25 +94,59 @@ def judge_answer(question: str, reference: str, extracts: str, answer: str) -> A
     return AnswerJudgment.model_validate_json(response.choices[0].message.content)
 
 
+# The closed-book config: the shipped system prompt with the retrieval rules removed
+# and no statute text attached. Deliberately generous to the baseline — same persona,
+# same instruction to cite section numbers inline — because the question is what
+# retrieval adds over a model that is trying, not over a model told not to.
+#
+# Scan mode has had this comparison since July (eval_baseline.py: 3/14 citations
+# correct closed-book against 18/18 with retrieval). Ask mode did not, which left the
+# README's central claim — "the law shouldn't come from parametric memory" — measured
+# on only one of the two modes it is made about. It is also the claim a reader is most
+# likely to doubt about ask mode specifically, since "a chatbot already answers this"
+# is the obvious objection to a tenant-law Q&A.
+CLOSED_BOOK_PROMPT = """
+You are a tenant-rights assistant for Washington State, answering questions about the
+Residential Landlord-Tenant Act (RCW 59.18).
+
+Answer the tenant's question in plain language, and cite the RCW section number inline
+(e.g. "under RCW 59.18.230(2)(i) ..."). You provide legal information, not legal advice.
+"""
+
+
 @llm_retry
-def generate_answer(question: str, config: PipelineConfig) -> tuple[str, list]:
+def generate_answer(question: str, config: PipelineConfig,
+                    closed_book: bool = False) -> tuple[str, list]:
+    if closed_book:
+        response = completion(model=GENERATION_MODEL, messages=[
+            {"role": "system", "content": CLOSED_BOOK_PROMPT},
+            {"role": "user", "content": question}])
+        return response.choices[0].message.content, []
     chunks = fetch_context(question, config)
     response = completion(model=GENERATION_MODEL, messages=make_messages(question, [], chunks))
     return response.choices[0].message.content, chunks
 
 
-def evaluate_case(case: dict, config: PipelineConfig, sections: dict) -> dict:
-    answer, chunks = generate_answer(case["question"], config)
+def evaluate_case(case: dict, config: PipelineConfig, sections: dict,
+                  closed_book: bool = False) -> dict:
+    answer, chunks = generate_answer(case["question"], config, closed_book)
     reference = sections[case["section"]]
     extracts = "\n\n".join(c.page_content for c in chunks)
     judgment = judge_answer(case["question"], reference, extracts, answer)
     retrieved_sections = {c.metadata.get("section") for c in chunks}
+    cited = {base_section(c) for c in RCW_RE.findall(answer)}
     return {
         "question": case["question"],
         "section": case["section"],
         "verdict": judgment.verdict,
         "unsupported_claim": judgment.unsupported_claim,
-        "cites_gt": case["section"] in {base_section(c) for c in RCW_RE.findall(answer)},
+        "cites_gt": case["section"] in cited,
+        # Sections cited that this corpus does not contain. Named for what it measures
+        # rather than "invented": a citation outside the corpus is not necessarily
+        # fake — RCW 19.86, the Consumer Protection Act, is real and relevant and not
+        # in here — but it is unverifiable by this system, which is the property that
+        # matters when the claim being tested is that citations should be checkable.
+        "cites_outside_corpus": sorted(c for c in cited if c not in sections),
         "retrieval_had_gt": case["section"] in retrieved_sections,
     }
 
@@ -126,6 +160,9 @@ def main() -> None:
     parser.add_argument("--no-rerank", dest="rerank", action="store_false")
     parser.add_argument("--bm25", action="store_true",
                         help="merge a BM25 lexical channel into retrieval (hybrid)")
+    parser.add_argument("--closed-book", action="store_true",
+                        help="no retrieval at all: the model answers from memory, which "
+                             "is what pasting the question into a chat window does")
     parser.add_argument("--limit", type=int, help="Only run the first N questions (smoke test)")
     parser.add_argument("--tests", default="tests.jsonl", help="Test set file in evaluation/")
     args = parser.parse_args()
@@ -140,7 +177,8 @@ def main() -> None:
 
     rows = []
     with ThreadPoolExecutor(max_workers=MAX_PARALLEL) as pool:
-        futures = [pool.submit(evaluate_case, case, config, sections) for case in cases]
+        futures = [pool.submit(evaluate_case, case, config, sections, args.closed_book)
+                   for case in cases]
         for future in tqdm(as_completed(futures), total=len(futures), desc=args.name):
             rows.append(future.result())
 
@@ -148,14 +186,23 @@ def main() -> None:
     declined = [r for r in rows if r["verdict"] == "declined"]
     summary = {
         "name": args.name,
-        "collection": config.collection,
+        "collection": "(none — closed book)" if args.closed_book else config.collection,
         "n": n,
         "consistent": round(sum(r["verdict"] == "consistent" for r in rows) / n, 4),
         "contradicts": round(sum(r["verdict"] == "contradicts" for r in rows) / n, 4),
         "declined": round(len(declined) / n, 4),
         "declined_despite_retrieval": sum(r["retrieval_had_gt"] for r in declined),
-        "grounded": round(sum(not r["unsupported_claim"] for r in rows) / n, 4),
+        # Closed-book, the judge sees no extracts, so this collapses to "asserts no
+        # rule the ground-truth statute contains" — a stricter question than the one it
+        # answers for a retrieval config, and not the same number. Renamed rather than
+        # reported under the same key, because a reader comparing rows would otherwise
+        # be comparing two different measurements.
+        ("unsupported_free" if args.closed_book else "grounded"):
+            round(sum(not r["unsupported_claim"] for r in rows) / n, 4),
         "cites_gt": round(sum(r["cites_gt"] for r in rows) / n, 4),
+        "answers_citing_outside_corpus": sum(bool(r["cites_outside_corpus"]) for r in rows),
+        "sections_cited_outside_corpus": sorted(
+            {s for r in rows for s in r["cites_outside_corpus"]}),
         **stamp(),
     }
     with open(RESULTS_PATH, "a", encoding="utf-8") as f:

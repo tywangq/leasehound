@@ -30,6 +30,7 @@ import gradio as gr
 from starlette.responses import Response
 
 from leasehound.answer import answer_question
+from leasehound.jurisdiction import jurisdiction_mismatch
 from leasehound.metrics import UsageMeter, log_scan
 from leasehound.scan import (
     MAX_CLAUSES,
@@ -199,6 +200,16 @@ WRONG_STATE = (
     "clause the hound calls clear may be void there with nothing in the report to say "
     "so. Read it as a Washington-shaped guess, not as a verdict on your rights."
 )
+# The ask-mode half of WRONG_STATE. Shorter, because there is no report to qualify —
+# only the one answer that is about to arrive — and it has to name the consequence
+# rather than the mechanism: a renter does not care which corpus is loaded, they care
+# that the sentence they are about to read is about somebody else's state.
+WRONG_STATE_QUESTION = (
+    "🌎 You mentioned **{asked}**, and the hound only knows **Washington** law "
+    "(RCW 59.18). Here's the Washington answer — but {asked} has its own landlord-"
+    "tenant statutes, and on this question they may well say something different. "
+    "Worth checking with a tenant-rights service where you actually rent."
+)
 PARTIAL_SCAN = (
     "🐕 This document splits into {count} clauses — long-form agreements really do run "
     "this long. The hound judges the first {limit} to keep any one scan affordable, so "
@@ -356,6 +367,14 @@ def answer_flow(question, history, report, context_base):
             },
         ] + context_history
     answered = answer_question(question, context_history, report_context=bool(report))
+    if jurisdiction_mismatch(answered.jurisdiction, DEMO_STATE):
+        # Above the answer, not below it: a renter reading "your landlord cannot do
+        # that" has already acted on it by the time they reach a footnote. Inserted
+        # rather than replacing "🐕 Thinking…", because the answer is still coming —
+        # it is the Washington answer, which is not nothing, it is just not theirs.
+        history.insert(-1, {"role": "assistant", "content": WRONG_STATE_QUESTION.format(
+            asked=answered.jurisdiction.upper())})
+        yield _out(history)
     answer = ""
     for delta in answered.stream:
         answer += delta

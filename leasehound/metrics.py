@@ -207,7 +207,7 @@ def log_scan(meter: UsageMeter, source: str, clauses: int,
 
 
 def log_ask(meter: UsageMeter, retrieved: int, routed: bool,
-            with_report: bool = False) -> dict:
+            with_report: bool = False, jurisdiction: str | None = None) -> dict:
     """Append one answered question's metrics to logs/ask_metrics.jsonl.
 
     Deliberately records nothing about the question itself — not the text, not a
@@ -232,6 +232,13 @@ def log_ask(meter: UsageMeter, retrieved: int, routed: bool,
     if with_report:
         # A scan report rides in the history, which is most of the prompt.
         record["with_report_context"] = True
+    if jurisdiction is not None:
+        # Passed only when the asker named a state this corpus does not cover, so the
+        # field's presence is the signal — the same shape as the scan log's. A
+        # two-letter code is not a question and not an identifier; it is the one thing
+        # about the message worth counting, because a demo answering Oregon renters
+        # with Washington law is a fact about the demo, not about them.
+        record["jurisdiction"] = jurisdiction
     ASK_LOG_PATH.parent.mkdir(exist_ok=True)
     with ASK_LOG_PATH.open("a", encoding="utf-8") as f:
         f.write(json.dumps(record) + "\n")

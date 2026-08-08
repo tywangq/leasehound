@@ -110,16 +110,24 @@ def test_usage_is_booked_once_even_if_two_chunks_carry_it(monkeypatch):
     assert meter.summary()["llm_calls"] == 1
 
 
-def route(category="legal_question"):
+def route(category="legal_question", jurisdiction="unknown"):
+    """A stubbed router response. Both fields, because the router answers both.
+
+    Faking only `category` made four tests spend four minutes each retrying a
+    pydantic ValidationError when `jurisdiction` was added to the response model —
+    llm_retry cannot tell a schema mismatch from a flaky provider. A stub of a
+    structured response has to be the whole structure.
+    """
     return SimpleNamespace(
         choices=[SimpleNamespace(message=SimpleNamespace(
-            content=json.dumps({"category": category})))],
+            content=json.dumps({"category": category, "jurisdiction": jurisdiction})))],
         usage=SimpleNamespace(prompt_tokens=120, completion_tokens=5,
                               prompt_tokens_details=None),
     )
 
 
-def stub_ask(monkeypatch, tmp_path, category="legal_question", chunks=None):
+def stub_ask(monkeypatch, tmp_path, category="legal_question", chunks=None,
+             jurisdiction="unknown"):
     """Wire answer_question to stubs and return the list of calls it makes.
 
     Nothing here raises: answer_question is wrapped in llm_retry, so an assertion
@@ -134,7 +142,7 @@ def stub_ask(monkeypatch, tmp_path, category="legal_question", chunks=None):
         calls.append(kwargs)
         if kwargs.get("stream"):
             return iter([delta("Under "), delta("RCW 59.18.230."), usage_chunk()])
-        return route(category)
+        return route(category, jurisdiction)
 
     monkeypatch.setattr(answer, "completion", fake_completion)
     monkeypatch.setattr(answer, "fetch_context",
@@ -173,6 +181,39 @@ def test_chitchat_is_one_router_call_plus_one_reply_and_no_retrieval(monkeypatch
     "".join(result.stream)
     assert result.record["llm_calls"] == 2
     assert result.record["routed_to_retrieval"] is False
+
+
+def test_the_router_reports_the_state_the_asker_named_for_no_extra_call(
+        monkeypatch, tmp_path):
+    """Ask mode had the hole scan mode just closed: the corpus is Washington's, and a
+    renter in Oregon describing their problem got RCW 59.18 with nothing saying it does
+    not govern them. The router already classifies every message, so the answer rides
+    along on a call that was being made anyway."""
+    calls = stub_ask(monkeypatch, tmp_path, jurisdiction="or")
+    result = answer.answer_question("I rent in Portland, Oregon — can they keep my deposit?")
+    assert result.jurisdiction == "or"
+    "".join(result.stream)
+    # Two calls: the router and the answer. Naming a state costs neither a third.
+    assert result.record["llm_calls"] == 2
+    assert len([c for c in calls if not c.get("stream")]) == 1
+    # And the log knows, because a demo answering Oregon renters with Washington law
+    # is a fact about the demo.
+    assert result.record["jurisdiction"] == "or"
+
+
+def test_a_question_naming_no_state_is_not_a_mismatch(monkeypatch, tmp_path):
+    """The common case, and the one that decides whether the warning is worth having:
+    most questions never mention a state, and a warning on all of them is noise."""
+    stub_ask(monkeypatch, tmp_path, jurisdiction="unknown")
+    result = answer.answer_question("can my landlord charge a late fee?")
+    "".join(result.stream)
+    assert result.jurisdiction == "unknown"
+    assert "jurisdiction" not in result.record
+
+    stub_ask(monkeypatch, tmp_path, jurisdiction="wa")
+    named_wa = answer.answer_question("in Seattle, can my landlord enter without notice?")
+    "".join(named_wa.stream)
+    assert "jurisdiction" not in named_wa.record, "naming Washington is not a mismatch"
 
 
 def test_the_answer_call_asks_for_usage_or_nothing_would_be_metered(monkeypatch, tmp_path):

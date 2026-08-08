@@ -26,7 +26,8 @@ README = EVAL_DIR / "README.md"
 # READ, not results they write. The register is here because it holds decisions rather
 # than measurements — tests/test_checklist_register.py is what keeps it honest.
 INPUT_SETS = {"tests.jsonl", "tests_adversarial.jsonl", "permissive_pairs.jsonl",
-              "jurisdiction_cases.jsonl", "checklist_register.json"}
+              "jurisdiction_cases.jsonl", "jurisdiction_ask_cases.jsonl",
+              "checklist_register.json"}
 
 
 def result_files() -> list[Path]:
