@@ -12,6 +12,11 @@ So they are generated, by driving the actual app with Playwright and waiting on
 the app's own strings rather than on sleeps. Frames come from the same run, so
 the GIF and the still cannot disagree with each other.
 
+The GIF is paced by the wall clock, with three exceptions and one addition, all
+for the reader: it opens on a held frame of the untouched page, holds the click
+and the finished report, and draws the mouse pointer back in (a screenshot never
+contains it, so a click looked like the page changing by itself).
+
 Playwright is a DEV-ONLY tool and is deliberately absent from pyproject and
 requirements-lock.txt — nothing that ships needs a browser. Install it just for
 this:
@@ -34,8 +39,9 @@ import argparse
 import io
 import time
 from pathlib import Path
+from typing import NamedTuple
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 DOCS = Path(__file__).parent.parent / "docs"
 GIF_PATH = DOCS / "demo.gif"
@@ -70,6 +76,28 @@ GIF_COLORS = 128
 # so the result is a little shorter than the wall clock (last run: 10.5s of playback
 # for 15.1s of recording) — paced by the real thing, not equal to it.
 GIF_MIN_MS, GIF_MAX_MS = 60, 1000
+
+# Three deliberate pauses, in milliseconds, set by a Frame's own `hold_ms` rather
+# than by the clock. The recording used to start on the frame AFTER the click, so
+# the GIF opened on a page mid-scan: a reader had no idea what had been clicked, or
+# where to look. These are one frame each, not a second's worth of captures — a held
+# frame costs one frame's bytes however long it sits on screen, and identical frames
+# would only be merged back into one anyway.
+HOLD_BEFORE_CLICK_MS = 1400  # the untouched page, cursor resting on the chip
+HOLD_ON_CLICK_MS = 500  # the click itself, so the eye lands on the chip
+HOLD_ON_REPORT_MS = 1100  # the finished report, before the question starts typing
+
+# Real time is the right pace for the scan; it is the wrong pace for a GIF, and the
+# first recording with the holds showed why. Playback ran 19.4s of which the entire
+# 0/15 -> 15/15 clause count was 530ms — six states, unreadable — while a single
+# unchanging frame waiting on the gate held for 4.5s and another waiting on the
+# answer held for 6.5s. Nearly two thirds of the recording was one still image.
+#
+# So identical consecutive frames are collapsed into one state, and a state's time on
+# screen is bounded at both ends: nothing informative flashes past, and nothing static
+# outstays its welcome. The wall-clock figure this script prints is unaffected and
+# still describes the real run.
+STATE_MIN_MS, STATE_MAX_MS = 260, 1200
 # A recording that never ends is worse than a missing asset — it hangs CI-less
 # local runs with no clue why. Each phase is bounded.
 PHASE_TIMEOUT_S = 180
@@ -87,10 +115,37 @@ def chat_text(page) -> str:
 PIN_PAGE = "window.scrollTo(0, 0)"
 
 
-def frame(page) -> tuple[float, bytes]:
+class Frame(NamedTuple):
+    """One captured moment, plus the two things a screenshot cannot record.
+
+    A screenshot never contains the mouse pointer — the OS draws it, the page does
+    not — so a recording of a click is a recording of a page that changes for no
+    visible reason. `cursor` is where the pointer really was, in CSS pixels, and
+    write_gif draws it back in.
+
+    `hold_ms` overrides the real gap to the next frame. Everything else is paced by
+    the wall clock, which is what makes the clause counter's pace honest; the three
+    pauses are for the reader, and saying so explicitly keeps them out of the
+    numbers this script prints about real time.
+    """
+
+    stamp: float
+    png: bytes
+    cursor: tuple[float, float] | None = None
+    ring: bool = False  # draw a click ripple around the cursor
+    hold_ms: int | None = None
+
+
+def frame(page, cursor=None, ring: bool = False, hold_ms: int | None = None) -> Frame:
     """One stamped frame, taken with the page held at the top."""
     page.evaluate(PIN_PAGE)
-    return time.time(), page.screenshot(type="png")
+    return Frame(time.time(), page.screenshot(type="png"), cursor, ring, hold_ms)
+
+
+def centre_of(locator) -> tuple[float, float] | None:
+    """Where a click on this element lands, in CSS pixels."""
+    box = locator.bounding_box()
+    return (box["x"] + box["width"] / 2, box["y"] + box["height"] / 2) if box else None
 
 
 def wait_until(page, done, what: str, frames: list | None = None,
@@ -195,7 +250,77 @@ def shared_palette(images: list[Image.Image]) -> Image.Image:
     return strip.quantize(colors=GIF_COLORS, method=Image.FASTOCTREE)
 
 
-def write_gif(frames: list[tuple[float, bytes]], path: Path) -> None:
+# The pointer, as a polygon, in GIF pixels at GIF_WIDTH. Drawn rather than composited
+# from an image file: a 20-pixel arrow is less code than an asset to keep in the repo,
+# and it scales with GIF_WIDTH instead of going soft when that changes.
+POINTER = [(0, 0), (0, 17), (4, 13), (7, 20), (11, 19), (8, 12), (14, 12)]
+RING_RADIUS = 17
+
+
+def draw_cursor(image: Image.Image, at: tuple[float, float], ring: bool) -> None:
+    """Put the pointer back into a frame, at CSS coordinates.
+
+    White outline under a black fill, because the pointer crosses both the white
+    page and the teal chip and has to stay visible on both — the same reason every
+    real cursor is drawn that way.
+    """
+    scale = image.width / VIEWPORT["width"]
+    x, y = at[0] * scale, at[1] * scale
+    draw = ImageDraw.Draw(image)
+    if ring:
+        # A click ripple. The chip is teal, so the ring is drawn in white with a
+        # dark inner circle rather than the other way round.
+        draw.ellipse([x - RING_RADIUS, y - RING_RADIUS, x + RING_RADIUS, y + RING_RADIUS],
+                     outline=(255, 255, 255), width=4)
+        draw.ellipse([x - RING_RADIUS, y - RING_RADIUS, x + RING_RADIUS, y + RING_RADIUS],
+                     outline=(15, 23, 42), width=2)
+    points = [(x + dx, y + dy) for dx, dy in POINTER]
+    draw.polygon(points, fill=(15, 23, 42), outline=(255, 255, 255), width=2)
+
+
+def durations(frames: list[Frame]) -> list[int]:
+    """How long each frame sits on screen: the real gap, unless it is a held frame."""
+    gaps = [
+        min(GIF_MAX_MS, max(GIF_MIN_MS, round((b.stamp - a.stamp) * 1000)))
+        for a, b in zip(frames, frames[1:])
+    ]
+    # The last frame is the payoff — the finished report beside the cited answer — so
+    # it holds, rather than looping straight back to an empty page.
+    gaps.append(2500)
+    return [f.hold_ms if f.hold_ms is not None else gap
+            for f, gap in zip(frames, gaps)]
+
+
+def collapse(images: list[Image.Image], timings: list[int],
+             deliberate: list[bool]) -> tuple[list, list[int]]:
+    """Merge runs of identical frames into one state, then bound its time on screen.
+
+    PIL merges identical frames on its own, but only by summing their durations,
+    which is what let one unchanging frame sit for six and a half seconds. Doing it
+    here means the sum can be clamped.
+
+    Two exemptions from the ceiling, both for frames whose length is a decision rather
+    than an accident: the three `hold_ms` pauses, and the final frame — the payoff, a
+    finished report beside a cited answer, which holds instead of looping straight
+    back to an empty page. Clamping the opening hold to 1.2s was this function's first
+    bug, and it is the kind that looks like a tuning choice from outside.
+    """
+    states: list[Image.Image] = []
+    held: list[int] = []
+    fixed: list[bool] = []
+    for image, milliseconds, is_fixed in zip(images, timings, deliberate):
+        if states and image.tobytes() == states[-1].tobytes() and not is_fixed:
+            held[-1] += milliseconds
+        else:
+            states.append(image)
+            held.append(milliseconds)
+            fixed.append(is_fixed)
+    fixed[-1] = True
+    return states, [ms if is_fixed else min(STATE_MAX_MS, max(STATE_MIN_MS, ms))
+                    for ms, is_fixed in zip(held, fixed)]
+
+
+def write_gif(frames: list[Frame], path: Path) -> None:
     """Assemble stamped PNG frames into an animated GIF at true speed.
 
     Downscaled and palettised because the honest constraint here is GitHub's: a
@@ -203,27 +328,29 @@ def write_gif(frames: list[tuple[float, bytes]], path: Path) -> None:
     anything.
     """
     rgb = []
-    for _, raw in frames:
-        frame = Image.open(io.BytesIO(raw)).convert("RGB")
-        rgb.append(frame.resize(
-            (GIF_WIDTH, round(frame.height * GIF_WIDTH / frame.width)), Image.LANCZOS))
+    for captured in frames:
+        image = Image.open(io.BytesIO(captured.png)).convert("RGB")
+        image = image.resize(
+            (GIF_WIDTH, round(image.height * GIF_WIDTH / image.width)), Image.LANCZOS)
+        # After the resize, so the pointer is drawn at its final size rather than
+        # downscaled into mush.
+        if captured.cursor:
+            draw_cursor(image, captured.cursor, captured.ring)
+        rgb.append(image)
 
     master = shared_palette(rgb)
     # dither=NONE: this is flat UI, not a photograph. Floyd-Steinberg speckles large
     # areas of one colour and costs bytes for noise nobody wants to see.
     images = [frame.quantize(palette=master, dither=Image.Dither.NONE) for frame in rgb]
+    images, timings = collapse(images, durations(frames),
+                               [f.hold_ms is not None for f in frames])
 
-    stamps = [stamp for stamp, _ in frames]
-    durations = [
-        min(GIF_MAX_MS, max(GIF_MIN_MS, round((b - a) * 1000)))
-        for a, b in zip(stamps, stamps[1:])
-    ]
-    # The last frame is the payoff — the finished report beside the cited answer — so
-    # it holds, rather than looping straight back to an empty page.
-    durations.append(2500)
     images[0].save(path, save_all=True, append_images=images[1:],
-                   duration=durations, loop=0, optimize=True, disposal=2)
-    print(f"  (recording spans {stamps[-1] - stamps[0]:.1f}s of real time)")
+                   duration=timings, loop=0, optimize=True, disposal=2)
+    spanned = frames[-1].stamp - frames[0].stamp
+    held = sum(f.hold_ms for f in frames if f.hold_ms is not None) / 1000
+    print(f"  (recording spans {spanned:.1f}s of real time, plus {held:.1f}s of "
+          f"deliberate pauses)")
 
 
 def record(url: str, still_only: bool) -> None:
@@ -239,17 +366,35 @@ def record(url: str, still_only: bool) -> None:
         # arrives via demo.load and is therefore the real signal that the UI is up.
         page.goto(url, wait_until="load")
 
-        frames: list[tuple[float, bytes]] | None = None if still_only else []
+        frames: list[Frame] | None = None if still_only else []
 
         chip = page.get_by_text(SAMPLE_CHIP, exact=False).first
         chip.wait_for(state="visible", timeout=PHASE_TIMEOUT_S * 1000)
+        # The opening second, which the recording did not have: capture started on
+        # the first poll AFTER the click, so the GIF began on a page already
+        # scanning. A reader saw a counter moving and never saw what set it off.
+        # One held frame with the pointer on the chip is the whole fix.
+        at = centre_of(chip)
+        if frames is not None:
+            frames.append(frame(page, cursor=at, hold_ms=HOLD_BEFORE_CLICK_MS))
         print(f"clicking {SAMPLE_CHIP!r}…")
         chip.click()
+        if frames is not None:
+            # Two frames of the click: the ripple, then the same pointer without it.
+            # Between them the app has replaced the chips with "0/N clauses sniffed",
+            # so the counter's start is on screen rather than inferred.
+            frames.append(frame(page, cursor=at, ring=True, hold_ms=HOLD_ON_CLICK_MS))
+            frames.append(frame(page, cursor=at, hold_ms=HOLD_ON_CLICK_MS))
         # The report PANEL appearing, not a chat message: the fresh path ends with a
         # "Full report on the right" summary and the cached path does not, so keying
         # on that string worked exactly once and then hung for three minutes.
         wait_until(page, panel_pinned(page), "a report was pinned", frames)
         print("  scan finished")
+        if frames is not None:
+            # The finished report, before the question starts typing over it. The
+            # verdict counts are the point of the whole scan and they used to be on
+            # screen for one frame's worth of real time.
+            frames.append(frame(page, hold_ms=HOLD_ON_REPORT_MS))
 
         transcript = chat_text(page)
         if CACHE_HIT_MARK in transcript or CACHED_SNIFF_MARK in transcript:
