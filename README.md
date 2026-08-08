@@ -102,7 +102,20 @@ python -m leasehound.scan examples/sample_lease.md   # CLI
 python -m leasehound.app                             # web UI at / , HTTP API at /v1 , docs at /docs
 ```
 
-<a id="three-clients-one-pipeline"></a>**Three clients, one pipeline.** The CLI, the web UI and the HTTP API are all callers of `scan.scan_steps`, which yields the scan as events — split, gate, each clause, protections, done — and says nothing about how they should look. The CLI prints them, the UI streams them into chat, the API ignores them and returns the outcome. That shape exists because the first two used to be *separate copies* of the same sequence, assembled from the same primitives, and had already drifted: the UI hard-coded the jurisdiction the CLI took as an argument. Adding a third caller is what made the duplication untenable rather than merely untidy.
+<a id="three-clients-one-pipeline"></a>**Three clients, one pipeline.** The CLI, the web UI and the HTTP API are all callers of `scan.scan_steps`, which yields the scan as events and says nothing about how they should look. The CLI prints them, the UI streams them into chat, the API ignores them and returns the outcome. That shape exists because the first two used to be *separate copies* of the same sequence, assembled from the same primitives, and had already drifted: the UI hard-coded the jurisdiction the CLI took as an argument. Adding a third caller is what made the duplication untenable rather than merely untidy.
+
+| event | meaning |
+| --- | --- |
+| `split` | the document is *this* big — **and nothing has been spent yet** |
+| `gate_flagged` · `gate_refused` · `jurisdiction` | what the gate found: not a lease, unrelated to renting, or governed by another state's law |
+| **`judging`** | **the gate accepted; this many clauses are about to be judged** |
+| `clause` | one verdict, as it arrives |
+| `protections` | the negative-space pass started |
+| `done` | carries the `ScanResult` |
+
+**`split` and `judging` carry the same two counts, and the gap between them is the whole reason both exist.** A caller needs the counts early to size a progress bar, and `split` fires before the gate so that costs nothing — but a caller that *promises* something from those counts has promised it before anything decided the scan would happen. Uploading a long non-lease produced "this splits into 214 clauses, the first 60 will be judged" and *then* "this doesn't read as a lease". Both the CLI and the UI had it, because both keyed the cap notice off `split`; fixing it in each would have been the same fix written twice, so the pipeline says when the promise becomes safe instead. Anything a caller commits to belongs on `judging`. The UI opens the report panel there too, and the clause counter starts at 0/N there — before the gate, 0/N is a claim about clauses nobody has agreed to judge.
+
+A caller with nothing to say about an event ignores it, which is worth stating because it briefly was not true: both callers ended their branch chain in a bare `else` that dereferenced `step.result`, so the moment `judging` was added, `split` fell through to code reading a result that is `None` on every step but the last.
 
 The API is FastAPI with a typed contract and generated docs, and it added **no dependency** — Gradio already ships FastAPI, uvicorn and httpx, so `/v1` cost 0 MB in the image. `POST /v1/scan` returns the verdicts, the protections, the same rendered report, and **what the request spent**; `summary.partial` tells a caller whether the clause cap left anything unjudged, because 60-of-270 and 60-of-60 are different answers.
 
