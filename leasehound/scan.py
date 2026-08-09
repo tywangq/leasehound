@@ -38,7 +38,7 @@ from leasehound.retrieval import (
     fetch_unranked,
     llm_retry,
 )
-from leasehound.upload import read_document, split_clauses_with_mode
+from leasehound.upload import MAX_CLAUSE_CHARS, read_document, split_clauses_with_mode
 
 # When the statute corpus was fetched from app.leg.wa.gov (see corpus/wa/).
 # Laws change; a report should say which snapshot of the law judged it.
@@ -56,6 +56,11 @@ MAX_PARALLEL_SCANS = 8  # bounded so a long lease doesn't trip API rate limits
 # it made the demo's single likeliest visitor action — uploading a real lease —
 # return nothing at all, when judging the first 60 clauses and naming the ones
 # left unjudged spends exactly the same bounded amount.
+#
+# This bounds the clause pass ONLY, and for a long time the comment above stopped
+# there and read as if it bounded the scan. It did not: the protections pass reads
+# the whole document by design, so a scan's real ceiling was 60 + 1 + one call per
+# 24k characters, with nothing bounding the last term. See MAX_DOCUMENT_CHARS.
 MAX_CLAUSES = 60
 
 
@@ -226,6 +231,38 @@ class ProtectionReport(BaseModel):
 # HUD model lease is 39,996 characters, so a single 24k prompt saw 28 of its 49
 # clauses and called the rest missing by not looking.
 PROTECTIONS_WINDOW_CHARS = 24000
+
+# The other half of the spend bound, and the half that was missing.
+#
+# MAX_CLAUSES caps the clause pass and lets it DEGRADE: "clauses 1–60 were judged,
+# 61–270 were not" is a smaller true report. The protections pass cannot degrade the
+# same way, because it reports what a lease FAILS to include — a window that never
+# ran does not make "missing" partial, it makes it wrong. That asymmetry is the whole
+# argument for bounding the document instead of the pass: a scan either reads the
+# entire document for omissions or makes no claim about them.
+#
+# So an oversized document is REFUSED, unlike an over-cap one, and refused before the
+# gate — which makes it the only refusal here that costs nothing at all.
+#
+# ~5.7× the largest legitimate document this project has ever measured: the UW
+# 12-month housing agreement, 67,660 characters and 270 clauses, biggest of the five
+# real published leases in eval_real_formats.py. At the 3,000 characters per page
+# measured across those five, this is roughly 128 pages. For scale in the other
+# direction: a 10 MB upload used to buy 441 windows and about $1.09 of API budget,
+# against a measured mean scan of $0.011.
+MAX_DOCUMENT_CHARS = 384_000
+
+# Windows the biggest admissible document can produce — DERIVED, because the obvious
+# arithmetic is wrong and a test caught it. MAX_DOCUMENT_CHARS / PROTECTIONS_WINDOW_CHARS
+# would say 16; the real answer is 17. Packing splits only at clause boundaries, so a
+# window closes as soon as the next clause would overflow it and can waste up to
+# MAX_CLAUSE_CHARS - 1. Every window therefore holds at least the difference, and that
+# — not the window size — is what divides the document.
+#
+# Left as a derivation rather than the literal 17 so the relationship survives someone
+# changing any of the three inputs.
+MAX_PROTECTION_WINDOWS = -(
+    -MAX_DOCUMENT_CHARS // (PROTECTIONS_WINDOW_CHARS - MAX_CLAUSE_CHARS))
 
 
 def protection_windows(clauses: list[str], limit: int = PROTECTIONS_WINDOW_CHARS) -> list[str]:
@@ -541,6 +578,31 @@ class NoTextExtracted(Exception):
     """
 
 
+class DocumentTooLarge(Exception):
+    """Over MAX_DOCUMENT_CHARS: too big to scan without an unbounded bill.
+
+    Deliberately an exception and not a `refused` ScanResult, though the gate's
+    refusal is the nearer-looking neighbour. Two differences decide it.
+
+    `refused` is overridable — `scan_anyway` exists because a document that can
+    suppress its own report is the most effective attack on a scanner. This must
+    NOT be overridable: the override would be the unbounded spend.
+
+    And a refusal is an answer about the document ("this doesn't read as a lease"),
+    which costs one gate call to reach. This is an answer about the request, needs
+    no model to reach it, and so is raised before anything is spent.
+
+    Carries the sizes rather than a formatted sentence: three callers phrase it
+    three ways, and a CLI that says "384,000 characters" and a UI that says
+    "about 380 pages" should not be reformatting each other's prose.
+    """
+
+    def __init__(self, chars: int, limit: int = MAX_DOCUMENT_CHARS):
+        self.chars = chars
+        self.limit = limit
+        super().__init__(f"{chars} characters, over the {limit}-character scan limit")
+
+
 @dataclass
 class ScanStep:
     """One step of a scan in progress, so callers can show it happening.
@@ -589,6 +651,13 @@ def scan_steps(text: str, source: str, state: str = "wa",
     as an argument.
     """
     config = scan_config(state, collection)
+    # Before the split, not after: splitting a 10 MB upload allocates the clause list
+    # and then the windows on top of it, ~3.2× the file in resident memory, and this
+    # runs on a one-instance deployment whose measured peak across four concurrent
+    # scans is ~300 MB. The bill is the headline reason for the bound; the instance
+    # is the reason the check goes first.
+    if len(text) > MAX_DOCUMENT_CHARS:
+        raise DocumentTooLarge(len(text))
     clauses, split_mode = split_clauses_with_mode(text)
     if not clauses:
         raise NoTextExtracted(source)
@@ -796,10 +865,10 @@ def partial_scan_notice(judged: int, total: int) -> str:
     the clause-splitter bug expensive."""
     return (
         f"> ⚠️ **Partial scan — clauses {judged + 1}–{total} were not judged.** One scan "
-        f"stops at {MAX_CLAUSES} clauses to bound what a single upload can spend, and this "
-        f"document splits into {total}. The red / caution / clear verdicts below cover "
-        f"clauses 1–{judged} only; a red flag may well be sitting in the part that wasn't "
-        "read. The missing-protections check did read the whole document."
+        f"judges at most {MAX_CLAUSES} clauses, and this document splits into {total}. "
+        f"The red / caution / clear verdicts below cover clauses 1–{judged} only; a red "
+        "flag may well be sitting in the part that wasn't read. The missing-protections "
+        "check did read the whole document."
     )
 
 
@@ -912,7 +981,17 @@ def main() -> None:
                              "a lease or as anything about renting")
     args = parser.parse_args()
 
-    result = scan_lease(args.file, args.state, scan_anyway=args.scan_anyway)
+    try:
+        result = scan_lease(args.file, args.state, scan_anyway=args.scan_anyway)
+    except DocumentTooLarge as oversized:
+        # A message and exit 1, not a traceback: this is a normal thing for a person to
+        # do — point the tool at a bundle of documents — and it is the one refusal here
+        # that happens before any API call, so "nothing was spent" is worth saying.
+        raise SystemExit(
+            f"🛑 {args.file} is {oversized.chars:,} characters, over the "
+            f"{oversized.limit:,}-character scan limit. Nothing was scanned and nothing "
+            "was spent. Split it and scan the lease itself."
+        ) from oversized
     report = render_report(result.findings, args.file, args.state, result.protections,
                            result.gate_flagged, result.clauses_total, result.refused,
                            result.jurisdiction)

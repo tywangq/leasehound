@@ -3,6 +3,8 @@
 import json
 from pathlib import Path
 
+from fastapi import FastAPI
+
 import leasehound.app as app
 import leasehound.scan as scan
 from leasehound.app import (
@@ -334,8 +336,9 @@ def test_a_long_lease_is_scanned_partially_instead_of_being_turned_away(monkeypa
     history: list = []
     list(app.scan_flow(Path("uw_housing_agreement.pdf"), "key-long", history, "", "", []))
 
-    assert len(judged) == app.MAX_CLAUSES, "spend must stay bounded by the cap"
+    assert len(judged) == app.MAX_CLAUSES, "the clause pass must stop at the cap"
     # The negative-space pass is exempt: "this lease omits X" needs the whole document.
+    # Which is why the cap alone never bounded a scan — see the next test.
     assert len(protections_saw) == total
     chat = " ".join(m["content"] for m in history)
     assert f"clauses {app.MAX_CLAUSES + 1}–{total}" in chat, "the visitor is told what was skipped"
@@ -343,3 +346,76 @@ def test_a_long_lease_is_scanned_partially_instead_of_being_turned_away(monkeypa
     logged = json.loads((tmp_path / "scan_metrics.jsonl").read_text().splitlines()[0])
     assert logged["clauses"] == app.MAX_CLAUSES and logged["clauses_total"] == total
     app._scan_cache.clear()
+
+
+def test_a_document_too_large_to_scan_is_turned_away_without_spending(monkeypatch, tmp_path):
+    """The other end of the size question, and the opposite answer to the one above.
+
+    Over the CLAUSE cap a scan degrades, because "clauses 1–60 were judged" is still
+    true. Over the DOCUMENT limit it stops, because the protections pass reads
+    everything and a window that never ran turns "missing" from partial into wrong.
+    So this visitor gets a refusal — and the thing worth pinning is that the refusal
+    is free: the check runs before the split and before the gate.
+    """
+    import leasehound.metrics as metrics
+
+    oversized = "1. RENT. Tenant shall pay rent when due.\n\n" * 12_000
+    assert len(oversized) > scan.MAX_DOCUMENT_CHARS
+    spent = []
+
+    monkeypatch.setattr(app, "read_document", lambda path: oversized)
+    monkeypatch.setattr(scan, "classify_document",
+                        lambda *a, **k: spent.append("gate"))
+    monkeypatch.setattr(scan, "scan_clauses", lambda *a, **k: spent.append("judge"))
+    monkeypatch.setattr(scan, "check_protections", lambda *a, **k: spent.append("protections"))
+    monkeypatch.setattr(metrics, "LOG_PATH", tmp_path / "scan_metrics.jsonl")
+    app._scan_cache.clear()
+
+    history: list = []
+    frames = list(app.scan_flow(Path("all_my_documents.pdf"), "key-big", history, "", "", []))
+
+    assert spent == [], f"an oversized upload must cost nothing, but ran {spent}"
+    chat = " ".join(m["content"] for m in history)
+    assert "too big for one scan" in chat
+    assert "nothing was spent" in chat.lower()
+    # Pages, not characters: the visitor is a renter, not an integrator.
+    assert str(scan.MAX_DOCUMENT_CHARS) not in chat
+    # No report pinned, and the composer is usable again. (_out: report is 3rd.)
+    assert not any(frame[2] for frame in frames if isinstance(frame[2], str))
+    # Nothing reached the metrics log either: a scan that never ran has no cost row,
+    # and one here would quietly pollute the published cost-per-scan figure.
+    assert not (tmp_path / "scan_metrics.jsonl").exists()
+    assert app.HOUND_TRIPPED not in chat, "this is a known answer, not a crash"
+    app._scan_cache.clear()
+
+
+def test_the_served_app_bounds_upload_size(monkeypatch):
+    """The byte-level half of the size bound, pinned because it is one keyword
+    argument away from silently reverting.
+
+    scan.MAX_DOCUMENT_CHARS is the bound that matters for spend, but it can only fire
+    after read_document has parsed the upload — and parsing is the memory event, on a
+    one-instance deployment measured at ~300 MB peak. Gradio's default is None, i.e.
+    unlimited, so dropping this argument during a refactor restores an OOM path
+    without failing anything else: the app still boots, every other test still passes,
+    and the only symptom is a dead demo under an upload nobody sends on purpose.
+    """
+    passed = {}
+
+    def fake_mount(api_app, blocks, **kwargs):
+        # A FRESH app, because the real mount_gradio_app returns one and serve() then
+        # adds middleware to it. Handing back the shared `api` instance makes this test
+        # pass alone and fail in the suite: test_api.py has already started that app
+        # through TestClient, and FastAPI refuses middleware on a started application.
+        passed.update(kwargs)
+        return FastAPI()
+
+    monkeypatch.setattr(app.gr, "mount_gradio_app", fake_mount)
+    monkeypatch.setattr("uvicorn.run", lambda *a, **k: None)
+    app.serve()
+
+    assert passed["max_file_size"] == app.MAX_UPLOAD_BYTES
+    # Generous against the character limit on purpose — these bound different things.
+    # A big mostly-scanned PDF can hold few characters, and that document has earned
+    # the "no text layer" answer, not a size error.
+    assert app.MAX_UPLOAD_BYTES == "20mb"

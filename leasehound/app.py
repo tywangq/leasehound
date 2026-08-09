@@ -34,6 +34,7 @@ from leasehound.jurisdiction import jurisdiction_mismatch
 from leasehound.metrics import UsageMeter, log_scan
 from leasehound.scan import (
     MAX_CLAUSES,
+    DocumentTooLarge,
     NoTextExtracted,
     ScanResult,
     count_verdicts,
@@ -212,10 +213,31 @@ WRONG_STATE_QUESTION = (
 )
 PARTIAL_SCAN = (
     "🐕 This document splits into {count} clauses — long-form agreements really do run "
-    "this long. The hound judges the first {limit} to keep any one scan affordable, so "
-    "clauses {rest} won't get a verdict; the report says so too. The missing-protections "
-    "check still reads the whole thing. Attach just the part you care about for full coverage."
+    "this long. The hound judges the first {limit}, so clauses {rest} won't get a verdict; "
+    "the report says so too. The missing-protections check still reads the whole thing. "
+    "Attach just the part you care about for full coverage."
 )
+# The other end of the same size question, and the one that has an answer instead of a
+# degraded scan: see scan.DocumentTooLarge for why this is refused where the clause cap
+# only trims. Phrased in pages because nobody uploading a lease thinks in characters.
+TOO_LARGE = (
+    "🐕 That file is too big for one scan — about {pages} pages of text, and the hound "
+    "reads up to roughly {limit}. Nothing was scanned and nothing was spent. A residential "
+    "lease is almost never this long, so this is usually a whole document bundle: attach "
+    "just the lease or the section you care about."
+)
+# Measured, not guessed — the first draft of this line said 1800 and was wrong by most
+# of a page. Across the five real published leases in eval_real_formats.py the extracted
+# text runs 2,666–5,820 characters per PDF page (median 3,130); the outlier is the HUD
+# addendum, whose 5 pages are unusually dense. 3000 puts the limit at ~128 pages.
+#
+# The copy says "about" and this stays a round number on purpose: the job is to give a
+# visitor a sense of scale, not a figure they could hold the scan to.
+CHARS_PER_PAGE = 3000
+
+
+def in_pages(chars: int) -> str:
+    return f"{max(1, round(chars / CHARS_PER_PAGE)):,}"
 HOUND_TRIPPED = (
     "🐕 The hound tripped over an error and lost the scent — nothing was changed. "
     "Try again, or try a different file."
@@ -506,6 +528,13 @@ def scan_flow(path, key, history, report, scanned, context_base, question="",
                                          context_base, question)
     except NoTextExtracted:
         history[-1]["content"] = NOTHING_EXTRACTED
+        yield _out(history, box=gr.update(interactive=True),
+                   report="", state="", context=LAW_ONLY_CONTEXT, source="",
+                   stop=gr.update(visible=False), col=gr.update(visible=False),
+                   actions=gr.update(visible=False))
+    except DocumentTooLarge as oversized:
+        history[-1]["content"] = TOO_LARGE.format(
+            pages=in_pages(oversized.chars), limit=in_pages(oversized.limit))
         yield _out(history, box=gr.update(interactive=True),
                    report="", state="", context=LAW_ONLY_CONTEXT, source="",
                    stop=gr.update(visible=False), col=gr.update(visible=False),
@@ -832,6 +861,20 @@ QUEUE_MAX_SIZE = 16
 QUEUE_CONCURRENCY = 4
 demo.queue(max_size=QUEUE_MAX_SIZE, default_concurrency_limit=QUEUE_CONCURRENCY)
 
+# The outer half of the size bound, and the only half that acts on BYTES.
+#
+# scan.MAX_DOCUMENT_CHARS is the one that matters for spend, but it can only fire
+# after read_document has parsed the upload — and parsing is itself the memory event
+# worth avoiding: pypdf holds the whole file, and this deployment is one instance
+# whose measured peak across four concurrent scans is ~300 MB. Gradio's default here
+# is None, i.e. unlimited, so without this line a large enough upload is an OOM before
+# any of the reasoning in scan.py gets a turn.
+#
+# Generous against the character limit on purpose: these bound different things. A
+# 20 MB PDF can carry well under 384k characters if it is mostly scanned images, and
+# that document deserves the "no text layer" answer it already gets, not a size error.
+MAX_UPLOAD_BYTES = "20mb"
+
 # Gradio hard-codes its own Open Graph tags into the page it serves, so the link
 # preview on LinkedIn, Slack or a recruiter's inbox reads "Gradio — Click to try out
 # the app!" under someone else's Twitter handle, and og:url ships as the literal
@@ -905,7 +948,8 @@ def serve() -> None:
     from leasehound.api import api
 
     server = gr.mount_gradio_app(api, demo, path="/",
-                                 favicon_path=str(ICONS / "favicon.png"), **UI_STYLE)
+                                 favicon_path=str(ICONS / "favicon.png"),
+                                 max_file_size=MAX_UPLOAD_BYTES, **UI_STYLE)
     server.middleware("http")(rebrand_social_preview)
     uvicorn.run(
         server,

@@ -166,6 +166,22 @@ def test_an_unparseable_upload_is_400(client, stub_pipeline):
     assert "Could not read broken.pdf" in response.json()["detail"]
 
 
+def test_a_document_over_the_size_limit_is_413(client, stub_pipeline):
+    """413 and not 422: the upload parsed fine and the text is real — it is the size
+    that is refused, and a caller retrying with a smaller document is doing the right
+    thing. 422 would say the content was unprocessable, which sends an integrator
+    looking for a malformed file that isn't there."""
+    oversized = b"1. RENT. Tenant shall pay rent.\n\n" * 20_000
+    assert len(oversized) > scan.MAX_DOCUMENT_CHARS
+    response = post_scan(client, oversized, name="every_document_i_own.md")
+    assert response.status_code == 413
+    detail = response.json()["detail"]
+    # Both numbers, because "too large" without the limit gives a caller nothing to
+    # act on, and this endpoint's audience is a program.
+    assert f"{scan.MAX_DOCUMENT_CHARS:,}" in detail
+    assert "nothing was spent" in detail
+
+
 def test_the_openapi_schema_describes_both_surfaces():
     """The schema is the artifact a reader can check without running anything."""
     paths = TestClient(api).get("/openapi.json").json()["paths"]

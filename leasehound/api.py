@@ -40,6 +40,7 @@ from leasehound.answer import answer_question
 from leasehound.scan import (
     CORPUS_SNAPSHOT,
     MAX_CLAUSES,
+    DocumentTooLarge,
     NoTextExtracted,
     ScanResult,
     count_verdicts,
@@ -223,6 +224,15 @@ async def scan(file: Annotated[UploadFile, File(description=".pdf, .md or .txt")
         raise HTTPException(
             422, f"No text layer in {name} — a scanned or photo PDF has no extractable "
                  "text. Try a text-based .pdf, .md or .txt.") from empty
+    except DocumentTooLarge as oversized:
+        # 413, not 422: the request is well-formed and the document is readable — it is
+        # the size that is refused. Quoted in characters here, where a caller is a
+        # program that can compare the two numbers, rather than the UI's "about N pages".
+        raise HTTPException(
+            413, f"{name} is {oversized.chars:,} characters, over the "
+                 f"{oversized.limit:,}-character scan limit. Nothing was scanned and "
+                 "nothing was spent. Split the document and scan the lease itself.",
+        ) from oversized
     return scan_response(result, name, state)
 
 

@@ -121,13 +121,89 @@ def test_an_oversized_document_is_scanned_to_the_cap_rather_than_refused():
     ):
         result = scan.scan_lease("giant.pdf")
 
-    assert len(judged_clauses) == scan.MAX_CLAUSES, "spend must stay bounded by the cap"
+    assert len(judged_clauses) == scan.MAX_CLAUSES, "the clause pass must stop at the cap"
     assert result.clauses_judged == scan.MAX_CLAUSES
     assert result.clauses_total == len(clauses)
     assert result.partial is True
     # The negative-space pass is the exception: "this lease omits X" is a claim
     # about the whole document, so it must see the clauses past the cap too.
+    # Which is exactly why it cannot be the thing that bounds spend — see the
+    # MAX_DOCUMENT_CHARS tests below.
     assert len(seen_by_protections) == len(clauses)
+
+
+def test_a_document_over_the_size_limit_is_refused_before_anything_is_spent():
+    # The bug this pins: MAX_CLAUSES bounded the clause pass and the comment above it
+    # read as though it bounded the scan. It did not. check_protections deliberately
+    # reads the WHOLE document at one call per 24k characters, uncapped — so a 10 MB
+    # upload meant 441 windows and ~$1.09 against a measured mean scan of $0.011, on a
+    # public endpoint with no auth and no rate limit.
+    #
+    # The assertion that matters is not "it raised" but "it raised having called
+    # nothing": the check sits before the split and before the gate, so an oversized
+    # upload is the one refusal in this pipeline that costs exactly zero.
+    called = []
+    with (
+        patch.object(scan, "classify_document",
+                     lambda *a, **k: called.append("gate") or gate_returns()(*a, **k)),
+        patch.object(scan, "scan_clause", lambda *a, **k: called.append("judge")),
+        patch.object(scan, "check_protections", lambda *a, **k: called.append("protections")),
+        patch.object(scan, "split_clauses_with_mode",
+                     lambda text: called.append("split") or ([text], "paragraph")),
+    ):
+        with pytest.raises(scan.DocumentTooLarge) as raised:
+            scan.run_scan("x" * (scan.MAX_DOCUMENT_CHARS + 1), "bundle.pdf")
+
+    assert called == [], f"an oversized document must cost nothing, but ran {called}"
+    assert raised.value.chars == scan.MAX_DOCUMENT_CHARS + 1
+    assert raised.value.limit == scan.MAX_DOCUMENT_CHARS
+
+
+def test_scan_anyway_cannot_override_the_size_limit():
+    # `scan_anyway` overrides the GATE, because a document that can suppress its own
+    # report is the most effective attack on a scanner. It must not override this one:
+    # the whole content of the size refusal is "this would cost an unbounded amount",
+    # and an override is just that amount spent on request.
+    with pytest.raises(scan.DocumentTooLarge):
+        scan.run_scan("x" * (scan.MAX_DOCUMENT_CHARS + 1), "bundle.pdf", scan_anyway=True)
+
+
+def test_a_document_at_the_limit_is_still_scanned():
+    # An off-by-one here would refuse a document the limit is meant to admit, and the
+    # boundary is the only part of a threshold anyone gets wrong.
+    with (
+        patch.object(scan, "classify_document", gate_returns()),
+        patch.object(scan, "scan_clause",
+                     lambda clause, index, config, meter=None: {
+                         "index": index, "clause": clause, "verdict": "green",
+                         "citations": [], "urls": {}, "explanation": "fine"}),
+        patch.object(scan, "check_protections", lambda c, meter=None: []),
+        patch.object(scan, "log_scan", lambda *a, **k: {}),
+    ):
+        result = scan.run_scan("1. RENT. " + "x" * (scan.MAX_DOCUMENT_CHARS - 9),
+                               "exactly_at_the_limit.md")
+    assert result.refused is False
+
+
+def test_the_size_limit_bounds_the_completions_one_scan_can_buy():
+    # The point of the number, stated as the property it exists to guarantee: with the
+    # document bounded, a scan's total completion count has a ceiling that does not
+    # depend on the upload. Derived from the constants rather than hard-coded, so
+    # raising either limit updates the ceiling instead of failing this test for the
+    # wrong reason — what must not change silently is that a ceiling EXISTS.
+    worst_case = scan.MAX_CLAUSES + 1 + scan.MAX_PROTECTION_WINDOWS  # clauses + gate + windows
+
+    biggest = "1. RENT. " + "x" * (scan.MAX_DOCUMENT_CHARS - 9)
+    clauses, _ = scan.split_clauses_with_mode(biggest)
+    windows = scan.protection_windows(clauses)
+
+    assert len(windows) <= scan.MAX_PROTECTION_WINDOWS
+    assert min(len(clauses), scan.MAX_CLAUSES) + 1 + len(windows) <= worst_case
+    # 78 completions at the shipped constants. Written out because the number is the
+    # reviewable part: it is the most one upload can ever cost. It was 77 in the first
+    # draft, from dividing the document limit by the window size — this test is what
+    # found that packing splits at clause boundaries and yields one window more.
+    assert worst_case == 78
 
 
 def test_a_partial_report_names_the_clauses_it_did_not_judge():
