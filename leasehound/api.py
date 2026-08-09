@@ -229,7 +229,8 @@ async def scan(file: Annotated[UploadFile, File(description=".pdf, .md or .txt")
         upload.unlink(missing_ok=True)
 
     try:
-        result = run_scan(text, name, state=state, scan_anyway=scan_anyway)
+        result = run_scan(text, name, state=state, scan_anyway=scan_anyway,
+                          client="api")
     except NoTextExtracted as empty:
         raise HTTPException(
             422, f"No text layer in {name} — a scanned or photo PDF has no extractable "

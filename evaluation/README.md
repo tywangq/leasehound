@@ -560,6 +560,25 @@ python -m evaluation.eval_generation --name naive-crag-n82 --collection wa_refer
 
 This closes the question the ablation opened: the augmented six-stage pipeline shows **no measurable win at the generation layer either** — every gap in the table is a single question. Specific caveat: both configurations sit at this test set's ceiling (98–100%), so the eval bounds the difference rather than ranking the systems — separating them needs harder, adversarial questions.
 
+### Who grades the grader — a human audit, built and not yet run
+
+Every number in that table is one language model's opinion of another's answer, 82 times. The chain is a model writing the questions, a model filtering them, a model answering, and a model grading — against reference statute text, which limits self-preference but does not remove it. **No human has ever checked any of it**, which makes "82/82 consistent" a claim about a judge nobody validated. The scan side has six hand-labelled leases; the ask side has nothing.
+
+Two things were in the way, and both are now fixed:
+
+**The evidence was being thrown away.** `eval_generation.py` computed each answer, graded it, printed the failures to a terminal, and wrote only the aggregate rates to disk. So the published 82/82 could not be inspected by anyone, including its author, without paying $0.40 to generate 82 *different* answers and grade those instead. `eval_scan.py` had learned this lesson and records the clause behind every false red; the same argument was never carried across. Runs now also write `generation_cases_<name>.json` with the question, the answer, and the judgment — not backfilled, so the currently published figures stay unauditable and the next legitimate run is what makes them checkable.
+
+**The obvious statistic is the wrong one.** `review_generation.py` presents a stratified sample **blind** — the judge's verdict stays hidden until after you commit to yours, because a verdict shown first is a verdict you would be agreeing with rather than checking. Cohen's kappa was the intended headline and computing it showed why it cannot be: the judge returned `consistent` for all 82 answers, and **a rater that never varies cannot be validated by agreement** — agreeing on 19 of 20 scores kappa exactly 0. So the headline is a binomial bound instead. Disagreeing on 0 of 20 does not prove the judge is never wrong; by the rule of three it bounds the error rate at **under ~15% with 95% confidence**, and 0 of 30 would bound it under 10%. A modest claim, and an honest one, and far more than "a model said so".
+
+That kappa goes undefined here is itself the finding, and it is about the test set rather than the judge: **every answer passes, so nothing in this eval is under pressure from it any more.** It argues for harder questions, which is what the caveat above already said and now has a second reason.
+
+```bash
+python -m evaluation.eval_generation --name full-n82        # $0.40, writes the cases
+python -m evaluation.review_generation --cases generation_cases_full-n82.json   # $0, needs a person
+```
+
+**Status: the tool is tested and the numbers do not exist yet.** It needs one paid run to produce the cases and then an hour of somebody's attention. Nothing is claimed from it until both have happened — which is the same rule the rest of this directory follows, stated here because a review tool that reports its own existence as a result would be the exact failure it was built to catch.
+
 ## The router — every metric above assumes retrieval ran at all
 
 Every evaluation above measures how well the pipeline retrieves and answers. **None of

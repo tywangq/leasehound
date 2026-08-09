@@ -248,3 +248,58 @@ def test_the_scan_summary_leaves_refusals_out_of_the_cost_per_scan():
     assert summary["mean_cost_usd"] == 0.013
     # And the giveaway the old code would have produced: a floor of zero clauses.
     assert summary["clauses_min"] == 12
+
+
+def test_a_scan_row_records_which_surface_asked_for_it(tmp_path, monkeypatch):
+    """The published cost figure is a mean over this log, and until this field existed
+    the log could not say what it was a sample of: eval runs rescanning the same six
+    labelled leases, manual UI clicks, the demo recorder, and deploy smoke tests were
+    averaged together and quoted as a per-scan cost."""
+    monkeypatch.setattr(metrics, "LOG_PATH", tmp_path / "scan_metrics.jsonl")
+    log_scan(UsageMeter(), "lease.md", 12, client="ui")
+    log_scan(UsageMeter(), "lease.md", 12, client="eval")
+    log_scan(UsageMeter(), "lease.md", 12)  # a caller that did not say
+
+    rows = [json.loads(line) for line in
+            (tmp_path / "scan_metrics.jsonl").read_text().splitlines()]
+    assert [r["client"] for r in rows] == ["ui", "eval", "unknown"]
+
+
+def test_the_summary_names_the_population_it_averaged():
+    """A mean without its population is a number nobody can check. Rows written before
+    the tag existed count as `unknown` rather than being guessed at."""
+    def row(client=None, **kw):
+        record = {"clauses": 12, "seconds": 9.0, "cost_usd": 0.011,
+                  "llm_calls": 14, "embedding_calls": 12, **kw}
+        if client:
+            record["client"] = client
+        return record
+
+    summary = metrics.summarize_log(
+        [row("ui"), row("ui"), row("eval"), row("api"), row()])
+
+    assert summary["scans"] == 5
+    assert summary["by_client"] == {"api": 1, "eval": 1, "ui": 2, "unknown": 1}
+
+
+def test_every_surface_tags_its_scans(tmp_path, monkeypatch):
+    """The three clients and the eval harness each name themselves, so a row can be
+    attributed without guessing from the file name. Checked here rather than in each
+    caller's own test file because the point is that the set is COMPLETE — an untagged
+    fourth entry point is exactly what would quietly pollute the mean again."""
+    import leasehound.scan as scan
+
+    monkeypatch.setattr(metrics, "LOG_PATH", tmp_path / "scan_metrics.jsonl")
+    monkeypatch.setattr(scan, "classify_document",
+                        lambda clauses, meter=None: scan.DocumentCheck(
+                            kind="lease_agreement", jurisdiction="wa"))
+    monkeypatch.setattr(scan, "scan_clauses", lambda *a, **k: iter(()))
+    monkeypatch.setattr(scan, "check_protections", lambda *a, **k: [])
+
+    for client in ("cli", "ui", "api", "eval"):
+        scan.run_scan("1. RENT. Tenant shall pay rent on the first of each month.",
+                      "lease.md", client=client)
+
+    rows = [json.loads(line) for line in
+            (tmp_path / "scan_metrics.jsonl").read_text().splitlines()]
+    assert [r["client"] for r in rows] == ["cli", "ui", "api", "eval"]

@@ -17,12 +17,13 @@ import threading
 from dataclasses import dataclass
 from pathlib import Path
 
+import litellm
 from chromadb import PersistentClient
 from dotenv import load_dotenv
 from litellm import completion
 from openai import OpenAI
 from pydantic import BaseModel, Field
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, stop_after_attempt, stop_after_delay, wait_exponential
 
 from leasehound import bm25
 
@@ -34,16 +35,36 @@ GENERATION_MODEL = os.getenv("LEASEHOUND_GENERATION_MODEL", "openai/gpt-4.1-mini
 EMBEDDING_MODEL = os.getenv("LEASEHOUND_EMBEDDING_MODEL", "text-embedding-3-large")
 DB_PATH = str(Path(__file__).parent.parent / "vector_db")
 
+# litellm's default request timeout is 6000 SECONDS — 100 minutes, which is not a
+# timeout so much as the absence of one. Under the retry policy below that compounds:
+# five attempts against a provider that accepts a connection and then stalls would hold
+# a worker for most of a working day, and on a scan that means one of eight threads
+# gone while the visitor watches a clause counter that will never advance.
+#
+# 120s is far outside anything observed here — a whole 15-clause scan has a p50 of 9.3s
+# and a p95 of 15.8s, so a single call taking two minutes is already pathological — and
+# still leaves room for the slowest legitimate call in the project, which is ingestion
+# chunking a long statute section into structured output.
+REQUEST_TIMEOUT_SECONDS = 120
+litellm.request_timeout = REQUEST_TIMEOUT_SECONDS
+
 # One retry policy for every LLM/API call. Bounded — without a stop, a
 # persistent failure (revoked key, exhausted quota) retries forever and the
 # UI event waiting on it hangs. reraise hands callers the real error instead
 # of tenacity's RetryError wrapper.
+#
+# Two stops, not one. stop_after_attempt bounds the number of calls; it does not bound
+# the TIME, because the waits between attempts are exponential and add up to 150s of
+# pure sleeping before the fifth try even starts. A caller that has been waiting five
+# minutes does not care that the fifth attempt is still owed to it — Cloud Run will
+# have timed the request out from underneath it anyway. Whichever limit trips first wins.
+RETRY_BUDGET_SECONDS = 300
 llm_retry = retry(
     wait=wait_exponential(multiplier=1, min=10, max=240),
-    stop=stop_after_attempt(5),
+    stop=stop_after_attempt(5) | stop_after_delay(RETRY_BUDGET_SECONDS),
     reraise=True,
 )
-openai = OpenAI()
+openai = OpenAI(timeout=REQUEST_TIMEOUT_SECONDS)
 
 # The Chroma client is created lazily: ingest worker processes import this
 # module for Result/constants and must not each open the database. The lock

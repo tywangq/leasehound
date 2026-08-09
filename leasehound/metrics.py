@@ -146,7 +146,8 @@ def log_scan(meter: UsageMeter, source: str, clauses: int,
              verdicts: dict | None = None, missing: int | None = None,
              split_mode: str | None = None, cache_hit: bool = False,
              gate_flagged: bool = False, clauses_total: int | None = None,
-             refused: bool = False, jurisdiction: str | None = None) -> dict:
+             refused: bool = False, jurisdiction: str | None = None,
+             client: str | None = None) -> dict:
     """Append one scan's metrics to the log; returns the record for display.
 
     The record is also printed to stdout: on Cloud Run the container filesystem
@@ -157,6 +158,19 @@ def log_scan(meter: UsageMeter, source: str, clauses: int,
         "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "source": Path(source).name,
         "clauses": clauses,
+        # Which surface asked for this scan: cli, ui, api, or eval.
+        #
+        # The published cost and latency figures are computed from this log, and until
+        # now the log had no idea what it was a sample OF. "190 logged scans" was really
+        # "every scan that happened to be in my file that day" — eval runs, manual UI
+        # clicks while building a feature, the demo recorder driving the browser, and
+        # deploy smoke tests, averaged together and quoted as a per-scan cost. Those
+        # populations are not interchangeable: an eval run scans the same six labelled
+        # leases repeatedly, so it pulls the mean toward those documents.
+        #
+        # Recorded from the next run onward, like every other field here — the existing
+        # rows stay untagged rather than being rewritten with a guess.
+        "client": client or "unknown",
         **meter.summary(),
     }
     if verdicts is not None:
@@ -331,6 +345,20 @@ def summarize_log(records: list[dict], clause_range: tuple[int, int] | None = No
         "partial_scans": sum(1 for r in paid if r.get("clauses_total")),
         "gate_flagged": sum(1 for r in paid if r.get("gate_flagged")),
         "jurisdiction_mismatches": sum(1 for r in paid if r.get("jurisdiction")),
+        # What this is a sample OF. Without it the headline mean is quoted over an
+        # undefined population — eval runs rescanning the same six labelled leases,
+        # manual UI clicks during development, the demo recorder driving a browser, and
+        # deploy smoke tests, averaged together. Those are not interchangeable samples,
+        # and an eval-heavy month would drag the mean toward the labelled documents
+        # without anything looking wrong.
+        #
+        # `unknown` is every row written before the tag existed, which today is all of
+        # them. It shrinks as the log turns over rather than being backfilled with a
+        # guess about what a row from July was.
+        "by_client": {
+            client: sum(1 for r in paid if (r.get("client") or "unknown") == client)
+            for client in sorted({(r.get("client") or "unknown") for r in paid})
+        },
         # How often each verdict is actually used, over every clause these scans
         # judged. Yellow is here because nothing else measured it: the labelled sets
         # score red against a manifest and count yellow only as a hedge on a planted

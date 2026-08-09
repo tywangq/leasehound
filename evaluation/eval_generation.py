@@ -46,6 +46,7 @@ from leasehound.scan import base_section
 
 TESTS_PATH = Path(__file__).parent / "tests.jsonl"
 RESULTS_PATH = Path(__file__).parent / "generation_results.jsonl"
+CASES_PATH = Path(__file__).parent / "generation_cases.json"
 MAX_PARALLEL = 8
 RCW_RE = re.compile(r"RCW \d+\.\d+\.\d+")
 
@@ -138,6 +139,17 @@ def evaluate_case(case: dict, config: PipelineConfig, sections: dict,
     return {
         "question": case["question"],
         "section": case["section"],
+        # The answer itself, which this eval computed and discarded for its whole life.
+        # Every published ask number rests on a judgment about this text, and until now
+        # the text existed only inside one process: the summary recorded rates, the
+        # failures printed to a terminal, and "82/82 consistent" could not be checked by
+        # anyone — including its author — without paying $0.40 to generate 82 different
+        # answers and grade those instead. eval_scan.py learned this and records the
+        # clause behind every false red; the same argument was never applied here.
+        #
+        # Recording it is also what makes review_generation.py possible: a human cannot
+        # audit an LLM judge whose inputs were thrown away.
+        "answer": answer,
         "verdict": judgment.verdict,
         "unsupported_claim": judgment.unsupported_claim,
         "cites_gt": case["section"] in cited,
@@ -207,11 +219,32 @@ def main() -> None:
     }
     with open(RESULTS_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps(summary) + "\n")
+
+    # The per-case rows, in a file of their own. Two files rather than one because they
+    # answer different questions and have different lifetimes: the summary is a ledger
+    # (append-only, one line per run, so configs stay comparable across months) and this
+    # is the evidence for the most recent run of one config (overwritten, like
+    # scan_results.json). Keyed by --name so a closed-book run cannot silently overwrite
+    # the retrieval run's cases.
+    #
+    # Not backfilled. Re-running a paid eval to add evidence for numbers that did not
+    # change is the kind of spend this project declines, so the published 82/82 stays
+    # unauditable and the next legitimate run is what makes it checkable.
+    cases_path = CASES_PATH.with_name(f"generation_cases_{args.name}.json")
+    cases_path.write_text(json.dumps(
+        {"name": args.name, "provenance": stamp(),
+         "summary": {k: v for k, v in summary.items() if k != "name"},
+         "cases": sorted(rows, key=lambda r: (r["verdict"] != "consistent", r["section"]))},
+        indent=2), encoding="utf-8")
+
     print(json.dumps(summary, indent=2))
     for r in rows:
         if r["verdict"] != "consistent" or r["unsupported_claim"]:
             print(f"  [{r['verdict']}{' +unsupported' if r['unsupported_claim'] else ''}] "
                   f"({r['section']}) {r['question'][:70]}")
+    print(f"\n{len(rows)} cases written to {cases_path}")
+    print(f"Audit the judge against them with:\n"
+          f"  python -m evaluation.review_generation --cases {cases_path.name}")
 
 
 if __name__ == "__main__":

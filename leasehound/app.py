@@ -439,7 +439,7 @@ def scan_flow(path, key, history, report, scanned, context_base, question="",
         log_scan(UsageMeter(), name, result.clauses_judged,
                  verdicts=count_verdicts(result.findings),
                  missing=missing_protections(result), split_mode=result.split_mode,
-                 cache_hit=True, clauses_total=result.clauses_total)
+                 cache_hit=True, clauses_total=result.clauses_total, client="ui")
         history.append({"role": "assistant", "content": CACHED_SNIFF})
         # The report carries the jurisdiction warning either way, but a cached scan
         # skips every step that narrates one — so the second visitor to attach a
@@ -464,7 +464,8 @@ def scan_flow(path, key, history, report, scanned, context_base, question="",
                stop=gr.update(visible=True), col=gr.update(visible=False),
                actions=gr.update(visible=False))
     try:
-        for step in scan_steps(text, name, state=DEMO_STATE, scan_anyway=scan_anyway):
+        for step in scan_steps(text, name, state=DEMO_STATE, scan_anyway=scan_anyway,
+                               client="ui"):
             if step.kind == "judging":
                 # The gate has accepted, so this is the first moment a scan may be
                 # promised. Over the cap it goes ahead on a prefix — refusing meant a

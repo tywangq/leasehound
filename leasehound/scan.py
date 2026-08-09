@@ -640,7 +640,8 @@ class ScanStep:
 
 def scan_steps(text: str, source: str, state: str = "wa",
                collection: str | None = None,
-               scan_anyway: bool = False) -> Iterator[ScanStep]:
+               scan_anyway: bool = False,
+               client: str = "unknown") -> Iterator[ScanStep]:
     """Scan already-extracted text, yielding progress. No printing, no I/O.
 
     This is the one orchestration. It used to exist twice — `scan_lease` for the
@@ -700,7 +701,8 @@ def scan_steps(text: str, source: str, state: str = "wa",
         record = log_scan(meter, source, 0, split_mode=split_mode,
                           gate_flagged=True, clauses_total=len(clauses),
                           refused=True,
-                          jurisdiction=(check.jurisdiction if mismatch else None))
+                          jurisdiction=(check.jurisdiction if mismatch else None),
+                          client=client)
         yield ScanStep("done", total=len(clauses), result=ScanResult(
             [], [], True, len(clauses), split_mode, record, refused=True,
             jurisdiction=check.jurisdiction))
@@ -742,7 +744,8 @@ def scan_steps(text: str, source: str, state: str = "wa",
                       missing=sum(1 for p in protections if p["status"] == "missing"),
                       split_mode=split_mode, gate_flagged=gate_flagged,
                       clauses_total=len(clauses),
-                      jurisdiction=(check.jurisdiction if mismatch else None))
+                      jurisdiction=(check.jurisdiction if mismatch else None),
+                      client=client)
     yield ScanStep("done", result=ScanResult(
         findings, protections, gate_flagged, len(clauses), split_mode, record,
         jurisdiction=check.jurisdiction))
@@ -750,22 +753,22 @@ def scan_steps(text: str, source: str, state: str = "wa",
 
 def run_scan(text: str, source: str, state: str = "wa",
              collection: str | None = None,
-             scan_anyway: bool = False) -> ScanResult:
+             scan_anyway: bool = False, client: str = "unknown") -> ScanResult:
     """Drain `scan_steps` for callers that only want the outcome."""
-    for step in scan_steps(text, source, state, collection, scan_anyway):
+    for step in scan_steps(text, source, state, collection, scan_anyway, client):
         if step.kind == "done":
             return step.result
     raise AssertionError("scan_steps ended without a result")  # pragma: no cover
 
 
 def scan_lease(path: str | Path, state: str = "wa", collection: str | None = None,
-               scan_anyway: bool = False) -> ScanResult:
+               scan_anyway: bool = False, client: str = "cli") -> ScanResult:
     """Command-line scan: read the file, then narrate the steps to a terminal."""
     path = Path(path)
     progress = None
     try:
         for step in scan_steps(read_document(path), str(path), state, collection,
-                               scan_anyway):
+                               scan_anyway, client):
             if step.kind == "judging":
                 # On `judging` rather than `split`: the cap notice is a promise about a
                 # scan, and on `split` the gate has not yet said whether there will be

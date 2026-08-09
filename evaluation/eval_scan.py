@@ -59,7 +59,7 @@ def evaluate_lease(entry: dict, leases_dir: Path, keep_raw: bool = False,
     if entry.get("category"):
         result["category"] = entry["category"]
 
-    scan = scan_lease(path, collection=collection)
+    scan = scan_lease(path, collection=collection, client="eval")
     findings, protections = scan.findings, scan.protections
     gate_flagged = scan.gate_flagged
     if scan.refused:

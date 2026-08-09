@@ -97,3 +97,25 @@ def test_hybrid_merge_promotes_a_chunk_both_channels_rank_mid_list(monkeypatch):
     config.bm25 = False
     dense_only = [c.metadata["section"] for c in fetch_unranked("a clause", config)]
     assert "governing" not in dense_only, "the dense channel alone must still miss it"
+
+
+def test_a_stalled_provider_cannot_hold_a_worker_indefinitely():
+    """litellm ships a 6000-second default request timeout — 100 minutes, which is the
+    absence of a timeout rather than a generous one. Under the retry policy that
+    compounds: five attempts against a provider that accepts the connection and then
+    stalls would occupy one of eight scan threads for most of a day, while the visitor
+    watches a clause counter that will never move.
+
+    Pinned because the failure is invisible in every other test: nothing here makes a
+    real call, so a revert to the default breaks no assertion and shows up only as a
+    demo that hangs."""
+    import litellm
+
+    from leasehound.retrieval import REQUEST_TIMEOUT_SECONDS, RETRY_BUDGET_SECONDS
+
+    assert litellm.request_timeout == REQUEST_TIMEOUT_SECONDS
+    assert REQUEST_TIMEOUT_SECONDS <= 120, "a call slower than this is pathological"
+    # Attempts alone do not bound TIME: the exponential waits add ~150s of sleeping
+    # before the fifth try starts, so the budget is the limit that actually protects a
+    # caller. Whichever trips first wins.
+    assert RETRY_BUDGET_SECONDS <= 300
