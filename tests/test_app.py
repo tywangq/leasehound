@@ -414,8 +414,14 @@ def test_the_served_app_bounds_upload_size(monkeypatch):
     monkeypatch.setattr("uvicorn.run", lambda *a, **k: None)
     app.serve()
 
-    assert passed["max_file_size"] == app.MAX_UPLOAD_BYTES
-    # Generous against the character limit on purpose — these bound different things.
-    # A big mostly-scanned PDF can hold few characters, and that document has earned
-    # the "no text layer" answer, not a size error.
-    assert app.MAX_UPLOAD_BYTES == "20mb"
+    assert passed["max_file_size"] == app.MAX_UPLOAD_SIZE
+    # One source of truth, in upload.py, because api.py enforces the same number on
+    # its own route and neither module may import the other (app.py mounts api.py).
+    # Two constants that must agree are two constants that will not.
+    from leasehound.upload import MAX_UPLOAD_BYTES
+    assert app.MAX_UPLOAD_SIZE == MAX_UPLOAD_BYTES
+    # Looser than the character limit — they bound different things — but sized to the
+    # 1 GiB instance, since Cloud Run charges filesystem bytes to memory and admits up
+    # to 80 concurrent requests regardless of what Gradio's queue allows through.
+    assert MAX_UPLOAD_BYTES == 8 * 1024 * 1024
+    assert MAX_UPLOAD_BYTES * 80 < 1024**3, "80 concurrent uploads must fit in 1 GiB"

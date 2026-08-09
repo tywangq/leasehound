@@ -8,6 +8,21 @@ LLM judgment happens later, per clause, in scan.py where it earns its cost.
 import re
 from pathlib import Path
 
+# The byte bound on an upload, and the outermost of the three size limits here.
+# Lives in this module because both surfaces that accept a file need it and neither
+# may import the other: app.py mounts api.py, so a constant owned by either one and
+# read by the other is a circular import waiting to happen.
+#
+# Inside it, scan.MAX_DOCUMENT_CHARS bounds the extracted TEXT, which is the bound
+# that governs spend. This one bounds the bytes, and exists so a file too big to be
+# worth parsing is never parsed: on Cloud Run the filesystem is memory, so an upload
+# is resident before extraction has a chance to reject it.
+#
+# 8 MB is ~16× the largest real lease PDF in evaluation/leases_real (491 KB) and
+# leaves room for an image-heavy scan of a lease, which extracts to little or no text
+# and should get the "no text layer" answer rather than a size error.
+MAX_UPLOAD_BYTES = 8 * 1024 * 1024
+
 MIN_CLAUSE_CHARS = 80
 
 # Real leases number clauses in more ways than one. The original pattern matched
@@ -116,8 +131,5 @@ def split_clauses_with_mode(text: str) -> tuple[list[str], str]:
 
 
 def split_clauses(text: str) -> list[str]:
+    """The clauses only, for callers with nothing to say about how they were found."""
     return split_clauses_with_mode(text)[0]
-
-
-def load_clauses(path: str | Path) -> list[str]:
-    return split_clauses(read_document(Path(path)))

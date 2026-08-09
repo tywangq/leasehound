@@ -48,7 +48,7 @@ from leasehound.scan import (
     run_scan,
     scan_config,
 )
-from leasehound.upload import read_document
+from leasehound.upload import MAX_UPLOAD_BYTES, read_document
 
 TOKEN_ENV = "LEASEHOUND_API_TOKEN"
 DEFAULT_STATE = "wa"
@@ -205,6 +205,16 @@ async def scan(file: Annotated[UploadFile, File(description=".pdf, .md or .txt")
     that reads as unrelated to renting IS refused: `summary.refused` says so, and
     `scan_anyway=true` overrides it."""
     name = Path(file.filename or "upload").name
+    # Before `await file.read()`, which pulls the whole body into memory at once. The
+    # UI gets this bound from Gradio's max_file_size and this route had nothing — the
+    # first version of the size fix bounded one surface and left the other open, which
+    # is the same shape of gap the fix was written to close. Unreachable on the hosted
+    # demo, where require_token 503s first, but "the door is locked" is not a reason to
+    # leave the floor out.
+    if file.size is not None and file.size > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            413, f"{name} is {file.size:,} bytes, over the {MAX_UPLOAD_BYTES:,}-byte "
+                 "upload limit. Nothing was read and nothing was spent.")
     # Written to a temp file and deleted immediately, for two reasons: pypdf reads a
     # file, and this is the same extraction path the CLI and the UI use rather than a
     # second one that could disagree about what a document says.

@@ -41,7 +41,7 @@ from leasehound.scan import (
     render_report,
     scan_steps,
 )
-from leasehound.upload import read_document
+from leasehound.upload import MAX_UPLOAD_BYTES, read_document
 
 REPO_ROOT = Path(__file__).parent.parent
 SAMPLE_LEASE = REPO_ROOT / "examples" / "sample_lease.md"
@@ -870,10 +870,21 @@ demo.queue(max_size=QUEUE_MAX_SIZE, default_concurrency_limit=QUEUE_CONCURRENCY)
 # is None, i.e. unlimited, so without this line a large enough upload is an OOM before
 # any of the reasoning in scan.py gets a turn.
 #
-# Generous against the character limit on purpose: these bound different things. A
-# 20 MB PDF can carry well under 384k characters if it is mostly scanned images, and
-# that document deserves the "no text layer" answer it already gets, not a size error.
-MAX_UPLOAD_BYTES = "20mb"
+# Looser than the character limit on purpose: these bound different things. A PDF that
+# is mostly scanned images carries few characters per megabyte, and that document has
+# earned the "no text layer" answer it already gets rather than a size error.
+#
+# But not much looser, and the deployment is why. The service runs on 1 GiB with
+# `--max-instances 1` and Cloud Run's own `containerConcurrency` at 80 — which is not
+# the 4 that Gradio's queue enforces, because the queue governs event handlers and an
+# upload arrives before any handler runs. Cloud Run also has no disk: bytes written to
+# the filesystem are charged to the same 1 GiB. So the stress case is concurrent
+# uploads, not concurrent scans, and this keeps even an absurd 80 of them under the
+# limit alongside the ~300 MB the app already occupies.
+#
+# Gradio wants a string or an int; the int from upload.py is the one source of truth,
+# and api.py reads the same constant so the two surfaces cannot drift apart.
+MAX_UPLOAD_SIZE = MAX_UPLOAD_BYTES
 
 # Gradio hard-codes its own Open Graph tags into the page it serves, so the link
 # preview on LinkedIn, Slack or a recruiter's inbox reads "Gradio — Click to try out
@@ -949,7 +960,7 @@ def serve() -> None:
 
     server = gr.mount_gradio_app(api, demo, path="/",
                                  favicon_path=str(ICONS / "favicon.png"),
-                                 max_file_size=MAX_UPLOAD_BYTES, **UI_STYLE)
+                                 max_file_size=MAX_UPLOAD_SIZE, **UI_STYLE)
     server.middleware("http")(rebrand_social_preview)
     uvicorn.run(
         server,

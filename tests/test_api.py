@@ -166,6 +166,19 @@ def test_an_unparseable_upload_is_400(client, stub_pipeline):
     assert "Could not read broken.pdf" in response.json()["detail"]
 
 
+def test_an_upload_over_the_byte_limit_is_413_before_it_is_read(client, stub_pipeline):
+    """The UI gets this bound from Gradio's max_file_size; this route had nothing, and
+    `await file.read()` pulls the whole body into memory at once. Checked against the
+    same constant the UI uses, so the two surfaces cannot drift."""
+    from leasehound.upload import MAX_UPLOAD_BYTES
+
+    huge = b"x" * (MAX_UPLOAD_BYTES + 1)
+    response = post_scan(client, huge, name="enormous.md")
+    assert response.status_code == 413
+    assert "upload limit" in response.json()["detail"]
+    assert "nothing was spent" in response.json()["detail"].lower()
+
+
 def test_a_document_over_the_size_limit_is_413(client, stub_pipeline):
     """413 and not 422: the upload parsed fine and the text is real — it is the size
     that is refused, and a caller retrying with a smaller document is doing the right
