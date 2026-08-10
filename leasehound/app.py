@@ -903,6 +903,16 @@ SHARE_CARD = "docs/og.png"
 SOCIAL_TITLE = "LeaseHound — lease red-flag scanner"
 SOCIAL_DESCRIPTION = ("Scan a Washington lease for clauses that are void under "
                       "RCW 59.18 — every verdict cites the statute.")
+# Card only, never in the meta description. The description is read by whoever gets
+# the link and should say what the thing does; the card is read by people scanning
+# for what it is built out of. Both audiences are real and want different sentences.
+SOCIAL_STACK = "Two-layer RAG over Washington tenant law"
+# The card shows one real finding. The clause text is read out of the sample lease
+# rather than retyped — an invented quotation on a card about citing sources would be
+# the one mistake this project cannot afford. The section is the verdict a real scan
+# of that lease returns; it is the pairing recorded in docs/screenshot.png.
+CARD_CLAUSE_HEADING = "3. LATE CHARGES."
+CARD_CITATION = "RCW 59.18.170 — no late fee before the fifth day"
 # Matched by attribute rather than by exact string: Gradio emits these twice, in two
 # blocks, and wraps some of them across lines, so a literal replacement caught the
 # titles and left og:image pointing at Gradio's own banner. An empty value here means
