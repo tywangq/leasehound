@@ -814,10 +814,67 @@ def scan_lease(path: str | Path, state: str = "wa", collection: str | None = Non
 
 
 BADGE = {"red": "🚩", "yellow": "⚠️", "green": "✅"}
+# Everything from here to `disclaimer` is shared with report_html.py, which renders
+# the same report for the web panel. Two renderers over one report is a drift risk,
+# so the decisions live here rather than being made twice: section order, summary
+# labels, the disclaimer wording, and where a long clause gets cut. Only the markup
+# differs between them, which is the whole reason for having two.
+CLAUSE_PREVIEW_CHARS = 120
+VERDICT_ORDER = ("red", "yellow", "green")
+SUMMARY_LABELS = {"red": "red flags", "yellow": "caution", "green": "clear"}
+MISSING_LABEL = "missing protections"
+# Section headings, shared so the panel cannot name a section differently from the
+# .md file. These are the words the markdown has always used, kept as-is because the
+# API returns that markdown and the CLI writes it to a file.
+#
+# ⚠ Worth deciding, not worth changing quietly: the yellow SECTION says "Yellow"
+# while the summary CHIP above it says "caution". Both are shipped today. If they
+# should agree, change the value here and the one assertion in tests/test_scan.py
+# that spells out the old heading — both surfaces follow automatically.
+SECTION_TITLES = {"red": "Red", "yellow": "Yellow", "missing": "Missing protections"}
+MISSING_BADGE = "🔍"
+MISSING_INTRO = ("Required by law but not found in this lease — worth asking your "
+                 "landlord:")
+CLEAR_NOTE = "no conflict found with the retrieved statutes."
 
 
 def count_verdicts(findings: list[dict]) -> dict:
     return {v: sum(1 for f in findings if f["verdict"] == v) for v in ("red", "yellow", "green")}
+
+
+def clause_preview(clause: str, limit: int = CLAUSE_PREVIEW_CHARS) -> str:
+    """Collapse whitespace and cut at a word boundary.
+
+    The boundary matters: a mid-number cut turns "$75" into "$7".
+    """
+    preview = " ".join(clause.split())
+    if len(preview) > limit:
+        preview = preview[:limit].rsplit(" ", 1)[0] + " …"
+    return preview
+
+
+def summary_counts(
+    findings: list[dict], protections: list[dict] | None
+) -> list[tuple[str, str]]:
+    """The summary row as (key, label) pairs, in the same order as the body below it.
+
+    Everything actionable first, and "clear" last because it is a footnote — a list
+    of clause numbers with nothing to do about them. Returns pairs rather than a dict
+    keyed by verdict because "missing" is a verdict-shaped entry that is not one.
+    """
+    counts = count_verdicts(findings)
+    row = [("red", f"{counts['red']} {SUMMARY_LABELS['red']}"),
+           ("yellow", f"{counts['yellow']} {SUMMARY_LABELS['yellow']}")]
+    if protections is not None:
+        missing = [p for p in protections if p["status"] == "missing"]
+        row.append(("missing", f"{len(missing)} {MISSING_LABEL}"))
+    row.append(("green", f"{counts['green']} {SUMMARY_LABELS['green']}"))
+    return row
+
+
+def disclaimer() -> str:
+    return ("Legal information, not legal advice. Judged against RCW 59.18 as of "
+            f"{CORPUS_SNAPSHOT} — the law may have changed since.")
 
 
 # Deliberately says nothing about WHICH non-lease kind this is, because it covers two
@@ -900,22 +957,13 @@ def render_report(
             f"Split into {clauses_total} clauses, **0 judged**. Nothing was spent "
             f"beyond the one call that classified the document.",
         ])
-    counts = count_verdicts(findings)
     missing = [p for p in (protections or []) if p["status"] == "missing"]
-    # Same order as the sections below, which is not the order this used to be in:
-    # the summary counted red · caution · clear · missing while the body ran red,
-    # caution, missing protections, clear. Both orders were defensible on their own
-    # and having two of them meant a reader's eye had to re-learn the report halfway
-    # down. This one is the body's, and the reason the body has it: everything
-    # actionable first, and "clear" last because it is a footnote — a list of clause
-    # numbers with nothing to do about them.
+    # Order, labels and badges all come from `summary_counts` so the web panel cannot
+    # drift from this. See the note beside it for why the order is what it is.
     header = [
-        f"{BADGE['red']} {counts['red']} red flags",
-        f"{BADGE['yellow']} {counts['yellow']} caution",
+        f"{BADGE.get(key, MISSING_BADGE)} {label}"
+        for key, label in summary_counts(findings, protections)
     ]
-    if protections is not None:
-        header.append(f"🔍 {len(missing)} missing protections")
-    header.append(f"{BADGE['green']} {counts['green']} clear")
     lines = [
         "# LeaseHound scan report",
         "",
@@ -927,7 +975,7 @@ def render_report(
         "",
         "**" + " · ".join(header) + "**",
         "",
-        f"> Legal information, not legal advice. Judged against RCW 59.18 as of {CORPUS_SNAPSHOT} — the law may have changed since.",
+        f"> {disclaimer()}",
         "",
     ]
     # Above the gate warning, and above the partial-scan notice, because it is the
@@ -939,18 +987,14 @@ def render_report(
         lines += [GATE_WARNING, ""]
     if clauses_total is not None and clauses_total > len(findings):
         lines += [partial_scan_notice(len(findings), clauses_total), ""]
-    for verdict in ("red", "yellow", "green"):
+    for verdict in VERDICT_ORDER:
         matching = [f for f in findings if f["verdict"] == verdict]
         if not matching or verdict == "green":
             continue
-        lines.append(f"## {BADGE[verdict]} {verdict.capitalize()}")
+        lines.append(f"## {BADGE[verdict]} {SECTION_TITLES[verdict]}")
         lines.append("")
         for f in matching:
-            preview = " ".join(f["clause"].split())
-            if len(preview) > 120:
-                # Cut at a word boundary — a mid-number cut turns "$75" into "$7".
-                preview = preview[:120].rsplit(" ", 1)[0] + " …"
-            lines.append(f"### Clause {f['index']}: {preview}")
+            lines.append(f"### Clause {f['index']}: {clause_preview(f['clause'])}")
             lines.append("")
             lines.append(f["explanation"])
             for section in f["citations"]:
@@ -958,9 +1002,9 @@ def render_report(
                 lines.append(f"- {section}" + (f" — {url}" if url else ""))
             lines.append("")
     if missing:
-        lines.append("## 🔍 Missing protections")
+        lines.append(f"## {MISSING_BADGE} {SECTION_TITLES['missing']}")
         lines.append("")
-        lines.append("Required by law but not found in this lease — worth asking your landlord:")
+        lines.append(MISSING_INTRO)
         lines.append("")
         for p in missing:
             lines.append(f"- **{p['name']}** — {p['requirement']} ({p['citation']})")
@@ -969,7 +1013,7 @@ def render_report(
     if green_indexes:
         lines.append(f"## {BADGE['green']} Clear")
         lines.append("")
-        lines.append(f"Clauses {', '.join(green_indexes)} — no conflict found with the retrieved statutes.")
+        lines.append(f"Clauses {', '.join(green_indexes)} — {CLEAR_NOTE}")
         lines.append("")
     return "\n".join(lines)
 
