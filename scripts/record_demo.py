@@ -373,12 +373,15 @@ def collapse(images: list[Image.Image], timings: list[int],
                     for ms, is_fixed in zip(held, fixed)]
 
 
-def write_gif(frames: list[Frame], path: Path) -> None:
+def write_gif(frames: list[Frame], path: Path) -> int:
     """Assemble stamped PNG frames into an animated GIF at true speed.
 
     Downscaled and palettised because the honest constraint here is GitHub's: a
     README that takes ten seconds to show its own demo has not demonstrated
     anything.
+
+    Returns the number of frames actually written, which is fewer than were
+    captured — see collapse().
     """
     rgb = []
     for captured in frames:
@@ -404,6 +407,7 @@ def write_gif(frames: list[Frame], path: Path) -> None:
     held = sum(f.hold_ms for f in frames if f.hold_ms is not None) / 1000
     print(f"  (recording spans {spanned:.1f}s of real time, plus {held:.1f}s of "
           f"deliberate pauses)")
+    return len(images)
 
 
 def record(url: str, still_only: bool) -> None:
@@ -502,9 +506,14 @@ def record(url: str, still_only: bool) -> None:
               f"({STILL_PATH.stat().st_size / 1024:.0f} KB)")
 
         if frames:
-            write_gif(frames, GIF_PATH)
+            # Written frames, not captured ones: collapse() merges runs of identical
+            # frames into one with their durations added, so the last run said "225
+            # frames" about a file holding 38. Same animation, but the number was a
+            # claim about the artifact and it was wrong.
+            written = write_gif(frames, GIF_PATH)
             print(f"  {GIF_PATH.relative_to(DOCS.parent)} "
-                  f"({GIF_PATH.stat().st_size / 1024 / 1024:.1f} MB, {len(frames)} frames)")
+                  f"({GIF_PATH.stat().st_size / 1024 / 1024:.1f} MB, {written} frames "
+                  f"from {len(frames)} captured)")
         browser.close()
 
 
