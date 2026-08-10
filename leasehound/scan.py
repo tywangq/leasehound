@@ -887,9 +887,21 @@ def summary_counts(
     return row
 
 
+# Split into its two claims so the web panel can place them apart without either
+# surface inventing wording. The .md file keeps them joined — a text report has no
+# chrome to put provenance in, so one sentence is the only place it can go — and
+# `disclaimer()` still returns exactly the string it always did.
+LEGAL_CAVEAT = "Legal information, not legal advice."
+STATUTE = "RCW 59.18"
+LAW_MAY_HAVE_CHANGED = "the law may have changed since"
+
+
+def corpus_note() -> str:
+    return f"Judged against {STATUTE} as of {CORPUS_SNAPSHOT} — {LAW_MAY_HAVE_CHANGED}."
+
+
 def disclaimer() -> str:
-    return ("Legal information, not legal advice. Judged against RCW 59.18 as of "
-            f"{CORPUS_SNAPSHOT} — the law may have changed since.")
+    return f"{LEGAL_CAVEAT} {corpus_note()}"
 
 
 # Deliberately says nothing about WHICH non-lease kind this is, because it covers two

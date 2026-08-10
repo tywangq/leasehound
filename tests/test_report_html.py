@@ -10,8 +10,11 @@ from html.parser import HTMLParser
 
 from leasehound.report_html import render_report_html
 from leasehound.scan import (
+    CORPUS_SNAPSHOT,
+    LEGAL_CAVEAT,
     MISSING_LABEL,
     SECTION_TITLES,
+    STATUTE,
     SUMMARY_LABELS,
     counted,
     render_report,
@@ -107,13 +110,27 @@ def test_a_refused_document_gets_no_counts():
     assert "12 clauses" in html
 
 
-def test_notices_come_before_the_findings():
+def test_warnings_come_before_the_findings_and_the_caveat_after():
     findings = [finding(1, "red")]
     html = render_report_html(findings, "ca_lease.pdf", "wa", [], gate_flagged=True,
-                             clauses_total=9, jurisdiction="ca")
-    for kind in ("legal", "jurisdiction", "gate"):
+                              clauses_total=9, jurisdiction="ca")
+    # Anything that changes how to read the verdicts goes above them.
+    for kind in ("jurisdiction", "gate", "partial"):
         assert f"lh-note-{kind}" in html
-    assert html.index("lh-note-jurisdiction") < html.index("lh-finding")
+        assert html.index(f"lh-note-{kind}") < html.index("lh-finding")
+    # The legal caveat is the one line that says nothing about this lease, so it goes
+    # last — it used to be a bordered callout directly under the summary row.
+    assert html.index("lh-legal") > html.index("lh-finding")
+    assert LEGAL_CAVEAT in html
+
+
+def test_the_provenance_line_carries_every_judged_against_fact():
+    html = render_report_html([finding(1, "green")], "l.md", "wa", [])
+    prov = html[html.index("lh-prov"):html.index("lh-chips")]
+    for fact in ("WA", STATUTE, CORPUS_SNAPSHOT):
+        assert fact in prov
+    # One "judged against" claim, not two three lines apart with different dates.
+    assert html.count("Judged against") == 0
 
 
 def test_counts_of_one_take_the_singular():

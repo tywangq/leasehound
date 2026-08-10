@@ -81,10 +81,14 @@ CSS = """
                --lh-green: #16a34a; --lh-ink: #0f172a; --lh-body: #334155;
                --lh-muted: #94a3b8; --lh-hair: #e2e8f0;}
 .report-panel .lh-md {display: none;}
-.report-panel .lh-title {font-size: 1.3em; font-weight: 700; color: var(--lh-ink);
-                         margin: 2px 0 4px;}
-.report-panel .lh-meta {font-size: 0.88em; color: var(--lh-muted); margin: 0 0 14px;}
-.report-panel .lh-meta code {font-size: 0.95em; background: none; padding: 0;}
+.report-panel .lh-title {font-size: 1.28em; font-weight: 700; color: var(--lh-ink);
+                         margin: 2px 0 3px; display: flex; align-items: baseline; gap: 10px;}
+/* The file name rides on the title line in the app's own mono, at the size the OG
+   card sets it: it is what the report is OF, not metadata about it. */
+.report-panel .lh-file {font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+                        font-size: 0.66em; font-weight: 400; color: var(--lh-muted);}
+.report-panel .lh-prov {font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+                        font-size: 0.78em; color: var(--lh-muted); margin: 0 0 13px;}
 .report-panel .lh-dot {margin: 0 7px;}
 /* Verdict counts as chips, the one thing a Markdown string could not carry: the
    summary used to be one bold run with "·" between the numbers, and four emoji
@@ -100,20 +104,20 @@ CSS = """
 .report-panel .lh-yellow i {background: var(--lh-amber);}
 .report-panel .lh-missing i {background: var(--lh-teal);}
 .report-panel .lh-green i {background: var(--lh-green);}
-.report-panel .lh-note {font-size: 0.86em; color: var(--lh-body); line-height: 1.5;
-                        margin: 0 0 12px; padding: 9px 13px; border-radius: 8px;
+.report-panel .lh-note {font-size: 0.85em; color: var(--lh-body); line-height: 1.42;
+                        margin: 0 0 10px; padding: 8px 12px; border-radius: 8px;
                         background: #f8fafc; border-left: 3px solid var(--lh-hair);}
 .report-panel .lh-note-jurisdiction, .report-panel .lh-note-gate,
 .report-panel .lh-note-partial {background: #fffbeb; border-left-color: var(--lh-amber);}
-.report-panel .lh-section {font-size: 0.78em; font-weight: 700; letter-spacing: 0.08em;
-                           text-transform: uppercase; margin: 22px 0 10px;}
+.report-panel .lh-section {font-size: 0.76em; font-weight: 700; letter-spacing: 0.08em;
+                           text-transform: uppercase; margin: 18px 0 8px;}
 .report-panel h2.lh-red {color: var(--lh-red);}
 .report-panel h2.lh-yellow {color: var(--lh-amber);}
 .report-panel h2.lh-missing {color: var(--lh-teal);}
 /* One finding, one bordered block with a coloured rail. Findings used to run
    together as heading + paragraph + list, so which explanation belonged to which
    clause was a matter of reading order. */
-.report-panel .lh-finding {position: relative; margin: 0 0 12px; padding: 14px 16px 14px 20px;
+.report-panel .lh-finding {position: relative; margin: 0 0 9px; padding: 12px 15px 12px 19px;
                            border: 1px solid var(--lh-hair); border-radius: 10px;
                            background: #fff; overflow: hidden;}
 .report-panel .lh-finding::before {content: ""; position: absolute; left: 0; top: 0;
@@ -121,25 +125,29 @@ CSS = """
 .report-panel .lh-finding.lh-red::before {background: var(--lh-red);}
 .report-panel .lh-finding.lh-yellow::before {background: var(--lh-amber);}
 .report-panel .lh-finding.lh-red {background: #fffbfb; border-color: #f4d4d4;}
-.report-panel .lh-finding-head {font-size: 0.74em; font-weight: 700; letter-spacing: 0.07em;
+.report-panel .lh-finding-head {font-size: 0.72em; font-weight: 700; letter-spacing: 0.07em;
                                 text-transform: uppercase; color: var(--lh-muted);
-                                margin: 0 0 7px;}
-/* Serif for the quoted clause, sans for everything said about it: the lease's words
-   and the tool's words were the same face at the same weight, and the reader had to
-   work out which was which. */
+                                margin: 0 0 6px;}
+/* The one place a second typeface earns its keep: this is the lease's own words, and
+   the sans beside it is the tool's words about them. Everything else on the panel now
+   inherits Gradio's stack, so the panel and the chat column beside it set the same. */
 .report-panel .lh-clause {font-family: Georgia, "Times New Roman", serif;
-                          font-size: 1.03em; line-height: 1.45; color: var(--lh-ink);
-                          margin: 0 0 10px; padding: 0; border: none; background: none;}
-.report-panel .lh-explain {font-size: 0.92em; line-height: 1.55; color: var(--lh-body);
+                          font-size: 1.02em; line-height: 1.36; color: var(--lh-ink);
+                          margin: 0 0 8px; padding: 0; border: none; background: none;}
+.report-panel .lh-explain {font-size: 0.92em; line-height: 1.45; color: var(--lh-body);
                            margin: 0;}
 .report-panel .lh-cites {display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 0;}
-.report-panel .lh-cite {font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+.report-panel .lh-cite {font-family: var(--font-mono, ui-monospace, Menlo, monospace);
                         font-size: 0.82em; color: #0f766e; text-decoration: none;
                         border-bottom: 1px solid rgba(15, 118, 110, 0.3);}
 .report-panel a.lh-cite:hover {border-bottom-color: #0f766e;}
 .report-panel .lh-missing-list {margin: 0; padding-left: 20px; font-size: 0.9em;
                                 line-height: 1.6; color: var(--lh-body);}
-.report-panel .lh-tail {font-size: 0.86em; color: var(--lh-muted); margin: 16px 0 0;}
+.report-panel .lh-tail {font-size: 0.86em; color: var(--lh-muted); margin: 14px 0 0;}
+/* Quiet, and last. Present on every report, competing with none of it. */
+.report-panel .lh-legal {font-size: 0.76em; line-height: 1.4; color: var(--lh-muted);
+                         margin: 18px 0 2px; padding-top: 12px;
+                         border-top: 1px solid var(--lh-hair);}
 .report-panel .lh-waiting {font-size: 0.92em; color: var(--lh-muted);}
 .report-panel .lh-notjudged {color: var(--lh-amber);}
 @media (prefers-color-scheme: dark) {

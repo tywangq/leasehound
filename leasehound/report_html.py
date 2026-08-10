@@ -26,13 +26,16 @@ from html import escape
 from leasehound.jurisdiction import UNKNOWN_JURISDICTION, jurisdiction_mismatch
 from leasehound.scan import (
     CLEAR_NOTE,
+    CORPUS_SNAPSHOT,
     GATE_REFUSED,
     GATE_WARNING,
+    LAW_MAY_HAVE_CHANGED,
+    LEGAL_CAVEAT,
     MISSING_INTRO,
     SECTION_TITLES,
+    STATUTE,
     VERDICT_ORDER,
     clause_preview,
-    disclaimer,
     jurisdiction_warning,
     partial_scan_notice,
     summary_counts,
@@ -95,16 +98,38 @@ def _finding(f: dict, verdict: str) -> str:
     )
 
 
-def _head(source: str, judged: str, counts_row: str) -> str:
+def _head(source: str, provenance: str, counts_row: str) -> str:
+    """Title, then one provenance line, then the chips.
+
+    The title used to be "Scan report" alone with the file name pushed into a meta
+    row that also carried "Judged against WA law" and today's date — and the legal
+    callout right below it said "Judged against RCW 59.18 as of 2026-07-25". Two
+    "judged against" claims with two different dates, one of them the scan and one the
+    corpus, three lines apart. A reader has to work out that neither is wrong.
+    So: the file name joins the title, because it is what the report is OF, and every
+    fact about what judged it goes on one line in the order a reader would ask —
+    jurisdiction, statute, corpus, scan date.
+    """
     return (
         '<div class="lh-head">'
-        + '<p class="lh-title">Scan report</p>'
-        + f'<p class="lh-meta"><code>{esc(source)}</code>'
-        + f'<span class="lh-dot">·</span>{judged}'
-        + f'<span class="lh-dot">·</span>{esc(date.today().isoformat())}</p>'
+        + '<p class="lh-title">Scan report'
+        + f'<span class="lh-file">{esc(source)}</span></p>'
+        + f'<p class="lh-prov">{provenance}</p>'
         + (f'<p class="lh-chips">{counts_row}</p>' if counts_row else "")
         + "</div>"
     )
+
+
+def _provenance(state: str) -> str:
+    """`state.upper()`, not a full state name: this repo already learned that printing
+    a caller's default in the position where a report states findings is how a
+    California lease came back looking authoritatively judged. The card at
+    scripts/make_og.py spells "Washington" because it is a static image for one
+    jurisdiction; here it has to follow the parameter.
+    """
+    parts = [esc(state.upper()), esc(STATUTE), f"corpus {esc(CORPUS_SNAPSHOT)}",
+             f"scanned {esc(date.today().isoformat())}"]
+    return '<span class="lh-dot">·</span>'.join(parts)
 
 
 def render_report_html(
@@ -135,8 +160,7 @@ def render_report_html(
         return _wrap(parts, markdown)
 
     chips = "".join(_chip(key, label) for key, label in summary_counts(findings, protections))
-    parts.append(_head(source, f"Judged against {esc(state.upper())} law", chips))
-    parts.append(_note("legal", disclaimer()))
+    parts.append(_head(source, _provenance(state), chips))
 
     # Above the other two notices, because it is the only one of the three that can
     # make every verdict in the report wrong rather than merely incomplete.
@@ -172,6 +196,15 @@ def render_report_html(
             f'<p class="lh-tail">Clauses {esc(", ".join(clear))} — {esc(CLEAR_NOTE)}</p>'
         )
 
+    # Last, and small. It was a bordered callout directly under the summary row, which
+    # gave the one sentence on the page that says nothing about this lease the same
+    # weight as the findings. Demoting it is not removing it: it is still on every
+    # report, and the corpus date it used to carry now sits in the provenance line
+    # where a reader looking for it would look.
+    parts.append(
+        f'<p class="lh-legal">{esc(LEGAL_CAVEAT)} '
+        f'{esc(LAW_MAY_HAVE_CHANGED.capitalize())}.</p>'
+    )
     return _wrap(parts, markdown)
 
 
