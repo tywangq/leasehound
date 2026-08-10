@@ -894,9 +894,12 @@ MAX_UPLOAD_SIZE = MAX_UPLOAD_BYTES
 # card is the half that reaches people who never click. Rewritten on the way out
 # because the tags are baked into Gradio's template, not configurable.
 DEMO_URL = "https://leasehound-671004460975.us-west1.run.app"
-# The same still the README shows, served from the public repo so a share card can
-# reach it. Worth knowing: this file is itself due for a re-record.
-SCREENSHOT = "docs/screenshot.png"
+# A purpose-built 1200x630 card, not the README still: every platform crops share
+# images to about 1.91:1, and the screenshot is 1.42:1, so a quarter of its height
+# was cut — and at card size its UI text was unreadable anyway. Regenerate with
+# scripts/make_og.py, which reads the two strings below so the card cannot drift
+# from these tags. Served from the public repo so a scraper can reach it.
+SHARE_CARD = "docs/og.png"
 SOCIAL_TITLE = "LeaseHound — lease red-flag scanner"
 SOCIAL_DESCRIPTION = ("Scan a Washington lease for clauses that are void under "
                       "RCW 59.18 — every verdict cites the statute.")
@@ -910,8 +913,8 @@ SOCIAL_CONTENT = {
     "og:description": SOCIAL_DESCRIPTION,
     "twitter:description": SOCIAL_DESCRIPTION,
     "og:url": DEMO_URL,
-    "og:image": f"https://raw.githubusercontent.com/tywangq/leasehound/main/{SCREENSHOT}",
-    "twitter:image": f"https://raw.githubusercontent.com/tywangq/leasehound/main/{SCREENSHOT}",
+    "og:image": f"https://raw.githubusercontent.com/tywangq/leasehound/main/{SHARE_CARD}",
+    "twitter:image": f"https://raw.githubusercontent.com/tywangq/leasehound/main/{SHARE_CARD}",
     "twitter:creator": "",
     "twitter:site": "",
 }
