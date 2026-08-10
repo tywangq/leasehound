@@ -4,11 +4,20 @@ Why a generated card and not the app screenshot: LinkedIn, Slack and Twitter all
 crop share images to roughly 1.91:1. docs/screenshot.png is 1.42:1, so a quarter
 of its height was being cut, and at card size its UI text was unreadable anyway.
 
-The card shows one real finding rather than describing the product, because a
-scanner that claims to cite its sources should be able to show one. Nothing on it
-is typed here: the wording comes from app.py's social constants, the clause from
-examples/sample_lease.md, and the three numbers from evaluation/. A card that
-could drift from the evidence behind it would be the wrong card for this repo.
+The card draws the product's own report surface rather than describing the
+product, because a scanner whose whole claim is that it cites its sources should
+be able to show one doing it. Drawn rather than screenshotted so the type stays
+crisp at the ~360px LinkedIn actually renders.
+
+Almost nothing on it is typed here: the wording comes from app.py's social
+constants, the clause from examples/sample_lease.md, and the headline three from
+evaluation/. The one exception is the verdict row, and the reason is instructive.
+The obvious source, scan_results.json, has a `flagged_yellow` field — but it
+counts planted violations that came back yellow, not cautions on ordinary
+clauses, and reading it as the latter put "0 cautions" on a card whose product
+reports one. The counts live in app.py with that history recorded, and the two
+the artifact genuinely does cover are cross-checked here so a card and an
+evaluation that disagree fail the build rather than ship.
 
     python scripts/make_og.py
 """
@@ -26,16 +35,19 @@ APP = ROOT / "leasehound" / "app.py"
 LEASE = ROOT / "examples" / "sample_lease.md"
 EVAL = ROOT / "evaluation"
 OUT = ROOT / "docs" / "og.png"
-PAW = ROOT / "leasehound" / "assets" / "favicon.png"
 
 W, H = 1200, 630
-PAD = 72
-BG, BAND = "#ffffff", "#f1f5f9"
-INK, MUTED, TEAL, RED, RULE = "#0f172a", "#64748b", "#0d9488", "#dc2626", "#e2e8f0"
+PAD = 56
+PAGE = "#eef2f6"
+CARD, CHROME, EDGE = "#ffffff", "#f6f8fa", "#dbe2ea"
+INK, BODY, MUTED = "#0f172a", "#334155", "#94a3b8"
+TEAL, TEAL_D = "#0d9488", "#0f766e"
+RED, RED_BG, RED_EDGE = "#dc2626", "#fffbfb", "#f4d4d4"
+AMBER, GREEN = "#d97706", "#16a34a"
 
 SANS = "/System/Library/Fonts/HelveticaNeue.ttc"
 MONO = "/System/Library/Fonts/SFNSMono.ttf"
-SERIF = "/System/Library/Fonts/Supplemental/Georgia.ttf"
+SERIF = "/System/Library/Fonts/NewYork.ttf"
 
 
 def font(path: str, size: int, index: int = 0) -> ImageFont.FreeTypeFont:
@@ -53,6 +65,61 @@ def constant(name: str) -> str:
         ):
             return ast.literal_eval(node.value)
     raise SystemExit(f"{name} not found in {APP.relative_to(ROOT)}")
+
+
+def sample_scan() -> dict:
+    """The stored scan of the lease whose clause this card quotes."""
+    leases = json.loads((EVAL / "scan_results.json").read_text())["leases"]
+    for entry in leases:
+        if Path(entry["file"]).name == LEASE.name:
+            return entry
+    raise SystemExit(f"no stored scan of {LEASE.name} in scan_results.json")
+
+
+def chips() -> list[tuple[str, str]]:
+    """The report's own verdict row, in the app's colour order.
+
+    Read from app.py rather than from scan_results.json. That artifact has
+    `flagged_red` and `protections_expected`, which agree with the report, but its
+    `flagged_yellow` counts something else — planted violations that came back
+    yellow, not cautions on ordinary clauses — and reading it as the caution count
+    put "0 cautions" on a card whose product shows one. The counts app.py carries
+    are checked against the running app; see the comment beside CARD_VERDICTS.
+    """
+    palette = {"red": RED, "caution": AMBER, "missing": TEAL, "clear": GREEN}
+    out = []
+    for part in constant("CARD_VERDICTS").split("|"):
+        label = part.strip()
+        colour = next((c for k, c in palette.items() if k in label), TEAL)
+        out.append((colour, label))
+    # Cross-check the two the artifact does cover, so a card and an evaluation
+    # that disagree fail the build instead of shipping.
+    scan = sample_scan()
+    for count, word in [(len(scan["flagged_red"]), "red flags"),
+                        (len(scan["protections_expected"]), "missing protections")]:
+        if f"{count} {word}" not in constant("CARD_VERDICTS"):
+            raise SystemExit(
+                f"CARD_VERDICTS disagrees with scan_results.json: expected "
+                f"{count} {word}"
+            )
+    return out
+
+
+def evidence() -> list[tuple[str, str]]:
+    """The headline three, recomputed from the evaluation output on every build."""
+    synth = json.loads((EVAL / "synthetic_results.json").read_text())["summary"]
+    cost = json.loads((EVAL / "scan_cost_summary.json").read_text())["all_scans"]
+    planted = synth["planted_violations"]
+    return [
+        (f"{round(planted * synth['strict_recall'])}/{planted}", "violations caught"),
+        (f"{synth['precision']:.2f}", "precision"),
+        (f"{cost['p50_seconds']:g}s", "median scan"),
+    ]
+
+
+def corpus_line() -> str:
+    prov = json.loads((EVAL / "scan_cost_summary.json").read_text())["provenance"]
+    return f"Washington · RCW 59.18 · corpus {prov['corpus_snapshot']}"
 
 
 def clause_excerpt(draw, fnt, width: int, lines: int = 2) -> list[str]:
@@ -73,7 +140,6 @@ def clause_excerpt(draw, fnt, width: int, lines: int = 2) -> list[str]:
     out, line = [], ""
     for word in body.split():
         trial = f"{line} {word}".strip()
-        # Leave room for the closing quote and ellipsis on the final line.
         room = width - (34 if len(out) == lines - 1 else 0)
         if draw.textlength(trial, font=fnt) <= room:
             line = trial
@@ -85,66 +151,74 @@ def clause_excerpt(draw, fnt, width: int, lines: int = 2) -> list[str]:
     if len(out) < lines and line:
         out.append(line)
     out = out[:lines]
-    consumed = len(" ".join(out).split())
-    if consumed < len(body.split()):
+    if len(" ".join(out).split()) < len(body.split()):
         out[-1] = out[-1].rstrip(",") + "…"
     out[0] = "“" + out[0]
     out[-1] = out[-1] + "”"
     return out
 
 
-def evidence() -> list[tuple[str, str]]:
-    """The three numbers, recomputed from the evaluation output on every build."""
-    synth = json.loads((EVAL / "synthetic_results.json").read_text())["summary"]
-    cost = json.loads((EVAL / "scan_cost_summary.json").read_text())["all_scans"]
-    planted = synth["planted_violations"]
-    caught = round(planted * synth["strict_recall"])
-    return [
-        (f"{caught}/{planted}", "violations caught"),
-        (f"{synth['precision']:.2f}", "precision"),
-        (f"{cost['p50_seconds']:g}s", "median scan"),
-    ]
+def monogram(d, x, y, size):
+    """A drawn mark, not the 🐕 favicon: an emoji renders differently on every
+    platform that scrapes this card, and reads as a hobby project on all of them.
+    """
+    d.rounded_rectangle([x, y, x + size, y + size], radius=size * 0.26, fill=TEAL)
+    f = font(SANS, int(size * 0.46), 1)
+    d.text((x + (size - d.textlength("LH", font=f)) / 2, y + size * 0.25), "LH",
+           font=f, fill="#ffffff")
 
 
 def main() -> None:
-    name = constant("SOCIAL_TITLE").partition("—")[0].strip()
-    # The description's em dash is its hinge; the card keeps only the promise.
-    promise = constant("SOCIAL_DESCRIPTION").partition("—")[2].strip().capitalize()
-
-    img = Image.new("RGB", (W, H), BG)
+    img = Image.new("RGB", (W, H), PAGE)
     d = ImageDraw.Draw(img)
+    bx, by = PAD, PAD
+    bw, bh = W - PAD * 2, H - PAD * 2
 
-    d.rectangle([0, 0, W, 96], fill=BAND)
-    paw = Image.open(PAW).convert("RGBA").resize((50, 50), Image.LANCZOS)
-    img.paste(paw, (PAD, 24), paw)
-    d.text((PAD + 64, 30), name, font=font(SANS, 38, 1), fill=INK)
-    stack, sf = constant("SOCIAL_STACK"), font(SANS, 22)
-    d.text((W - PAD - d.textlength(stack, font=sf), 41), stack, font=sf, fill=MUTED)
+    d.rounded_rectangle([bx, by, bx + bw, by + bh], radius=16, fill=CARD, outline=EDGE, width=2)
+    d.rounded_rectangle([bx, by, bx + bw, by + 62], radius=16, fill=CHROME)
+    d.rectangle([bx, by + 46, bx + bw, by + 62], fill=CHROME)
+    d.line([bx, by + 62, bx + bw, by + 62], fill=EDGE, width=2)
+    for i in range(3):
+        d.ellipse([bx + 22 + i * 22, by + 24, bx + 34 + i * 22, by + 36], fill="#e5eaf0")
 
-    y = 166
-    d.rectangle([PAD, y, PAD + 8, y + 172], fill=RED)
-    d.text((PAD + 30, y + 2), "RED FLAG", font=font(SANS, 20, 1), fill=RED)
-    quote = font(SERIF, 33)
-    for i, line in enumerate(clause_excerpt(d, quote, W - PAD * 2 - 30)):
-        d.text((PAD + 30, y + 36 + i * 44), line, font=quote, fill=INK)
-    d.text((PAD + 30, y + 134), constant("CARD_CITATION"), font=font(MONO, 22), fill=TEAL)
+    monogram(d, bx + 104, by + 17, 28)
+    d.text((bx + 140, by + 21), constant("SOCIAL_TITLE").partition("—")[0].strip(),
+           font=font(SANS, 21, 1), fill=INK)
+    tag, tf = corpus_line(), font(MONO, 15)
+    d.text((bx + bw - 24 - d.textlength(tag, font=tf), by + 25), tag, font=tf, fill=MUTED)
 
-    y += 244
-    d.line([PAD, y, W - PAD, y], fill=RULE, width=2)
+    ix, right = bx + 40, bx + bw - 40
+    title_f = font(SANS, 26, 1)
+    d.text((ix, by + 100), "Scan report", font=title_f, fill=INK)
+    d.text((ix + d.textlength("Scan report", font=title_f) + 18, by + 108),
+           LEASE.name, font=font(MONO, 17), fill=MUTED)
 
-    y += 40
-    d.text((PAD, y), promise, font=font(SANS, 42, 1), fill=INK)
+    cx, cf = ix, font(SANS, 17, 1)
+    for colour, label in chips():
+        wide = d.textlength(label, font=cf) + 46
+        d.rounded_rectangle([cx, by + 152, cx + wide, by + 190], radius=19,
+                            fill="#f8fafc", outline="#e2e8f0", width=2)
+        d.rounded_rectangle([cx + 16, by + 165, cx + 27, by + 176], radius=3, fill=colour)
+        d.text((cx + 35, by + 162), label, font=cf, fill=BODY)
+        cx += wide + 12
 
-    y += 84
-    num_f, lab_f = font(SANS, 34, 1), font(SANS, 19)
-    x = PAD
+    fy = by + 222
+    d.rounded_rectangle([ix, fy, right, fy + 180], radius=10, fill=RED_BG,
+                        outline=RED_EDGE, width=2)
+    d.rectangle([ix, fy, ix + 6, fy + 180], fill=RED)
+    d.text((ix + 28, fy + 20), "CLAUSE 3 · LATE CHARGES", font=font(SANS, 15, 1), fill=RED)
+    quote = font(SERIF, 24)
+    for i, line in enumerate(clause_excerpt(d, quote, right - ix - 60)):
+        d.text((ix + 28, fy + 50 + i * 34), line, font=quote, fill=INK)
+    d.text((ix + 28, fy + 132), constant("CARD_CITATION"), font=font(MONO, 18), fill=TEAL_D)
+
+    y = by + bh - 72
+    d.line([ix, y - 24, right, y - 24], fill=PAGE, width=2)
+    x, nf, lf = ix, font(SANS, 26, 1), font(SANS, 16)
     for value, label in evidence():
-        d.text((x, y), value, font=num_f, fill=TEAL)
-        d.text((x, y + 44), label, font=lab_f, fill=MUTED)
-        x += max(d.textlength(value, font=num_f), d.textlength(label, font=lab_f)) + 56
-
-    url, uf = "github.com/tywangq/leasehound", font(MONO, 20)
-    d.text((W - PAD - d.textlength(url, font=uf), y + 44), url, font=uf, fill=MUTED)
+        d.text((x, y), value, font=nf, fill=TEAL_D)
+        d.text((x + d.textlength(value, font=nf) + 10, y + 8), label, font=lf, fill=MUTED)
+        x += d.textlength(value, font=nf) + d.textlength(label, font=lf) + 52
 
     img.save(OUT, optimize=True)
     print(f"{OUT.relative_to(ROOT)}  {img.width}x{img.height}  {OUT.stat().st_size // 1024} KB")

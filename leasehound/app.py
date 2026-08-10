@@ -913,6 +913,17 @@ SOCIAL_STACK = "Two-layer RAG over Washington tenant law"
 # of that lease returns; it is the pairing recorded in docs/screenshot.png.
 CARD_CLAUSE_HEADING = "3. LATE CHARGES."
 CARD_CITATION = "RCW 59.18.170 — no late fee before the fifth day"
+# The verdict counts the report shows for that lease. Not derived, and the reason
+# is worth recording: evaluation/scan_results.json has `flagged_yellow`, but that
+# field means "planted violations that came back yellow" — a different quantity
+# from "cautions in the report", which lands in `cautions` (eval_scan.py:123) and
+# is written out as `unplanted_yellows`. That field was added after the stored
+# artifact was generated, so the artifact cannot supply this count today. The
+# clear count is not arithmetic either: 7+1+7 exceeds the numbered lines in the
+# lease, because the scanner's clause splitting is not a regex over "N.".
+# These are what the live app returns, the same run recorded in docs/screenshot.png.
+# Re-derive from `unplanted_yellows` the next time the scan eval is re-run.
+CARD_VERDICTS = "7 red flags | 1 caution | 2 missing protections | 7 clear"
 # Matched by attribute rather than by exact string: Gradio emits these twice, in two
 # blocks, and wraps some of them across lines, so a literal replacement caught the
 # titles and left og:image pointing at Gradio's own banner. An empty value here means
