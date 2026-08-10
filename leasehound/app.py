@@ -181,7 +181,16 @@ CSS = """
                transition: flex-basis 0.45s ease, opacity 0.45s ease;
                animation: report-in 0.45s ease;}
   @keyframes report-in {from {flex-basis: 0px; opacity: 0;}}
-  .report-panel {flex: 1 1 0; min-height: 0; overflow-y: auto; padding: 0 4px;}
+  /* overflow-y needs !important and the rest of this rule does not, which is worth
+     writing down. As a gr.Markdown the panel took this rule as written. As a gr.HTML
+     it also carries Gradio's `hide-contain`, which sets overflow and wins — so `flex`
+     and `min-height` still landed while `overflow-y` silently did not, and a long
+     report was CLIPPED at the column's height. Nothing looked broken: the panel
+     rendered, the wheel scrolled the page past it, and the findings below the fold
+     were simply unreachable. Narrow screens use their own rule below and never were.
+     Measured rather than guessed — computed overflow-y read `visible` on the live
+     page, while flex and min-height read as written. */
+  .report-panel {flex: 1 1 0; min-height: 0; overflow-y: auto !important; padding: 0 4px;}
   /* Trash: TRASH_JS adds .closing so both columns slide to their solo
      positions *before* the server removes the report column from the DOM
      (on_trash sleeps past the transition). Must come after the :has rules —
