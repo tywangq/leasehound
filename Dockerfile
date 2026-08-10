@@ -35,15 +35,28 @@ COPY pyproject.toml LICENSE ./
 COPY leasehound ./leasehound
 RUN pip install --no-cache-dir --no-deps .
 
-COPY vector_db_runtime ./vector_db
+# The user exists before the store is copied, so the store can be copied to it.
+# Ordering matters here in a way that cost a broken demo: this was below, and
+# `COPY vector_db_runtime` therefore landed root-owned 644 under a process running
+# as uid 10001.
+RUN useradd --create-home --uid 10001 hound
+
+# --chown, because the store is NOT read-only, which is what this comment used to
+# claim. Chroma's PersistentClient opens its sqlite read-write — it writes -wal and
+# -shm alongside it and touches the tenant tables on connect — so a root-owned store
+# under a non-root process fails at the first query with "attempt to write a readonly
+# database", surfacing in the UI as the generic "the hound tripped over an error".
+# Reproduce before changing this: build, then
+#   docker run --rm IMAGE python -c "import chromadb; chromadb.PersistentClient('/app/vector_db')"
+# which is what scripts/image_smoke_test.py now does on every CI build.
+COPY --chown=hound:hound vector_db_runtime ./vector_db
 COPY examples ./examples
 
 # Drop root, after the installs and before anything runs. The first code to touch a
 # visitor's upload is pypdf parsing an arbitrary PDF, and this container was doing that
 # as uid 0 — Cloud Run's sandbox is a second line of defence, not a reason to skip the
-# first. Nothing at runtime writes inside /app: the vector store is read-only, the
-# report temp files and Gradio's own scratch space go to /tmp and $HOME.
-RUN useradd --create-home --uid 10001 hound
+# first. Outside the vector store nothing at runtime writes inside /app: the report
+# temp files and Gradio's own scratch space go to /tmp and $HOME.
 USER hound
 ENV HOME=/home/hound
 

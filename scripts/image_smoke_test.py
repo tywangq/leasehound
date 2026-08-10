@@ -14,14 +14,26 @@ Mounted rather than copied, because scripts/ is excluded from the build context:
 
 Importing the app is the whole point of the first check: it pulls in gradio,
 litellm, openai and chromadb together, which is where a bad resolution shows up.
-The store is not exercised here — CI builds the image against a placeholder,
-since the real one is not in git and re-embedding it per commit would cost money.
-Retrieval against the real store is verified locally before a deploy.
+
+The second check OPENS the store, and works against the placeholder CI builds with,
+because what it is testing is not the corpus — it is whether the runtime user can
+write where Chroma needs to. That distinction cost a live demo: a `USER hound` line
+landed while `COPY vector_db_runtime` still ran as root, so every scan died on
+"attempt to write a readonly database" while the page itself served fine, CI stayed
+green, and the UI reported only "the hound tripped over an error". An empty
+placeholder exercises exactly that path, since Chroma initialises a new store there
+and needs the same write access.
+
+What is still verified by hand before a deploy is RETRIEVAL — that the corpus in the
+image answers a query — because the real store is not in git.
 """
 
 import sys
+from pathlib import Path
 
 REMOVED_BY_DOCKERFILE = ("kubernetes", "onnxruntime")
+# Where the Dockerfile puts the store, and where leasehound.retrieval looks for it.
+STORE = Path("/app/vector_db")
 
 
 def main() -> None:
@@ -36,6 +48,20 @@ def main() -> None:
         )
     print(f"Image boots. Pinned dependencies import together; "
           f"{len(sys.modules)} modules loaded, none of {list(REMOVED_BY_DOCKERFILE)}.")
+
+    import chromadb
+
+    try:
+        chromadb.PersistentClient(path=str(STORE))
+    except Exception as opening:
+        raise SystemExit(
+            f"Chroma cannot open {STORE} as uid {__import__('os').getuid()}: "
+            f"{type(opening).__name__}: {opening}\n"
+            f"The store is opened read-write, so it has to belong to the user the "
+            f"image runs as — see the --chown on its COPY in the Dockerfile. Without "
+            f"this check the image boots, serves the page, and fails every scan."
+        ) from opening
+    print(f"Chroma opens {STORE} read-write as the runtime user.")
 
 
 if __name__ == "__main__":
