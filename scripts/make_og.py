@@ -35,6 +35,7 @@ APP = ROOT / "leasehound" / "app.py"
 LEASE = ROOT / "examples" / "sample_lease.md"
 EVAL = ROOT / "evaluation"
 OUT = ROOT / "docs" / "og.png"
+PAW = ROOT / "leasehound" / "assets" / "favicon.png"
 
 W, H = 1200, 630
 PAD = 56
@@ -161,14 +162,18 @@ def clause_excerpt(draw, fnt, width: int, lines: int = 2) -> list[str]:
     return out
 
 
-def monogram(d, x, y, size):
-    """A drawn mark, not the 🐕 favicon: an emoji renders differently on every
-    platform that scrapes this card, and reads as a hobby project on all of them.
+def mark(img, x, y, size):
+    """The hound, from the same favicon the app serves in its tab.
+
+    This was briefly a drawn "LH" monogram, on the reasoning that an emoji renders
+    differently on every platform that scrapes the card. That reasoning does not apply
+    here: the card is a PNG, so the glyph is rasterised once when this script runs and
+    no scraper ever receives a codepoint. What was left was taste, weighed against the
+    fact that this product is named after a hound and speaks in its voice throughout.
+    The dog is the mark.
     """
-    d.rounded_rectangle([x, y, x + size, y + size], radius=size * 0.26, fill=TEAL)
-    f = font(SANS, int(size * 0.46), 1)
-    d.text((x + (size - d.textlength("LH", font=f)) / 2, y + size * 0.25), "LH",
-           font=f, fill="#ffffff")
+    paw = Image.open(PAW).convert("RGBA").resize((size, size), Image.LANCZOS)
+    img.paste(paw, (x, y), paw)
 
 
 def main() -> None:
@@ -184,7 +189,7 @@ def main() -> None:
     for i in range(3):
         d.ellipse([bx + 22 + i * 22, by + 24, bx + 34 + i * 22, by + 36], fill="#e5eaf0")
 
-    monogram(d, bx + 104, by + 17, 28)
+    mark(img, bx + 102, by + 15, 32)
     d.text((bx + 140, by + 21), constant("SOCIAL_TITLE").partition("—")[0].strip(),
            font=font(SANS, 21, 1), fill=INK)
     tag, tf = corpus_line(), font(MONO, 15)
