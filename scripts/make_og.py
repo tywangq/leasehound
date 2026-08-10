@@ -113,7 +113,10 @@ def evidence() -> list[tuple[str, str]]:
     return [
         (f"{round(planted * synth['strict_recall'])}/{planted}", "violations caught"),
         (f"{synth['precision']:.2f}", "precision"),
-        (f"{cost['p50_seconds']:g}s", "median scan"),
+        # One decimal, not the stored precision: the resume and the portfolio both say
+        # 9.3s, and a card reading 9.31s beside them looks like a different measurement
+        # rather than the same one rounded. The artifact keeps the full value.
+        (f"{cost['p50_seconds']:.1f}s", "median scan"),
     ]
 
 
