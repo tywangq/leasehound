@@ -24,6 +24,12 @@ green, and the UI reported only "the hound tripped over an error". An empty
 placeholder exercises exactly that path, since Chroma initialises a new store there
 and needs the same write access.
 
+The third check WRITES what a scan writes. Same story as the second, one path over:
+the store fix shipped, a visitor's scan then got all the way through 15 of 15 clauses
+and died on `mkdir /app/logs`. Two write paths, two deploys, one cause — so this
+exercises the writes rather than reasoning about them, and it costs nothing because
+log_scan takes an empty meter.
+
 What is still verified by hand before a deploy is RETRIEVAL — that the corpus in the
 image answers a query — because the real store is not in git.
 """
@@ -62,6 +68,19 @@ def main() -> None:
             f"this check the image boots, serves the page, and fails every scan."
         ) from opening
     print(f"Chroma opens {STORE} read-write as the runtime user.")
+
+    from leasehound.metrics import LOG_PATH, UsageMeter, log_scan
+
+    try:
+        log_scan(UsageMeter(), "smoke.md", 0, verdicts={"red": 0, "yellow": 0, "green": 0})
+    except OSError as writing:
+        raise SystemExit(
+            f"A scan cannot write its own metrics line: {type(writing).__name__}: "
+            f"{writing}\nlog_scan appends to {LOG_PATH} and creates its parent, so that "
+            f"directory has to belong to the user the image runs as. This failed after "
+            f"every clause had been judged, which is the most expensive place to fail."
+        ) from writing
+    print(f"A scan can write {LOG_PATH} as the runtime user.")
 
 
 if __name__ == "__main__":

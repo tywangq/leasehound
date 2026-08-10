@@ -52,6 +52,14 @@ RUN useradd --create-home --uid 10001 hound
 COPY --chown=hound:hound vector_db_runtime ./vector_db
 COPY examples ./examples
 
+# The second thing that writes inside /app, found the same way as the first — by a
+# visitor's scan failing. metrics.log_scan appends one line per scan to logs/ and
+# mkdir'd it as root until now. On Cloud Run the file is nearly beside the point:
+# log_scan also prints the record to stdout, which is the sink Cloud Logging reads
+# and the only one that outlives an instance. It exists here so the deployed image
+# behaves like the local one rather than diverging on a path.
+RUN install -d -o hound -g hound /app/logs
+
 # Drop root, after the installs and before anything runs. The first code to touch a
 # visitor's upload is pypdf parsing an arbitrary PDF, and this container was doing that
 # as uid 0 — Cloud Run's sandbox is a second line of defence, not a reason to skip the
