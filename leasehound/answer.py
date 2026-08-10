@@ -28,10 +28,84 @@ from leasehound.metrics import UsageMeter, log_ask
 from leasehound.retrieval import (
     GENERATION_MODEL,
     PipelineConfig,
+    Refused,
     Result,
     fetch_context,
     llm_retry,
 )
+
+# What one question may cost, bounded on the two inputs a caller controls.
+#
+# These live here, and not on either surface, because `answer_question` is the only
+# code path both of them go through — a bound on one surface is a bound on one door.
+# The project had already learned that from the upload-size gap, and then made the
+# mirror-image mistake: /v1/ask has capped `question` at 2,000 characters since it was
+# written, while the Gradio event handler had no cap at all. That handler is not
+# internal. Gradio publishes it as an unauthenticated HTTP endpoint
+# (`POST /gradio_api/call/respond`), whose `message` and `history` arguments are
+# whatever the caller sends — verified against the live demo, which answers 200 to a
+# request carrying no token.
+#
+# The one bound that existed, `[-10:]` on the conversation window in app.py, counts
+# MESSAGES. Ten unbounded messages are unbounded: at 400k characters each they are
+# ~1M input tokens, which both models accept (their context is 1,047,576), across the
+# router, two query rewrites and the answer — ≈ $0.70 against a measured mean of
+# $0.003. That is the same sentence as "MAX_CLAUSES bounds the clause count and
+# nothing about the document", one module over.
+MAX_QUESTION_CHARS = 2000
+# No single history message contributes more than this. 6,000 is not a new number: it
+# is what app.py already trimmed a scan report to before putting it in the context,
+# and a scan report is the largest message this pipeline legitimately produces.
+#
+# Truncated rather than refused, and the asymmetry is the document limit's, for the
+# same reason: a truncated question would be answered as if the missing half were not
+# there, so it is refused — while a truncated older turn only costs the model context
+# it can do without. Refuse what changes the meaning of the answer; trim what doesn't.
+MAX_HISTORY_MESSAGE_CHARS = 6000
+TRUNCATION_MARK = "\n\n[…truncated]"
+
+
+class QuestionTooLong(Refused):
+    """A question over MAX_QUESTION_CHARS. Carries both sizes: the callers phrase the
+    refusal differently (characters for a program, plain words for a visitor), the
+    same as DocumentTooLarge.
+
+    `Refused` and not `Exception`, because answer_question is wrapped in llm_retry —
+    which retried on anything, so the first version of this refusal slept for 150
+    seconds before delivering itself.
+    """
+
+    def __init__(self, chars: int, limit: int = MAX_QUESTION_CHARS):
+        self.chars = chars
+        self.limit = limit
+        super().__init__(f"{chars} characters, over the {limit}-character question limit")
+
+
+def clamp_history(history: list | None) -> list:
+    """Truncate any history message too long to be a real conversational turn.
+
+    Runs before the router, which is the first API call, so an oversized history
+    costs nothing rather than being billed three times on the way to being billed
+    a fourth.
+
+    Content that is not a string is flattened rather than walked. Only a direct HTTP
+    call to the Gradio endpoint produces it — the UI and /v1/ask both build plain
+    strings — and `route` and `rewrite_query` already interpolate the whole history
+    into their prompts with an f-string, so a nested structure was reaching the model
+    as its repr and being billed by the token either way. Flattening makes the size
+    of that repr the thing this function can actually bound.
+    """
+    clamped = []
+    for message in history or []:
+        if not isinstance(message, dict):
+            message = {"role": "user", "content": message}
+        content = message.get("content")
+        if not isinstance(content, str):
+            content = str(content)
+        if len(content) > MAX_HISTORY_MESSAGE_CHARS:
+            content = content[:MAX_HISTORY_MESSAGE_CHARS] + TRUNCATION_MARK
+        clamped.append({**message, "content": content})
+    return clamped
 
 
 class Route(BaseModel):
@@ -235,6 +309,13 @@ def answer_question(
     them together hides it. Passed in rather than sniffed out of `history`, which
     would tie this module to the exact wording a caller wraps the report in.
     """
+    # Both bounds before the meter, because both are refusals that must cost $0 — the
+    # router is the first API call and it is the first thing that gets billed for an
+    # oversized input. Same ordering as scan_steps, where the size check goes ahead of
+    # the split and the gate.
+    if len(question) > MAX_QUESTION_CHARS:
+        raise QuestionTooLong(len(question))
+    history = clamp_history(history)
     config = config or PipelineConfig()
     meter = UsageMeter()
     routing = route(question, history, meter)

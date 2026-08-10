@@ -234,3 +234,113 @@ def test_abandoning_the_stream_still_logs_what_was_already_spent(monkeypatch, tm
     assert result.record is not None
     assert result.record["llm_calls"] >= 1
     assert (tmp_path / "ask_metrics.jsonl").read_text().strip()
+
+
+# --- the ask path's size bounds -------------------------------------------------
+#
+# The gap these cover: /v1/ask has capped `question` since it was written, and the
+# Gradio event handler — a PUBLIC unauthenticated HTTP endpoint — had no cap at all.
+# The bound now lives inside answer_question, which is the only code both doors run.
+
+
+def test_an_oversized_question_is_refused_before_anything_is_spent(monkeypatch, tmp_path):
+    calls = stub_ask(monkeypatch, tmp_path)
+    too_long = "x" * (answer.MAX_QUESTION_CHARS + 1)
+    try:
+        answer.answer_question(too_long)
+    except answer.QuestionTooLong as refused:
+        assert refused.chars == len(too_long)
+        assert refused.limit == answer.MAX_QUESTION_CHARS
+    else:
+        raise AssertionError("an oversized question was accepted")
+    # The router is the first API call and would have been billed for the whole thing.
+    assert calls == []
+
+
+def test_a_question_at_the_limit_is_answered(monkeypatch, tmp_path):
+    """The boundary belongs to the caller, not to the refusal."""
+    stub_ask(monkeypatch, tmp_path)
+    assert "".join(answer.answer_question("x" * answer.MAX_QUESTION_CHARS).stream)
+
+
+def test_the_refusal_is_not_retried_for_two_and_a_half_minutes(monkeypatch, tmp_path):
+    """answer_question is wrapped in llm_retry, which retries on any exception.
+
+    The first version of this refusal was an ordinary Exception, so it was retried
+    five times with exponential waits — 150 seconds of pure sleeping to deliver a
+    verdict that was available immediately, holding a queue slot throughout. Asserted
+    by making a sleep fatal rather than by timing anything.
+    """
+    stub_ask(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        "time.sleep",
+        lambda seconds: (_ for _ in ()).throw(AssertionError(f"slept {seconds}s")))
+    try:
+        answer.answer_question("x" * (answer.MAX_QUESTION_CHARS + 1))
+    except answer.QuestionTooLong:
+        pass
+
+
+def test_a_history_message_too_long_to_be_a_turn_is_truncated(monkeypatch, tmp_path):
+    """The bound the conversation window never was.
+
+    `[-10:]` in app.py caps the number of messages. Ten messages of 400,000
+    characters are ~1M input tokens, which both models accept, across the router, two
+    query rewrites and the answer — the same shape as MAX_CLAUSES bounding the clause
+    count and nothing about the document.
+    """
+    calls = stub_ask(monkeypatch, tmp_path)
+    huge = "y" * 400_000
+    "".join(answer.answer_question(
+        "q", [{"role": "user", "content": huge}] * 10).stream).strip()
+    for call in calls:
+        sent = json.dumps(call["messages"])
+        assert huge not in sent
+    generation = [c for c in calls if c.get("stream")][0]
+    for message in generation["messages"][1:-1]:
+        assert len(message["content"]) <= (
+            answer.MAX_HISTORY_MESSAGE_CHARS + len(answer.TRUNCATION_MARK))
+
+
+def test_truncating_a_turn_keeps_the_turn(monkeypatch, tmp_path):
+    """Truncated, not dropped — and the asymmetry is deliberate.
+
+    A truncated question would be answered as if the missing half were absent, so it
+    is refused; a truncated older turn only costs the model context. Dropping oldest
+    first would have taken the scan report with it, since the report is prepended and
+    is therefore the oldest message in the context.
+    """
+    history = [{"role": "assistant", "content": "REPORT " + "z" * 20_000},
+               {"role": "user", "content": "short follow-up"}]
+    clamped = answer.clamp_history(history)
+    assert [m["role"] for m in clamped] == ["assistant", "user"]
+    assert clamped[0]["content"].startswith("REPORT ")
+    assert clamped[1] == history[1]
+
+
+def test_content_that_is_not_a_string_is_flattened_and_bounded(monkeypatch, tmp_path):
+    """Only a direct HTTP call to the Gradio endpoint sends this shape.
+
+    route() and rewrite_query() interpolate the whole history into their prompts with
+    an f-string, so a nested structure was reaching the model as its repr and being
+    billed by the token. Flattening is what makes its size boundable at all.
+    """
+    nested = [{"role": "user",
+               "content": [{"type": "text", "text": "w" * 50_000}]}]
+    clamped = answer.clamp_history(nested)
+    assert isinstance(clamped[0]["content"], str)
+    assert len(clamped[0]["content"]) <= (
+        answer.MAX_HISTORY_MESSAGE_CHARS + len(answer.TRUNCATION_MARK))
+
+
+def test_a_history_entry_that_is_not_even_a_dict_does_not_crash_the_answer():
+    assert answer.clamp_history(["bare string"]) == [
+        {"role": "user", "content": "bare string"}]
+
+
+def test_the_history_bound_is_the_one_the_ui_trims_the_report_to():
+    """One constant, because the same context had two limits 33x apart: the UI trimmed
+    a scan report to 6,000 characters and /v1/ask passed up to 200,000 through."""
+    from leasehound import app
+
+    assert app.REPORT_CONTEXT_CHARS == answer.MAX_HISTORY_MESSAGE_CHARS

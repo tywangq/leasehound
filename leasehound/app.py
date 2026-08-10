@@ -19,6 +19,7 @@ Usage:
 import hashlib
 import os
 import re
+import shutil
 import tempfile
 import threading
 import time
@@ -30,7 +31,11 @@ from pathlib import Path
 import gradio as gr
 from starlette.responses import Response
 
-from leasehound.answer import answer_question
+from leasehound.answer import (
+    MAX_HISTORY_MESSAGE_CHARS,
+    QuestionTooLong,
+    answer_question,
+)
 from leasehound.jurisdiction import jurisdiction_mismatch
 from leasehound.metrics import UsageMeter, log_scan
 from leasehound.report_html import render_report_html
@@ -314,6 +319,24 @@ TOO_LARGE = (
 # visitor a sense of scale, not a figure they could hold the scan to.
 CHARS_PER_PAGE = 3000
 
+# The ask side of the same size question. A question is not a file, which is exactly why
+# it went unbounded: the four spend bounds in the README were all about scans, and the
+# one route that did cap a question — /v1/ask, at the same 2,000 characters — is the one
+# that returns 503 on the hosted demo. Characters here, not pages: somebody who pastes
+# this much into a chat box knows they pasted a lot.
+QUESTION_TOO_LONG = (
+    "🐕 That's a lot to read in one go — {chars} characters, and the hound takes up to "
+    "{limit} per question. Nothing was spent. Ask about one clause or one situation at a "
+    "time and the answers get sharper anyway; if it's a whole document, attach it with "
+    "the paperclip and let the hound scan it instead."
+)
+# How much of a scan report rides along in ask mode's context. Imported by nothing else
+# here on purpose: it IS answer.MAX_HISTORY_MESSAGE_CHARS, because the report is the
+# largest message this pipeline legitimately produces and there is no second opinion to
+# have about it. Before, this was a bare 6000 in answer_flow while /v1/ask accepted
+# 200,000 — the same context under two limits 33x apart, neither derived from the other.
+REPORT_CONTEXT_CHARS = MAX_HISTORY_MESSAGE_CHARS
+
 
 def in_pages(chars: int) -> str:
     return f"{max(1, round(chars / CHARS_PER_PAGE)):,}"
@@ -425,11 +448,33 @@ def progress_line(done: int, total: int) -> str:
     return f"🐕 On the scent — {done}/{total} clauses sniffed…"
 
 
+# The one thing in this app that really does write lease-derived content to disk — the
+# report quotes the clauses it judged — and it has to, because a download button can only
+# serve a file. What it must not do is keep them: this made a fresh temp directory per
+# finished scan and deleted none of them, so a long-lived instance accumulated every
+# report it had ever rendered. On Cloud Run that is not a disk, it is a slice of the same
+# 1 GiB the scan is running in.
+#
+# A subdirectory per report rather than one directory of files, because the file NAME is
+# the visitor's own and two visitors uploading `lease.pdf` must not be able to hand each
+# other a report. Pruning is oldest-first and generous enough that a download stays valid
+# far longer than anyone waits before clicking: 32 more scans have to finish first, the
+# same bound and the same reasoning as the scan cache above.
+REPORTS_ROOT = Path(tempfile.mkdtemp(prefix="leasehound_reports_"))
+MAX_REPORT_FILES = CACHE_MAX_ENTRIES
+_report_lock = threading.Lock()
+
+
 def report_file(report: str, source_name: str) -> str:
-    """Write the report to a fresh temp dir so the download button can serve it."""
-    folder = Path(tempfile.mkdtemp(prefix="leasehound_"))
-    path = folder / f"scan_report_{Path(source_name).stem}.md"
-    path.write_text(report, encoding="utf-8")
+    """Write the report where the download button can serve it, and prune the rest."""
+    with _report_lock:
+        REPORTS_ROOT.mkdir(parents=True, exist_ok=True)
+        folder = Path(tempfile.mkdtemp(dir=REPORTS_ROOT))
+        path = folder / f"scan_report_{Path(source_name).stem}.md"
+        path.write_text(report, encoding="utf-8")
+        stale = sorted(REPORTS_ROOT.iterdir(), key=lambda d: d.stat().st_mtime)
+        for folder_to_drop in stale[:-MAX_REPORT_FILES]:
+            shutil.rmtree(folder_to_drop, ignore_errors=True)
     return str(path)
 
 
@@ -455,19 +500,35 @@ def answer_flow(question, history, report, context_base):
     yield _out(history)
     # Trim BEFORE prepending, so the report survives; strip footers so the
     # model doesn't mimic them (see strip_footer).
+    #
+    # `[-10:]` bounds how many messages the model sees and nothing about how big they
+    # are, which is the same sentence as MAX_CLAUSES bounding the clause count and
+    # nothing about the document. The size bound lives in answer_question, because
+    # this handler is not the only door — Gradio publishes it as an unauthenticated
+    # HTTP endpoint, and `history` is then whatever the caller sends.
     context_history = [strip_footer(m) for m in list(context_base)[-10:]]
     if report:
         context_history = [
             {
                 "role": "user",
-                "content": "For context, here is the scan report of my lease:\n\n" + report[:6000],
+                "content": ("For context, here is the scan report of my lease:\n\n"
+                            + report[:REPORT_CONTEXT_CHARS]),
             },
             {
                 "role": "assistant",
                 "content": "Got it — I'll answer your questions with your scan report in mind.",
             },
         ] + context_history
-    answered = answer_question(question, context_history, report_context=bool(report))
+    try:
+        answered = answer_question(question, context_history, report_context=bool(report))
+    except QuestionTooLong as long_question:
+        # Refused, not truncated: answering half a question answers a different
+        # question. Costs $0 — the check runs ahead of the router, which is ask mode's
+        # first API call.
+        history[-1]["content"] = QUESTION_TOO_LONG.format(
+            chars=f"{long_question.chars:,}", limit=f"{long_question.limit:,}")
+        yield _out(history, box=gr.update(interactive=True))
+        return
     # `routed` guards it: the warning is about the ANSWER being Washington law, and the
     # chitchat path has no legal content to be wrong about. "Hi, I'm in Oregon" would
     # otherwise get a paragraph about which statutes the hound carries in reply to a

@@ -6,76 +6,84 @@
     "embedding_model": "text-embedding-3-large",
     "corpus_snapshot": "2026-07-25",
     "judge_prompt": "8226e1565a7a",
-    "commit": "9ce713e",
-    "run_at": "2026-08-05"
+    "commit": "958a459",
+    "run_at": "2026-08-10"
   },
   "all_scans": {
-    "scans": 204,
-    "cache_hits_excluded": 3,
-    "refusals_excluded": 2,
+    "scans": 215,
+    "cache_hits_excluded": 9,
+    "refusals_excluded": 3,
     "clauses_min": 5,
     "clauses_max": 49,
-    "mean_clauses": 13.0,
+    "mean_clauses": 13.1,
     "mean_cost_usd": 0.0117,
-    "total_cost_usd": 2.3907,
-    "p50_seconds": 9.3,
-    "p95_seconds": 15.76,
+    "total_cost_usd": 2.5186,
+    "p50_seconds": 9.31,
+    "p95_seconds": 15.94,
     "max_seconds": 71.4,
-    "mean_llm_calls": 15.0,
-    "mean_embedding_calls": 13.0,
+    "mean_llm_calls": 15.1,
+    "mean_embedding_calls": 13.1,
     "partial_scans": 0,
     "gate_flagged": 1,
     "jurisdiction_mismatches": 0,
-    "verdict_scans": 204,
-    "verdict_clauses": 2653,
+    "by_client": {
+      "unknown": 215
+    },
+    "verdict_scans": 215,
+    "verdict_clauses": 2818,
     "verdict_judges": [
+      "8226e1565a7a",
       "unrecorded"
     ],
     "verdict_share": {
-      "red": 0.1919,
-      "yellow": 0.0788,
-      "green": 0.7294
+      "red": 0.2079,
+      "yellow": 0.0781,
+      "green": 0.714
     }
   },
   "scans_9_to_15_clauses": {
-    "scans": 190,
-    "cache_hits_excluded": 3,
-    "refusals_excluded": 2,
+    "scans": 201,
+    "cache_hits_excluded": 9,
+    "refusals_excluded": 3,
     "clauses_min": 10,
     "clauses_max": 15,
-    "mean_clauses": 12.7,
-    "mean_cost_usd": 0.0113,
-    "total_cost_usd": 2.1546,
-    "p50_seconds": 9.29,
-    "p95_seconds": 15.76,
+    "mean_clauses": 12.8,
+    "mean_cost_usd": 0.0114,
+    "total_cost_usd": 2.2825,
+    "p50_seconds": 9.31,
+    "p95_seconds": 15.94,
     "max_seconds": 71.4,
-    "mean_llm_calls": 14.7,
-    "mean_embedding_calls": 12.7,
+    "mean_llm_calls": 14.8,
+    "mean_embedding_calls": 12.8,
     "partial_scans": 0,
     "gate_flagged": 0,
     "jurisdiction_mismatches": 0,
-    "verdict_scans": 190,
-    "verdict_clauses": 2407,
+    "by_client": {
+      "unknown": 201
+    },
+    "verdict_scans": 201,
+    "verdict_clauses": 2572,
     "verdict_judges": [
+      "8226e1565a7a",
       "unrecorded"
     ],
     "verdict_share": {
-      "red": 0.2015,
-      "yellow": 0.0798,
-      "green": 0.7187
+      "red": 0.2185,
+      "yellow": 0.0789,
+      "green": 0.7026
     }
   },
   "all_questions": {
-    "questions": 21,
+    "questions": 35,
     "chitchat_excluded": 2,
-    "mean_cost_usd": 0.00301,
-    "total_cost_usd": 0.06328,
-    "p50_seconds": 6.3,
-    "p95_seconds": 12.6,
-    "max_seconds": 12.73,
-    "mean_llm_calls": 5.1,
-    "mean_embedding_calls": 2.1,
-    "mean_prompt_tokens": 13338,
-    "cached_prompt_token_share": 0.028
+    "mean_cost_usd": 0.00288,
+    "total_cost_usd": 0.10071,
+    "p50_seconds": 6.45,
+    "p95_seconds": 14.14,
+    "max_seconds": 28.96,
+    "mean_llm_calls": 4.94,
+    "mean_embedding_calls": 2.06,
+    "mean_prompt_tokens": 13157,
+    "cached_prompt_token_share": 0.036
   }
 }

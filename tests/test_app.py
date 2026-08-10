@@ -132,14 +132,25 @@ def test_second_scan_of_identical_content_makes_no_api_calls(monkeypatch, tmp_pa
     list(app.scan_flow(Path("first_upload.md"), "key-a", first_history, "", "", []))
     # Same content under a different name, path, and session: cache must serve it.
     second_history: list = []
-    list(app.scan_flow(Path("renamed_copy.md"), "key-b", second_history, "", "", []))
+    second_out = list(app.scan_flow(Path("renamed_copy.md"), "key-b",
+                                    second_history, "", "", []))
 
     assert api_calls["count"] == 1
     assert any(m["content"] == app.CACHED_SNIFF for m in second_history)
-    # The cached scan renders under the new file name, not the original's.
     log_lines = (tmp_path / "scan_metrics.jsonl").read_text().splitlines()
     assert json.loads(log_lines[1])["cache_hit"] is True
-    assert json.loads(log_lines[1])["source"] == "renamed_copy.md"
+    # The name is deliberately NOT in the log any more: on this surface the document
+    # belongs to a visitor and its file name is routinely their own name or address
+    # (see metrics.UNNAMED_CLIENTS). This assertion used to read the log; the claim it
+    # was making — a cache hit is attributed to the document actually uploaded, not to
+    # the one that warmed the cache — is checked where it is visible to the person who
+    # uploaded it, which is the report.
+    assert json.loads(log_lines[1])["source"] == "upload.md"
+    reports = [out[2] for out in second_out
+               if isinstance(out[2], str) and "LeaseHound scan report" in out[2]]
+    assert reports, "a cache hit must still pin a report"
+    assert "renamed_copy.md" in reports[-1]
+    assert "first_upload.md" not in reports[-1]
     app._scan_cache.clear()
 
 
@@ -425,3 +436,57 @@ def test_the_served_app_bounds_upload_size(monkeypatch):
     # to 80 concurrent requests regardless of what Gradio's queue allows through.
     assert MAX_UPLOAD_BYTES == 8 * 1024 * 1024
     assert MAX_UPLOAD_BYTES * 80 < 1024**3, "80 concurrent uploads must fit in 1 GiB"
+
+
+# --- the report file, and the ask path's size bound ------------------------------
+
+
+def test_the_report_directory_does_not_grow_without_end(tmp_path, monkeypatch):
+    """It used to make a fresh temp dir per finished scan and delete none of them.
+
+    The report quotes the clauses it judged, so this is the one place in the app that
+    really does write lease-derived content to disk — and on Cloud Run that is not a
+    disk, it is a slice of the same 1 GiB the scan is running in.
+    """
+    monkeypatch.setattr(app, "REPORTS_ROOT", tmp_path / "reports")
+    paths = [app.report_file(f"# report {i}", f"lease_{i}.pdf")
+             for i in range(app.MAX_REPORT_FILES + 12)]
+    assert len(list((tmp_path / "reports").iterdir())) == app.MAX_REPORT_FILES
+    # The newest download still works; the oldest is the one that went.
+    assert Path(paths[-1]).read_text() == f"# report {len(paths) - 1}"
+    assert not Path(paths[0]).exists()
+
+
+def test_two_visitors_uploading_the_same_file_name_get_different_reports(
+        tmp_path, monkeypatch):
+    """A subdirectory per report, not one directory of files. The file NAME is the
+    visitor's own, so a shared directory would let two people who both uploaded
+    `lease.pdf` hand each other a report."""
+    monkeypatch.setattr(app, "REPORTS_ROOT", tmp_path / "reports")
+    mine = app.report_file("# my clauses", "lease.pdf")
+    theirs = app.report_file("# their clauses", "lease.pdf")
+    assert mine != theirs
+    assert Path(mine).read_text() == "# my clauses"
+    assert Path(mine).name == Path(theirs).name == "scan_report_lease.md"
+
+
+def test_a_question_too_long_to_answer_is_refused_in_chat_for_nothing():
+    """No stubs, deliberately: if anything in the pipeline were reachable this test
+    would try to make a real API call and fail loudly. The refusal runs ahead of the
+    router, which is ask mode's first call."""
+    from leasehound.answer import MAX_QUESTION_CHARS
+
+    history: list = [{"role": "user", "content": "x"}]
+    outs = list(app.answer_flow("y" * (MAX_QUESTION_CHARS + 1), history, "", []))
+    assert outs, "the refusal has to reach the screen"
+    assert history[-1]["content"].startswith("🐕 That's a lot to read")
+    assert f"{MAX_QUESTION_CHARS:,}" in history[-1]["content"]
+    assert "Nothing was spent" in history[-1]["content"]
+
+
+def test_the_report_context_bound_is_the_pipelines_bound_not_a_second_opinion():
+    """The same context had two limits 33x apart: this file trimmed a scan report to
+    6,000 characters while /v1/ask accepted 200,000 and passed it through untouched."""
+    from leasehound.answer import MAX_HISTORY_MESSAGE_CHARS
+
+    assert app.REPORT_CONTEXT_CHARS == MAX_HISTORY_MESSAGE_CHARS

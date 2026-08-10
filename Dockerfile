@@ -38,6 +38,15 @@ RUN pip install --no-cache-dir --no-deps .
 COPY vector_db_runtime ./vector_db
 COPY examples ./examples
 
+# Drop root, after the installs and before anything runs. The first code to touch a
+# visitor's upload is pypdf parsing an arbitrary PDF, and this container was doing that
+# as uid 0 — Cloud Run's sandbox is a second line of defence, not a reason to skip the
+# first. Nothing at runtime writes inside /app: the vector store is read-only, the
+# report temp files and Gradio's own scratch space go to /tmp and $HOME.
+RUN useradd --create-home --uid 10001 hound
+USER hound
+ENV HOME=/home/hound
+
 ENV GRADIO_SERVER_NAME=0.0.0.0
 # Cloud Run injects PORT; anywhere else the default keeps parity with local dev.
 CMD ["sh", "-c", "GRADIO_SERVER_PORT=${PORT:-7860} python -m leasehound.app"]

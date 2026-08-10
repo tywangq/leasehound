@@ -23,7 +23,13 @@ from dotenv import load_dotenv
 from litellm import completion
 from openai import OpenAI
 from pydantic import BaseModel, Field
-from tenacity import retry, stop_after_attempt, stop_after_delay, wait_exponential
+from tenacity import (
+    retry,
+    retry_if_not_exception_type,
+    stop_after_attempt,
+    stop_after_delay,
+    wait_exponential,
+)
 
 from leasehound import bm25
 
@@ -59,9 +65,27 @@ litellm.request_timeout = REQUEST_TIMEOUT_SECONDS
 # minutes does not care that the fifth attempt is still owed to it — Cloud Run will
 # have timed the request out from underneath it anyway. Whichever limit trips first wins.
 RETRY_BUDGET_SECONDS = 300
+
+
+class Refused(Exception):
+    """A deliberate refusal, not a transient failure. Never retried.
+
+    The policy below retries on any exception, which is what you want for a provider
+    hiccup and precisely wrong for a decision: an input over a size limit is over it
+    on the fifth attempt too, and the exponential waits would spend 150 seconds of
+    pure sleeping to deliver a verdict that was available immediately — holding a
+    queue slot on a one-instance deployment the whole time, which is how a refusal
+    becomes more expensive than the thing it refused.
+
+    Lives here, next to the policy it exempts itself from, because the refusals that
+    subclass it are raised in modules this one must not import.
+    """
+
+
 llm_retry = retry(
     wait=wait_exponential(multiplier=1, min=10, max=240),
     stop=stop_after_attempt(5) | stop_after_delay(RETRY_BUDGET_SECONDS),
+    retry=retry_if_not_exception_type(Refused),
     reraise=True,
 )
 openai = OpenAI(timeout=REQUEST_TIMEOUT_SECONDS)

@@ -303,3 +303,39 @@ def test_every_surface_tags_its_scans(tmp_path, monkeypatch):
     rows = [json.loads(line) for line in
             (tmp_path / "scan_metrics.jsonl").read_text().splitlines()]
     assert [r["client"] for r in rows] == ["cli", "ui", "api", "eval"]
+
+
+# --- the file name is PII on a hosted surface -----------------------------------
+
+
+def hosted_row(monkeypatch, tmp_path, source, client):
+    monkeypatch.setattr(metrics, "completion_cost", lambda completion_response: 0.001)
+    monkeypatch.setattr(metrics, "LOG_PATH", tmp_path / "scan_metrics.jsonl")
+    meter = UsageMeter()
+    meter.add_completion(completion_response())
+    return log_scan(meter, source, clauses=15, client=client)
+
+
+def test_a_visitors_file_name_does_not_reach_the_log(monkeypatch, tmp_path):
+    """A lease file name is a person: real ones name the tenant or the address.
+
+    log_scan also prints its record to stdout, which on Cloud Run is Cloud Logging —
+    so before this the demo was accumulating third-party PII in the operator's own
+    project, with the README offering "only the file name" as the reassuring half.
+    """
+    for client in ("ui", "api"):
+        record = hosted_row(monkeypatch, tmp_path, "/tmp/up/SmithJohn_1425_Pine.pdf",
+                            client)
+        assert "SmithJohn" not in json.dumps(record)
+        assert "Pine" not in json.dumps(record)
+        # The extension survives: it is about the document, not its owner, and
+        # split_mode is only interpretable next to the format it came from.
+        assert record["source"] == "upload.pdf"
+
+
+def test_a_developers_own_file_name_is_still_recorded(monkeypatch, tmp_path):
+    """The point of the field is matching a row to a document, which is a real need on
+    a laptop and an impossible one on a hosted demo."""
+    for client in ("cli", "eval", None):
+        record = hosted_row(monkeypatch, tmp_path, "leases/hud_sample.pdf", client)
+        assert record["source"] == "hud_sample.pdf"

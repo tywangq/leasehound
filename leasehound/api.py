@@ -36,7 +36,7 @@ from typing import Annotated, Literal
 from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
-from leasehound.answer import answer_question
+from leasehound.answer import MAX_QUESTION_CHARS, answer_question
 from leasehound.scan import (
     CORPUS_SNAPSHOT,
     MAX_CLAUSES,
@@ -111,10 +111,21 @@ class ScanResponse(BaseModel):
 
 
 class AskRequest(BaseModel):
-    question: str = Field(min_length=1, max_length=2000)
+    # Imported rather than restated. This route has had a 2,000-character cap since it
+    # was written and the UI had none, so the cap was being enforced on the door that
+    # 503s when LEASEHOUND_API_TOKEN is unset — which on the hosted demo is always.
+    # Now it is one constant, applied inside answer_question where neither door can
+    # miss it, and this line is the friendly 422 for a caller that is a program.
+    question: str = Field(min_length=1, max_length=MAX_QUESTION_CHARS)
     report_markdown: str | None = Field(
         default=None, max_length=200_000,
         description="A prior scan report, so follow-up questions can be about this lease")
+    # 200,000 is a REQUEST-BODY bound, not a context bound, and the two were being
+    # confused: the UI trimmed the report to 6,000 characters before the model saw it
+    # while this route passed up to 200,000 through untouched, so the same context had
+    # two limits 33× apart and neither was derived from the other. The context bound is
+    # now answer.MAX_HISTORY_MESSAGE_CHARS, applied to both. This one only stops an
+    # absurd body — the largest report this project produces is ~22 KB.
 
 
 class AskResponse(BaseModel):

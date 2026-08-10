@@ -242,3 +242,15 @@ def test_the_ask_route_is_behind_the_same_spend_gate(monkeypatch):
     monkeypatch.delenv(TOKEN_ENV, raising=False)
     response = TestClient(api).post("/v1/ask", json={"question": "hi"})
     assert response.status_code == 503
+
+
+def test_the_question_cap_is_the_same_constant_the_ui_now_enforces():
+    """This route capped `question` at 2,000 characters from the day it was written,
+    and the Gradio handler — which is a public unauthenticated HTTP endpoint — capped
+    nothing. The number was never the problem; the door it was on was."""
+    from leasehound.answer import MAX_QUESTION_CHARS
+    from leasehound.api import AskRequest
+
+    field = AskRequest.model_fields["question"]
+    constraints = {type(m).__name__: m for m in field.metadata}
+    assert constraints["MaxLen"].max_length == MAX_QUESTION_CHARS

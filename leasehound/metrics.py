@@ -142,6 +142,27 @@ class UsageMeter:
             }
 
 
+# Surfaces where the document belongs to a stranger, so its file name is not ours to
+# keep. The log records a name so a developer can match a row to a document, which is a
+# real need on a laptop and an impossible one on a hosted demo — nobody is going to go
+# find the visitor's file. What the name IS, on a lease, is a person: real ones read
+# `SmithJohn_Lease.pdf` and `1425_Pine_St_Apt_5B.pdf`, so the field is routinely a
+# tenant's name or their home address. And log_scan prints its record to stdout, which
+# on Cloud Run is Cloud Logging — meaning the demo was quietly accumulating third-party
+# PII in the operator's own project, while the README offered "only the file name" as
+# the reassuring half of that sentence.
+#
+# The extension survives, because it is the part that is about the document rather than
+# about its owner: split_mode is only interpretable next to the format it came from.
+UNNAMED_CLIENTS = frozenset({"ui", "api"})
+
+
+def logged_source(source: str, client: str) -> str:
+    """The file name, or just its extension on a surface where it isn't ours."""
+    name = Path(source).name
+    return f"upload{Path(name).suffix.lower()}" if client in UNNAMED_CLIENTS else name
+
+
 def log_scan(meter: UsageMeter, source: str, clauses: int,
              verdicts: dict | None = None, missing: int | None = None,
              split_mode: str | None = None, cache_hit: bool = False,
@@ -154,9 +175,14 @@ def log_scan(meter: UsageMeter, source: str, clauses: int,
     (and this JSONL file with it) evaporates on scale-to-zero, but stdout lands
     in Cloud Logging and survives.
     """
+    client = client or "unknown"
     record = {
         "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "source": Path(source).name,
+        # Redacted on the surfaces where the document is a visitor's — see
+        # UNNAMED_CLIENTS. An untagged row keeps its name: the callers that pass no
+        # client are the CLI and the scripts, and getting this wrong in that direction
+        # loses a developer's own file name rather than publishing a stranger's.
+        "source": logged_source(source, client),
         "clauses": clauses,
         # Which surface asked for this scan: cli, ui, api, or eval.
         #
@@ -170,7 +196,7 @@ def log_scan(meter: UsageMeter, source: str, clauses: int,
         #
         # Recorded from the next run onward, like every other field here — the existing
         # rows stay untagged rather than being rewritten with a guess.
-        "client": client or "unknown",
+        "client": client,
         **meter.summary(),
     }
     if verdicts is not None:
