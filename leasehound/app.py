@@ -105,7 +105,9 @@ CSS = """
 .report-panel .lh-missing i {background: var(--lh-teal);}
 .report-panel .lh-green i {background: var(--lh-green);}
 .report-panel .lh-note {font-size: 0.85em; color: var(--lh-body); line-height: 1.42;
-                        margin: 0 0 10px; padding: 8px 12px; border-radius: 8px;
+                        /* 10px, the radius .lh-finding and the card's blocks use.
+                           It was 8, for no reason but the order they were written. */
+                        margin: 0 0 10px; padding: 8px 12px; border-radius: 10px;
                         background: #f8fafc; border-left: 3px solid var(--lh-hair);}
 .report-panel .lh-note-jurisdiction, .report-panel .lh-note-gate,
 .report-panel .lh-note-partial {background: #fffbeb; border-left-color: var(--lh-amber);}
@@ -941,10 +943,18 @@ UI_STYLE = {
     "css": CSS,
 }
 
-# Tab title is the wordmark alone. A tab is ~20 characters of usable space beside the
-# favicon, and the 🐕 already says which app this is; the descriptive half lives in
-# SOCIAL_TITLE below, where a link preview has room for it.
-with gr.Blocks(title="LeaseHound") as demo:
+# Name, then what it is — one shape for the tab, the link preview and the share card,
+# which is why this is one string and not two.
+#
+# It used to be the wordmark alone, on the reasoning that a crowded tab shows about 20
+# characters. That reasoning was only half the picture: the same string is the
+# bookmark, the history entry and the tab's tooltip, and in all three the gloss is the
+# part that tells someone what the bookmark was for. A tab strip truncates the tail,
+# so "LeaseHound" survives crowding either way and the gloss is a free win when there
+# is room.
+SOCIAL_TITLE = "LeaseHound — lease red-flag scanner"
+
+with gr.Blocks(title=SOCIAL_TITLE) as demo:
     gr.HTML(HERO)
     report_state = gr.State("")
     scanned_source = gr.State("")  # what the current report is for: a file path or "sample"
@@ -1084,7 +1094,7 @@ DEMO_URL = "https://leasehound-671004460975.us-west1.run.app"
 # scripts/make_og.py, which reads the two strings below so the card cannot drift
 # from these tags. Served from the public repo so a scraper can reach it.
 SHARE_CARD = "docs/og.png"
-SOCIAL_TITLE = "LeaseHound — lease red-flag scanner"
+# SOCIAL_TITLE is defined above, beside gr.Blocks, because the tab wears it too.
 SOCIAL_DESCRIPTION = ("Scan a Washington lease for clauses that are void under "
                       "RCW 59.18 — every verdict cites the statute.")
 # Card only, never in the meta description. The description is read by whoever gets
