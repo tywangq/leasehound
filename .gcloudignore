@@ -14,10 +14,10 @@ __pycache__/
 *.egg-info/
 .github/
 corpus/
-docs/
-# …except the share card, which the image needs in order to hash it — see the COPY
-# in the Dockerfile. Excluding all of docs/ silently made that hash unavailable and
-# the versioned share URL fell back to its unversioned form.
+# `docs/*`, not `docs/` — a re-include cannot reach inside an excluded DIRECTORY,
+# because the tool never descends into it. Cloud Build failed on exactly that while a
+# local `docker build` let it through, its ignore implementation being looser.
+docs/*
 !docs/og.png
 evaluation/
 scripts/

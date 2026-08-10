@@ -15,10 +15,10 @@ __pycache__/
 *.egg-info/
 .github/
 corpus/
-docs/
-# …except the share card. app.py hashes it to version the og:image URL, so the file
-# has to be in the build context. Both ignore files needed the exception — this one
-# for a local `docker build`, .gcloudignore for `gcloud run deploy --source`.
+# `docs/*`, not `docs/` — a re-include cannot reach inside an excluded DIRECTORY,
+# because the tool never descends into it. Cloud Build failed on exactly that while a
+# local `docker build` let it through, its ignore implementation being looser.
+docs/*
 !docs/og.png
 evaluation/
 scripts/
