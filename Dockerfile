@@ -51,6 +51,12 @@ RUN useradd --create-home --uid 10001 hound
 # which is what scripts/image_smoke_test.py now does on every CI build.
 COPY --chown=hound:hound vector_db_runtime ./vector_db
 COPY examples ./examples
+# Just the card, not all of docs/: app.py hashes it to version the share URL, and
+# LinkedIn caches share images by URL. Without the file the hash cannot be computed,
+# the URL falls back to its unversioned form, and the stale-image bug returns — which
+# is exactly what happened on the first deploy of that change, silently, because the
+# fallback is deliberate and says nothing.
+COPY --chown=hound:hound docs/og.png ./docs/og.png
 
 # The second thing that writes inside /app, found the same way as the first — by a
 # visitor's scan failing. metrics.log_scan appends one line per scan to logs/ and

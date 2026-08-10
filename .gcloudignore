@@ -15,6 +15,10 @@ __pycache__/
 .github/
 corpus/
 docs/
+# …except the share card, which the image needs in order to hash it — see the COPY
+# in the Dockerfile. Excluding all of docs/ silently made that hash unavailable and
+# the versioned share URL fell back to its unversioned form.
+!docs/og.png
 evaluation/
 scripts/
 tests/
