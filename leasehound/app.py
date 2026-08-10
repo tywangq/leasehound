@@ -199,7 +199,17 @@ CSS = """
   .main-row.closing .report-col {flex-basis: 0px; opacity: 0;}
 }
 @media (max-width: 900px) {
-  .report-panel {max-height: 65vh; overflow-y: auto; padding: 0 4px;}
+  /* No max-height here, and that is a decision rather than the absence of one. This
+     rule used to cap the panel at 65vh and scroll inside it, but `hide-contain` ate
+     the overflow declaration the same way it ate the desktop one — so the cap applied
+     while the scrolling did not, and the report simply spilled out of its own box.
+     A long report would have overlapped whatever followed it.
+     Restoring the cap was the other option. It loses: stacked on a phone the chat is
+     already above the report rather than beside it, so capping the report buys no
+     visible chat and costs a nested scroll box, which is the fiddliest thing to
+     operate on a touch screen. The panel takes its full height and the page scrolls,
+     which is what it was already doing by accident. */
+  .report-panel {padding: 0 4px;}
 }
 /* STRETCH, not center. This rule said `center` and was written when gradio 5 laid
    the container out as a ROW, where centering the cross axis meant centering the
