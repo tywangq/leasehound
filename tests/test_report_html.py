@@ -10,8 +10,10 @@ from html.parser import HTMLParser
 
 from leasehound.report_html import render_report_html
 from leasehound.scan import (
+    MISSING_LABEL,
     SECTION_TITLES,
     SUMMARY_LABELS,
+    counted,
     render_report,
     summary_counts,
 )
@@ -93,7 +95,7 @@ def test_both_renderers_show_the_same_sections_in_the_same_order():
         assert positions == sorted(positions), surface[:200]
     # Green is a footnote in both, never a section of its own.
     assert "lh-section lh-green" not in html
-    assert SUMMARY_LABELS["green"] in html
+    assert "1 clear" in html
 
 
 def test_a_refused_document_gets_no_counts():
@@ -112,3 +114,17 @@ def test_notices_come_before_the_findings():
     for kind in ("legal", "jurisdiction", "gate"):
         assert f"lh-note-{kind}" in html
     assert html.index("lh-note-jurisdiction") < html.index("lh-finding")
+
+
+def test_counts_of_one_take_the_singular():
+    findings = [finding(1, "red"), finding(2, "yellow"), finding(3, "green")]
+    protections = [{"name": "Mold", "status": "missing", "requirement": "r", "citation": "c"}]
+    for surface in (render_report(findings, "l.md", "wa", protections),
+                    render_report_html(findings, "l.md", "wa", protections)):
+        assert "1 red flag" in surface and "1 red flags" not in surface
+        assert "1 caution" in surface and "1 cautions" not in surface
+        assert "1 missing protection" in surface and "1 missing protections" not in surface
+    # Zero takes the plural, as English does; "clear" is invariant either way.
+    assert counted(0, SUMMARY_LABELS["red"]) == "0 red flags"
+    assert counted(0, MISSING_LABEL) == "0 missing protections"
+    assert counted(1, SUMMARY_LABELS["green"]) == "1 clear"

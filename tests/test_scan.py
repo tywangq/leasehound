@@ -96,7 +96,7 @@ def test_missing_protections_section_lists_only_missing():
          "citation": "RCW 59.18.260", "status": "present", "evidence": "Clause 4"},
     ]
     report = render_report([finding(1, "green")], "lease.md", "wa", protections)
-    assert "🔍 1 missing protections" in report
+    assert f"{scan.MISSING_BADGE} {scan.counted(1, scan.MISSING_LABEL)}" in report
     assert "Mold information" in report
     assert "Deposit terms" not in report.split("Missing protections")[1]
 

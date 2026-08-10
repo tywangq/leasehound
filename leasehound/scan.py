@@ -821,8 +821,13 @@ BADGE = {"red": "🚩", "yellow": "⚠️", "green": "✅"}
 # differs between them, which is the whole reason for having two.
 CLAUSE_PREVIEW_CHARS = 120
 VERDICT_ORDER = ("red", "yellow", "green")
-SUMMARY_LABELS = {"red": "red flags", "yellow": "caution", "green": "clear"}
-MISSING_LABEL = "missing protections"
+# (singular, plural). A count of one takes the singular; zero takes the plural, as
+# English does. "clear" is invariant because it is an adjective standing in for
+# "clear clauses" — "1 clear" and "7 clear" are both already right.
+SUMMARY_LABELS = {"red": ("red flag", "red flags"),
+                  "yellow": ("caution", "cautions"),
+                  "green": ("clear", "clear")}
+MISSING_LABEL = ("missing protection", "missing protections")
 # Section headings, shared so the panel cannot name a section differently from the
 # .md file the API returns and the CLI writes.
 #
@@ -855,6 +860,14 @@ def clause_preview(clause: str, limit: int = CLAUSE_PREVIEW_CHARS) -> str:
     return preview
 
 
+def counted(n: int, forms: tuple[str, str]) -> str:
+    """"1 red flag", "7 red flags" — the summary row said "1 red flags" until now.
+
+    Section HEADINGS stay plural: they name a category, not its current size.
+    """
+    return f"{n} {forms[0] if n == 1 else forms[1]}"
+
+
 def summary_counts(
     findings: list[dict], protections: list[dict] | None
 ) -> list[tuple[str, str]]:
@@ -865,12 +878,12 @@ def summary_counts(
     keyed by verdict because "missing" is a verdict-shaped entry that is not one.
     """
     counts = count_verdicts(findings)
-    row = [("red", f"{counts['red']} {SUMMARY_LABELS['red']}"),
-           ("yellow", f"{counts['yellow']} {SUMMARY_LABELS['yellow']}")]
+    row = [("red", counted(counts["red"], SUMMARY_LABELS["red"])),
+           ("yellow", counted(counts["yellow"], SUMMARY_LABELS["yellow"]))]
     if protections is not None:
         missing = [p for p in protections if p["status"] == "missing"]
-        row.append(("missing", f"{len(missing)} {MISSING_LABEL}"))
-    row.append(("green", f"{counts['green']} {SUMMARY_LABELS['green']}"))
+        row.append(("missing", counted(len(missing), MISSING_LABEL)))
+    row.append(("green", counted(counts["green"], SUMMARY_LABELS["green"])))
     return row
 
 
