@@ -1112,14 +1112,35 @@ CARD_VERDICTS = "7 red flags | 1 caution | 2 missing protections | 7 clear"
 # blocks, and wraps some of them across lines, so a literal replacement caught the
 # titles and left og:image pointing at Gradio's own banner. An empty value here means
 # drop the tag — shipping someone else's URL is worse than shipping none.
+def share_card_url() -> str:
+    """The card's URL with a content hash on it, the way Next.js versions its own.
+
+    Without the hash the URL never changes, and LinkedIn caches share images BY URL:
+    a regenerated card kept showing the previous one, and Post Inspector did not fix
+    it — that re-fetches the page, not an image it believes it already has. Same
+    reason `docs/og.png` regenerating is not enough on its own.
+
+    Falls back to the bare path if the file is missing, because a share tag is not
+    worth failing a boot over: the image 404s and the page still serves.
+    """
+    base = f"https://raw.githubusercontent.com/tywangq/leasehound/main/{SHARE_CARD}"
+    card = REPO_ROOT / SHARE_CARD
+    if not card.is_file():
+        return base
+    digest = hashlib.sha256(card.read_bytes()).hexdigest()[:16]
+    return f"{base}?v={digest}"
+
+
+SHARE_CARD_URL = share_card_url()
+
 SOCIAL_CONTENT = {
     "og:title": SOCIAL_TITLE,
     "twitter:title": SOCIAL_TITLE,
     "og:description": SOCIAL_DESCRIPTION,
     "twitter:description": SOCIAL_DESCRIPTION,
     "og:url": DEMO_URL,
-    "og:image": f"https://raw.githubusercontent.com/tywangq/leasehound/main/{SHARE_CARD}",
-    "twitter:image": f"https://raw.githubusercontent.com/tywangq/leasehound/main/{SHARE_CARD}",
+    "og:image": SHARE_CARD_URL,
+    "twitter:image": SHARE_CARD_URL,
     "twitter:creator": "",
     "twitter:site": "",
 }
