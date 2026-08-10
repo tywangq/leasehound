@@ -62,7 +62,13 @@ def test_count_verdicts_tallies_all_three():
 def test_report_sections_in_severity_order():
     findings = [finding(1, "green"), finding(2, "red"), finding(3, "yellow")]
     report = render_report(findings, "lease.md", "wa")
-    assert report.index("🚩 Red") < report.index("⚠️ Yellow") < report.index("✅ Clear")
+    # Headings read from SECTION_TITLES rather than spelled out, so this asserts the
+    # order without pinning the wording — which is what it was doing when the titles
+    # changed from "Red"/"Yellow" to match the summary row.
+    positions = [report.index(f"{scan.BADGE[v]} {scan.SECTION_TITLES[v]}")
+                 for v in ("red", "yellow")]
+    assert positions == sorted(positions)
+    assert positions[-1] < report.index("✅ Clear")
     assert "Clauses 1 —" in report
 
 

@@ -824,14 +824,16 @@ VERDICT_ORDER = ("red", "yellow", "green")
 SUMMARY_LABELS = {"red": "red flags", "yellow": "caution", "green": "clear"}
 MISSING_LABEL = "missing protections"
 # Section headings, shared so the panel cannot name a section differently from the
-# .md file. These are the words the markdown has always used, kept as-is because the
-# API returns that markdown and the CLI writes it to a file.
+# .md file the API returns and the CLI writes.
 #
-# ⚠ Worth deciding, not worth changing quietly: the yellow SECTION says "Yellow"
-# while the summary CHIP above it says "caution". Both are shipped today. If they
-# should agree, change the value here and the one assertion in tests/test_scan.py
-# that spells out the old heading — both surfaces follow automatically.
-SECTION_TITLES = {"red": "Red", "yellow": "Yellow", "missing": "Missing protections"}
+# 2026-08-10: these were "Red" and "Yellow", the verdict values capitalised, while the
+# summary row above them said "red flags" and "caution". Same clauses, two names, and
+# a reader who saw "1 caution" had to work out that the YELLOW section was where it
+# lived. The verdict value is an implementation detail; these are read by tenants. The
+# colour words were redundant besides — a coloured rail and coloured type already say
+# which section this is, so spending the heading on "Yellow" said it a third time.
+SECTION_TITLES = {"red": "Red flags", "yellow": "Caution",
+                  "missing": "Missing protections", "green": "Clear"}
 MISSING_BADGE = "🔍"
 MISSING_INTRO = ("Required by law but not found in this lease — worth asking your "
                  "landlord:")
@@ -1011,7 +1013,7 @@ def render_report(
         lines.append("")
     green_indexes = [str(f["index"]) for f in findings if f["verdict"] == "green"]
     if green_indexes:
-        lines.append(f"## {BADGE['green']} Clear")
+        lines.append(f"## {BADGE['green']} {SECTION_TITLES['green']}")
         lines.append("")
         lines.append(f"Clauses {', '.join(green_indexes)} — {CLEAR_NOTE}")
         lines.append("")
