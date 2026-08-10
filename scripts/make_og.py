@@ -14,7 +14,6 @@ cannot drift from the meta tags it sits next to. Re-run after changing either:
 from __future__ import annotations
 
 import ast
-import re
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
