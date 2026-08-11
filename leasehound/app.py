@@ -101,14 +101,16 @@ CSS = """
    finished than the product it links to is a downgrade on arrival.
    Every class here is emitted by report_html.py; nothing depends on Markdown's
    generated structure, which is what the old h1/h2 rules were doing. */
-/* Surfaces, from the share card: page #eef2f6, card #ffffff, hairline #dbe2ea. The
-   card has depth because the white sits on grey; the app was white on almost-white
-   (#f8fafc against #ffffff, three units apart) so its cards floated on nothing. Same
-   three values in both places now, which is also the cheapest kind of consistency —
-   the app and the image people see before clicking it share a palette. */
+/* Surfaces, from the share card, in the card's own direction: the surface is white and
+   the boxes on it are filled a shade darker (#f6f8fa, the card's CHROME; its chips use
+   #f8fafc). One hairline, #dbe2ea, the card's EDGE. The app used to be #ffffff boxes on
+   a #f8fafc page — three units apart, so nothing had depth and only a border separated
+   anything; then briefly the reverse of the card, grey page and white boxes, which had
+   depth pointing the wrong way. --lh-card is read by every filled box in the panel, so
+   this is one value to change, not eight. */
 .report-panel {--lh-red: #dc2626; --lh-amber: #d97706; --lh-teal: #0d9488;
                --lh-green: #16a34a; --lh-ink: #0f172a; --lh-body: #334155;
-               --lh-muted: #94a3b8; --lh-hair: #dbe2ea; --lh-card: #ffffff;}
+               --lh-muted: #94a3b8; --lh-hair: #dbe2ea; --lh-card: #f6f8fa;}
 .report-panel .lh-md {display: none;}
 .report-panel .lh-title {font-size: var(--t-title); font-weight: 700; color: var(--lh-ink);
                          margin: 2px 0 3px; display: flex; align-items: baseline; gap: 10px;}
@@ -127,7 +129,8 @@ CSS = """
 .report-panel .lh-chip {display: inline-flex; align-items: center; gap: 8px;
                         font-size: var(--t-meta); font-weight: 600; color: var(--lh-body);
                         padding: 5px 13px; border: 1px solid var(--lh-hair);
-                        border-radius: 999px; white-space: nowrap;}
+                        border-radius: 999px; white-space: nowrap;
+                        background: var(--lh-card);}
 .report-panel .lh-chip i {width: 9px; height: 9px; border-radius: 2px; flex: none;}
 .report-panel .lh-red i {background: var(--lh-red);}
 .report-panel .lh-yellow i {background: var(--lh-amber);}
@@ -139,7 +142,7 @@ CSS = """
                            with .lh-finding: the panel agreeing with itself was the
                            small version of the problem. */
                         margin: 0 0 10px; padding: 8px 12px; border-radius: 8px;
-                        background: #f8fafc; border-left: 3px solid var(--lh-hair);}
+                        background: var(--lh-card); border-left: 3px solid var(--lh-hair);}
 .report-panel .lh-note-jurisdiction, .report-panel .lh-note-gate,
 .report-panel .lh-note-partial {background: #fffbeb; border-left-color: var(--lh-amber);}
 .report-panel .lh-section {font-size: var(--t-label); font-weight: 700; letter-spacing: 0.08em;
@@ -163,11 +166,16 @@ CSS = """
 /* The one place a second typeface earns its keep: this is the lease's own words, and
    the sans beside it is the tool's words about them. Everything else on the panel now
    inherits Gradio's stack, so the panel and the chat column beside it set the same. */
+/* !important on the margins, and it is load-bearing: gradio's prose stylesheet gives a
+   <blockquote> a 24px top margin and wins on order, so every finding opened with 36px
+   of air above its first line (12px of padding plus that) — measured on the page, where
+   this rule's own `margin: 0` read back as 24px. Same for the <p> below it. */
 .report-panel .lh-clause {font-family: Georgia, "Times New Roman", serif;
                           font-size: var(--t-quote); line-height: 1.4; color: var(--lh-ink);
-                          margin: 0 0 8px; padding: 0; border: none; background: none;}
+                          margin: 0 0 7px !important; padding: 0; border: none;
+                          background: none;}
 .report-panel .lh-explain {font-size: var(--t-doc); line-height: 1.45; color: var(--lh-body);
-                           margin: 0;}
+                           margin: 0 !important;}
 .report-panel .lh-cites {display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 0;}
 .report-panel .lh-cite {font-family: var(--font-mono, ui-monospace, Menlo, monospace);
                         font-size: var(--t-meta); color: #0f766e; text-decoration: none;
@@ -211,6 +219,13 @@ CSS = """
    shrinks back. flex-basis is not !important so the entry keyframe can drive
    it (CSS animations lose to !important declarations). */
 @media (min-width: 901px) {
+  /* nowrap: gradio Rows wrap, and for the 0.45s the chat column spends animating from
+     760px down to 50%, 760 + the report column's content did not fit — so the column
+     (carrying "Call off the hound") wrapped BELOW the chat and jumped up to the right
+     when the animation finished. Both columns have an explicit basis and min-width: 0,
+     so there is nothing here that needs to wrap. Narrow screens stack by
+     flex-direction and are unaffected. */
+  .main-row {flex-wrap: nowrap !important;}
   .chat-col {transition: flex-basis 0.45s ease;}
   .main-row:not(:has(.report-col)) .chat-col {flex-grow: 0 !important; flex-basis: 760px; max-width: 760px;}
   .main-row:has(.report-col) .chat-col {flex-grow: 0 !important; flex-basis: calc(50% - (var(--layout-gap, 8px) / 2));}
@@ -299,13 +314,19 @@ footer {visibility: hidden;}
    appears on exactly one surface in this column — the scan example, which is the one
    thing a first visitor should click. */
 .chat-col .message {border-color: var(--lh-hair, #dbe2ea) !important;
-                    background: #fff !important;}
+                    background: #f6f8fa !important;}
+/* Example chips are boxes too. The composer deliberately stays white: it is the one
+   place you type, and an input lighter than its surroundings is how that reads. */
+#example-scan .gallery-item, #example-prompts .gallery-item {background: #f6f8fa;
+    color: #0f766e; border-color: #a7dbd3;}
 .chat-col .message .file, .chat-col .message .attachment {border: 0 !important;
                     background: none !important; padding: 0 !important;}
 /* The chatbot's toolbar sat in the same corner as the report's three actions and drew
-   its icons in teal while those were grey. Same rule, two answers. */
+   its icons in teal while those were grey. Same rule, two answers.
+   `color` only. A `stroke: currentColor` here also painted the <rect> inside Gradio's
+   trash glyph, which is meant to stay unstroked — the trash icon grew a box around it
+   and the copy icon, which has no rect, did not. */
 .chat-col .icon-button-wrapper button {color: var(--lh-muted, #94a3b8) !important;}
-.chat-col .icon-button-wrapper button svg {stroke: currentColor;}
 """
 
 # No 🧠. The wordmark's 🐕 is two lines above it, and two metaphors in one viewport is
@@ -1032,14 +1053,17 @@ UI_STYLE = {
         button_large_radius="*radius_lg",
         button_medium_radius="*radius_lg",
         button_small_radius="*radius_lg",
-        # The share card's three surfaces: grey page, white card, one hairline between
-        # them. The app was white on almost-white — #ffffff blocks on a #f8fafc page,
-        # three units apart — so every card floated on nothing and the only thing
-        # separating anything from anything was a border. Depth comes from the page
-        # being darker than what sits on it, which is what the card has always done.
-        # Light only: the *_dark tokens resolve separately and the dark theme's
+        # White surface, filled boxes — the card's own polarity, which the first attempt
+        # at this had backwards. The card is a #ffffff window whose contents are FILLED:
+        # chips #f8fafc, the finding block #fffbfb, both a shade darker than the surface
+        # they sit on. That version made the page #eef2f6 and the boxes white, which is
+        # a layer either way, but the wrong way round: white is the brightest colour
+        # available, so putting it on the small elements makes every box step forward
+        # and the page compete with its own content. Brightest on the largest area,
+        # content boxes a shade back.
+        # Light only: the *_dark tokens resolve separately, and the dark theme's
         # near-black page already has more contrast against its blocks than this does.
-        body_background_fill="#eef2f6",
+        body_background_fill="#ffffff",
         border_color_primary="#dbe2ea",
     ),
     "css": CSS,
@@ -1082,15 +1106,12 @@ with gr.Blocks(title=SOCIAL_TITLE) as demo:
             # empty box with a frame reads as a widget that has not loaded; one quiet
             # line reads as a product waiting for input.
             #
-            # min/max rather than a fixed 440: at 440 a two-message conversation left
-            # about 250px of empty surface between the last message and the composer,
-            # and the composer sat at the bottom of a mostly-empty box. It grows with
-            # the conversation now and stops at the same 440, so a long scan still
-            # scrolls inside the box rather than pushing the examples off the screen.
-            # height=None explicitly: it defaults to 400 and wins over min/max, so
-            # min_height=200 alone left the box at a fixed 400 — measured, not assumed.
-            chatbot = gr.Chatbot(height=None, min_height=180, max_height=440,
-                                 show_label=False,
+            # A FIXED height, deliberately. It was briefly min 180 / max 440 so the box
+            # would hug short conversations, and the cost was worse than the empty
+            # surface it saved: the box resized on every turn, so the composer and the
+            # examples under it moved while the reader was mid-sentence. A stable frame
+            # beats a tight one in the one region the eye is already fixed on.
+            chatbot = gr.Chatbot(height=440, show_label=False,
                                  buttons=["copy_all"],
                                  placeholder=CHAT_PLACEHOLDER)
             message_box = gr.MultimodalTextbox(
