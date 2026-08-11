@@ -127,15 +127,31 @@ def test_warnings_come_before_the_findings_and_the_caveat_after():
 def test_the_provenance_line_carries_every_judged_against_fact():
     html = render_report_html([finding(1, "green")], "l.md", "wa", [])
     prov = html[html.index("lh-prov-foot"):html.index("lh-legal")]
-    for fact in ("WA", STATUTE, CORPUS_SNAPSHOT):
+    for fact in ("Judged against WA law", STATUTE, CORPUS_SNAPSHOT):
         assert fact in prov
-    # One "judged against" claim, not two three lines apart with different dates.
-    assert html.count("Judged against") == 0
+    # ONE "judged against" claim. There used to be two, three lines apart, with two
+    # different dates — one the scan's, one the corpus's.
+    assert html.count("Judged against") == 1
     # And at the foot, not above the findings: it says what judged the lease, which is
     # wanted when quoting a finding and not before reading one. Immediately above the
     # caveat, so "the law may have changed since" has the corpus date on the line above
     # it rather than four sections up.
     assert html.index("lh-chips") < html.index("lh-prov-foot") < html.index("lh-legal")
+
+
+def test_both_surfaces_put_provenance_and_the_caveat_last():
+    """The download and the screen have to be the same document.
+
+    The .md used to open with "Judged against: WA law · Date: today", repeat the claim
+    two lines below in the caveat, and carry the emoji summary — while the panel had
+    already moved both to the foot. Whoever downloaded the report got a different
+    document from the one they had just read.
+    """
+    findings = [finding(1, "red")]
+    for surface in (render_report(findings, "l.md", "wa", []),
+                    render_report_html(findings, "l.md", "wa", [])):
+        assert surface.index(SECTION_TITLES["red"]) < surface.index("Judged against WA law")
+        assert surface.index("Judged against WA law") < surface.index(LEGAL_CAVEAT)
 
 
 def test_a_self_numbered_clause_gets_no_second_number():

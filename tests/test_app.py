@@ -238,7 +238,7 @@ def test_an_out_of_state_lease_is_scanned_with_the_wrong_law_named_in_chat(
     assert not any(app.NOT_A_LEASE in m for m in said)
     # The scan finished and pinned a report, warning and all.
     report = frames[-1][2]
-    assert "🌎" in report and "Judged against: WA law" in report
+    assert "🌎" in report and "Judged against WA law" in report
 
 
 def test_a_refused_scan_leaves_ask_mode_on_law_only_context(monkeypatch, tmp_path):

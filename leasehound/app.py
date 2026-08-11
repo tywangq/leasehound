@@ -110,7 +110,7 @@ CSS = """
    this is one value to change, not eight. */
 .report-panel {--lh-red: #dc2626; --lh-amber: #d97706; --lh-teal: #0d9488;
                --lh-green: #16a34a; --lh-ink: #0f172a; --lh-body: #334155;
-               --lh-muted: #94a3b8; --lh-hair: #dbe2ea; --lh-card: #f6f8fa;}
+               --lh-muted: #94a3b8; --lh-hair: #e2e8f0; --lh-card: #f8fafc;}
 .report-panel .lh-md {display: none;}
 .report-panel .lh-title {font-size: var(--t-title); font-weight: 700; color: var(--lh-ink);
                          margin: 2px 0 3px; display: flex; align-items: baseline; gap: 10px;}
@@ -128,7 +128,7 @@ CSS = """
 .report-panel .lh-chips {display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px;}
 .report-panel .lh-chip {display: inline-flex; align-items: center; gap: 8px;
                         font-size: var(--t-meta); font-weight: 600; color: var(--lh-body);
-                        padding: 5px 13px; border: 1px solid var(--lh-hair);
+                        padding: 6px 12px; border: 1px solid var(--lh-hair);
                         border-radius: 999px; white-space: nowrap;
                         background: var(--lh-card);}
 .report-panel .lh-chip i {width: 9px; height: 9px; border-radius: 2px; flex: none;}
@@ -141,7 +141,7 @@ CSS = """
                            UI_STYLE. Was 8, then 10 to match .lh-finding, now 8 again
                            with .lh-finding: the panel agreeing with itself was the
                            small version of the problem. */
-                        margin: 0 0 10px; padding: 8px 12px; border-radius: 8px;
+                        margin: 0 0 10px; padding: 12px 14px; border-radius: 8px;
                         background: var(--lh-card); border-left: 3px solid var(--lh-hair);}
 .report-panel .lh-note-jurisdiction, .report-panel .lh-note-gate,
 .report-panel .lh-note-partial {background: #fffbeb; border-left-color: var(--lh-amber);}
@@ -157,7 +157,7 @@ CSS = """
    rail down its left edge and, for red, a pink fill and a pink border: three
    statements of "this one is a red flag" under a section heading that already said so
    in red. The section groups them; the card only has to hold one. */
-.report-panel .lh-finding {margin: 0 0 9px; padding: 12px 15px;
+.report-panel .lh-finding {margin: 0 0 9px; padding: 12px 14px;
                            border: 1px solid var(--lh-hair); border-radius: 8px;
                            background: var(--lh-card);}
 .report-panel .lh-finding-head {font-size: var(--t-label); font-weight: 700; letter-spacing: 0.07em;
@@ -283,10 +283,23 @@ CSS = """
    icons beside it. Direct-child only, so the delete ✕ keeps its own size. */
 .chat-col .multimodal-textbox .thumbnail-item {width: 30px !important; height: 30px !important;}
 .chat-col .multimodal-textbox .thumbnail-item > :is(svg, img) {width: 16px !important; height: 16px !important;}
+/* And the chip sits BESIDE the input, not above it. Gradio stacks .thumbnails over
+   .input-row, so attaching a lease grew the composer from 67px to 101px — a second row
+   appearing under the reader's cursor at the exact moment they were about to type, with
+   a full-width strip above the placeholder. One row now: 65px with a file attached,
+   65px without. The chip needs `width: max-content` as well as `flex: 0 0 auto`,
+   because .thumbnails is a full-width flex row and the first attempt at this squeezed
+   the textarea to zero. */
+.chat-col .multimodal-textbox .input-wrapper {flex-direction: row !important;
+    align-items: center !important; gap: 6px !important;}
+.chat-col .multimodal-textbox .input-row {flex: 1 1 auto !important; min-width: 0 !important;}
+.chat-col .multimodal-textbox .thumbnails {flex: 0 0 auto !important;
+    width: max-content !important; padding: 0 !important; margin: 0 !important;}
 #example-scan button, #example-prompts button {text-align: left !important; justify-content: flex-start !important;}
-/* The scan example renders its example_labels string in a bare div (14px by
-   default); match the question examples' markdown <p> size. */
-#example-scan .gallery-item {font-size: var(--text-lg, 16px);}
+/* Both example rows at --t-control, the size every other control on the page uses.
+   The scan example used to be var(--text-lg) — 16px against the question chips' 14 —
+   from a time when the question chips rendered as markdown <p> and this one did not. */
+#example-scan .gallery-item, #example-prompts .gallery-item {font-size: var(--t-control);}
 @media (max-width: 900px) {
   .main-row {flex-direction: column !important;}
   .main-row .chat-col {flex-grow: 1 !important; flex-basis: auto !important; max-width: 100% !important;}
@@ -306,19 +319,19 @@ footer {visibility: hidden;}
 /* Uniform chips. Their widths still differ — the questions are different lengths and
    padding them to a common width would be a grid of half-empty buttons — but the
    padding, border and radius no longer do. */
-#example-scan .gallery-item, #example-prompts .gallery-item {padding: 7px 13px;}
+#example-scan .gallery-item, #example-prompts .gallery-item {padding: 6px 12px;}
 
 /* One hairline, one surface, for the conversation too. The user's bubble was tinted and
    outlined in the accent colour, so the question was louder than the answer to it, and
    the attachment inside it was a bordered box inside a bordered box. The accent now
    appears on exactly one surface in this column — the scan example, which is the one
    thing a first visitor should click. */
-.chat-col .message {border-color: var(--lh-hair, #dbe2ea) !important;
-                    background: #f6f8fa !important;}
+.chat-col .message {border-color: #e2e8f0 !important; background: #ffffff !important;}
 /* Example chips are boxes too. The composer deliberately stays white: it is the one
    place you type, and an input lighter than its surroundings is how that reads. */
-#example-scan .gallery-item, #example-prompts .gallery-item {background: #f6f8fa;
-    color: #0f766e; border-color: #a7dbd3;}
+#example-scan .gallery-item, #example-prompts .gallery-item {background: #ffffff;
+    border-color: #e2e8f0; color: var(--body-text-color);}
+#example-scan .gallery-item {background: #0f766e; border-color: #0f766e; color: #ffffff;}
 .chat-col .message .file, .chat-col .message .attachment {border: 0 !important;
                     background: none !important; padding: 0 !important;}
 /* The chatbot's toolbar sat in the same corner as the report's three actions and drew
@@ -340,7 +353,7 @@ LAW_ONLY_CONTEXT = (
 # one says what the hound knows, this one says what to do. No emoji — the context line
 # already carries one in the same viewport, and two metaphors above an empty box is
 # where "cluttered" starts.
-CHAT_PLACEHOLDER = "Attach a lease, or pick an example below."
+CHAT_PLACEHOLDER = "Findings appear here, each citing a statute."
 ALREADY_SNIFFED = "🐕 Already sniffed this one — the report is still on the right."
 # Everything before the first verdict: reading the document, splitting it, and the
 # gate call. The pair to ask mode's "🐕 Thinking…", and short for the same reason —

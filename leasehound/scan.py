@@ -910,21 +910,37 @@ def summary_counts(
     return row
 
 
-# Split into its two claims so the web panel can place them apart without either
-# surface inventing wording. The .md file keeps them joined — a text report has no
-# chrome to put provenance in, so one sentence is the only place it can go — and
-# `disclaimer()` still returns exactly the string it always did.
 LEGAL_CAVEAT = "Legal information, not legal advice."
 STATUTE = "RCW 59.18"
 LAW_MAY_HAVE_CHANGED = "the law may have changed since"
 
 
-def corpus_note() -> str:
-    return f"Judged against {STATUTE} as of {CORPUS_SNAPSHOT} — {LAW_MAY_HAVE_CHANGED}."
+def provenance_parts(state: str) -> list[str]:
+    """Everything about WHAT judged this lease, in the order someone would ask.
+
+    One list, both surfaces: the panel draws it with dots between the parts, the .md
+    joins it with " · ", and neither invents wording. It used to be two strings in two
+    places — a header line reading "Judged against: WA law · Date: today" and, three
+    lines below it, "Judged against RCW 59.18 as of 2026-07-25", so the report made two
+    "judged against" claims with two different dates and left the reader to work out
+    that neither was wrong.
+
+    "Judged against WA law" rather than the bare "WA": `state` is a caller parameter
+    with a default, and printing a setting where a report states findings is how a
+    California lease once came back looking authoritatively judged. The phrasing says
+    it is a claim about what happened, not a field.
+    """
+    return [f"Judged against {state.upper()} law", STATUTE,
+            f"corpus {CORPUS_SNAPSHOT}", f"scanned {date.today().isoformat()}"]
 
 
-def disclaimer() -> str:
-    return f"{LEGAL_CAVEAT} {corpus_note()}"
+def caveat() -> str:
+    """The one sentence on the report that says nothing about this lease.
+
+    Sits under the provenance line on both surfaces, which is what makes "since" refer
+    to something: the corpus date is the line above it.
+    """
+    return f"{LEGAL_CAVEAT} {LAW_MAY_HAVE_CHANGED.capitalize()}."
 
 
 # Deliberately says nothing about WHICH non-lease kind this is, because it covers two
@@ -1014,18 +1030,16 @@ def render_report(
         f"{BADGE.get(key, MISSING_BADGE)} {label}"
         for key, label in summary_counts(findings, protections)
     ]
+    # Same order as the panel: what this is a report OF, the counts, the findings, and
+    # everything about what judged it at the foot. This file used to open with "Judged
+    # against: WA law · Date: today" and then repeat the claim two lines below in the
+    # caveat, so the download and the screen were two different documents.
     lines = [
         "# LeaseHound scan report",
         "",
-        # "Jurisdiction: WA" read like a fact established about the document. It was
-        # a setting — `state` is a caller parameter with a default — and printing a
-        # setting in the position where a report states its findings is how a
-        # California lease came back looking authoritatively judged.
-        f"Document: `{source}` · Judged against: {state.upper()} law · Date: {date.today().isoformat()}",
+        f"Document: `{source}`",
         "",
         "**" + " · ".join(header) + "**",
-        "",
-        f"> {disclaimer()}",
         "",
     ]
     # Above the gate warning, and above the partial-scan notice, because it is the
@@ -1067,6 +1081,9 @@ def render_report(
         lines.append("")
         lines.append(f"Clauses {', '.join(green_indexes)} — {CLEAR_NOTE}")
         lines.append("")
+    # The foot, in the panel's order: provenance, then the caveat. A rule above them
+    # because markdown has no hairline to draw one with.
+    lines += ["---", "", " · ".join(provenance_parts(state)), "", caveat(), ""]
     return "\n".join(lines)
 
 

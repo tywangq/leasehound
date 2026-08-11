@@ -393,7 +393,9 @@ def test_the_report_says_which_law_it_applied_and_stops_calling_it_a_finding():
     findings = [{"index": 1, "clause": "1. RENT.", "verdict": "green",
                  "citations": [], "urls": {}, "explanation": "fine"}]
     report = scan.render_report(findings, "x.md", "wa", [])
-    assert "Judged against: WA law" in report
+    # No colon: the phrase now leads the provenance line at the foot, which both this
+    # file and the web panel build from scan.provenance_parts.
+    assert "Judged against WA law" in report
     assert "Jurisdiction: WA" not in report
 
 
@@ -465,7 +467,7 @@ def test_a_refusal_does_not_claim_a_law_was_applied():
     assert "Not judged" in refused
     # The ordinary report still says which law it applied, because it applied one.
     scanned = scan.render_report([finding(1, "green")], "lease.md", "wa", [])
-    assert "Judged against: WA law" in scanned
+    assert "Judged against WA law" in scanned
 
 
 def test_a_refused_report_never_reads_as_a_clean_bill_of_health():

@@ -20,25 +20,22 @@ boundary — hence the single `esc` helper and the test that feeds it a payload.
 from __future__ import annotations
 
 import re
-from datetime import date
 from html import escape
 
 from leasehound.jurisdiction import UNKNOWN_JURISDICTION, jurisdiction_mismatch
 from leasehound.scan import (
     CLEAR_NOTE,
-    CORPUS_SNAPSHOT,
     GATE_REFUSED,
     GATE_WARNING,
-    LAW_MAY_HAVE_CHANGED,
-    LEGAL_CAVEAT,
     MISSING_INTRO,
     SECTION_TITLES,
-    STATUTE,
     VERDICT_ORDER,
+    caveat,
     clause_label,
     clause_preview,
     jurisdiction_warning,
     partial_scan_notice,
+    provenance_parts,
     summary_counts,
 )
 
@@ -131,15 +128,9 @@ def _head(source: str, status: str, counts_row: str) -> str:
 
 
 def _provenance(state: str) -> str:
-    """`state.upper()`, not a full state name: this repo already learned that printing
-    a caller's default in the position where a report states findings is how a
-    California lease came back looking authoritatively judged. The card at
-    scripts/make_og.py spells "Washington" because it is a static image for one
-    jurisdiction; here it has to follow the parameter.
-    """
-    parts = [esc(state.upper()), esc(STATUTE), f"corpus {esc(CORPUS_SNAPSHOT)}",
-             f"scanned {esc(date.today().isoformat())}"]
-    return '<span class="lh-dot">·</span>'.join(parts)
+    """The parts come from scan.py, so this and the .md file cannot describe the same
+    scan differently — the dots are the only thing this function decides."""
+    return '<span class="lh-dot">·</span>'.join(esc(part) for part in provenance_parts(state))
 
 
 def render_report_html(
@@ -216,8 +207,7 @@ def render_report_html(
     # since", rather than four sections above it.
     parts.append(f'<p class="lh-prov lh-prov-foot">{_provenance(state)}</p>')
     parts.append(
-        f'<p class="lh-legal">{esc(LEGAL_CAVEAT)} '
-        f'{esc(LAW_MAY_HAVE_CHANGED.capitalize())}.</p>'
+        f'<p class="lh-legal">{esc(caveat())}</p>'
     )
     return _wrap(parts, markdown)
 
