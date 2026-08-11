@@ -35,6 +35,7 @@ from leasehound.scan import (
     SECTION_TITLES,
     STATUTE,
     VERDICT_ORDER,
+    clause_label,
     clause_preview,
     jurisdiction_warning,
     partial_scan_notice,
@@ -88,9 +89,14 @@ def _citation(section: str, url: str) -> str:
 def _finding(f: dict, verdict: str) -> str:
     cites = "".join(_citation(s, f["urls"].get(s, "")) for s in f["citations"])
     cite_row = f'<p class="lh-cites">{cites}</p>' if cites else ""
+    # clause_label, from scan.py, so this and the .md report agree about when a clause
+    # gets a label at all — and never print a number that contradicts the one in the
+    # quote directly below it. See its docstring for the off-by-one that prompted this.
+    label = clause_label(f)
+    head = f'<p class="lh-finding-head">{esc(label)}</p>' if label else ""
     return (
         f'<div class="lh-finding lh-{verdict}">'
-        f'<p class="lh-finding-head">Clause {esc(f["index"])}</p>'
+        f"{head}"
         f'<blockquote class="lh-clause">{esc(clause_preview(f["clause"]))}</blockquote>'
         f'<p class="lh-explain">{esc(f["explanation"])}</p>'
         f"{cite_row}"
@@ -98,23 +104,27 @@ def _finding(f: dict, verdict: str) -> str:
     )
 
 
-def _head(source: str, provenance: str, counts_row: str) -> str:
-    """Title, then one provenance line, then the chips.
+def _head(source: str, status: str, counts_row: str) -> str:
+    """Title with the file it is a report OF, then the chips. Nothing else.
 
-    The title used to be "Scan report" alone with the file name pushed into a meta
-    row that also carried "Judged against WA law" and today's date — and the legal
-    callout right below it said "Judged against RCW 59.18 as of 2026-07-25". Two
-    "judged against" claims with two different dates, one of them the scan and one the
-    corpus, three lines apart. A reader has to work out that neither is wrong.
-    So: the file name joins the title, because it is what the report is OF, and every
-    fact about what judged it goes on one line in the order a reader would ask —
-    jurisdiction, statute, corpus, scan date.
+    The title used to be "Scan report" alone with the file name pushed into a meta row
+    that also carried "Judged against WA law" and today's date, while the legal callout
+    below said "Judged against RCW 59.18 as of 2026-07-25" — two "judged against"
+    claims with two different dates three lines apart. Merging them into one provenance
+    line fixed the contradiction but left the line here, above the findings, where it
+    was still the second thing anyone read. It says who judged the lease and against
+    which snapshot: nobody needs that before the findings, and everybody wants it when
+    quoting them. So it moved to the foot, beside the caveat (see render_report_html).
+
+    `status` is the one thing that does belong in that slot: on a refused document it
+    says "Not judged", which changes what every number below it would have meant — and
+    there are no numbers below it.
     """
     return (
         '<div class="lh-head">'
         + '<p class="lh-title">Scan report'
         + f'<span class="lh-file">{esc(source)}</span></p>'
-        + f'<p class="lh-prov">{provenance}</p>'
+        + (f'<p class="lh-prov">{status}</p>' if status else "")
         + (f'<p class="lh-chips">{counts_row}</p>' if counts_row else "")
         + "</div>"
     )
@@ -160,7 +170,7 @@ def render_report_html(
         return _wrap(parts, markdown)
 
     chips = "".join(_chip(key, label) for key, label in summary_counts(findings, protections))
-    parts.append(_head(source, _provenance(state), chips))
+    parts.append(_head(source, "", chips))
 
     # Above the other two notices, because it is the only one of the three that can
     # make every verdict in the report wrong rather than merely incomplete.
@@ -201,6 +211,10 @@ def render_report_html(
     # weight as the findings. Demoting it is not removing it: it is still on every
     # report, and the corpus date it used to carry now sits in the provenance line
     # where a reader looking for it would look.
+    # Provenance immediately above it, which is also what makes "since" refer to
+    # something: "corpus 2026-07-25" is now the line before "the law may have changed
+    # since", rather than four sections above it.
+    parts.append(f'<p class="lh-prov lh-prov-foot">{_provenance(state)}</p>')
     parts.append(
         f'<p class="lh-legal">{esc(LEGAL_CAVEAT)} '
         f'{esc(LAW_MAY_HAVE_CHANGED.capitalize())}.</p>'

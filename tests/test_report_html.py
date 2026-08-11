@@ -126,11 +126,27 @@ def test_warnings_come_before_the_findings_and_the_caveat_after():
 
 def test_the_provenance_line_carries_every_judged_against_fact():
     html = render_report_html([finding(1, "green")], "l.md", "wa", [])
-    prov = html[html.index("lh-prov"):html.index("lh-chips")]
+    prov = html[html.index("lh-prov-foot"):html.index("lh-legal")]
     for fact in ("WA", STATUTE, CORPUS_SNAPSHOT):
         assert fact in prov
     # One "judged against" claim, not two three lines apart with different dates.
     assert html.count("Judged against") == 0
+    # And at the foot, not above the findings: it says what judged the lease, which is
+    # wanted when quoting a finding and not before reading one. Immediately above the
+    # caveat, so "the law may have changed since" has the corpus date on the line above
+    # it rather than four sections up.
+    assert html.index("lh-chips") < html.index("lh-prov-foot") < html.index("lh-legal")
+
+
+def test_a_self_numbered_clause_gets_no_second_number():
+    """The scan's index is not the number on the page — the sample lease's title block
+    is clause 1, so "3. LATE CHARGES" is index 4 and the panel used to print "Clause 4"
+    directly above it. Both surfaces drop the label when the clause has its own."""
+    numbered = finding(4, "red", clause="3. LATE CHARGES. Tenant shall pay a late charge.")
+    plain = finding(4, "red", clause="Tenant shall pay a late charge on the second day.")
+    for render in (render_report_html, render_report):
+        assert "Clause 4" not in render([numbered], "l.md", "wa", [])
+        assert "Clause 4" in render([plain], "l.md", "wa", [])
 
 
 def test_counts_of_one_take_the_singular():

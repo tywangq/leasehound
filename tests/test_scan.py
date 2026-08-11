@@ -76,7 +76,8 @@ def test_long_preview_truncates_at_word_boundary():
     # Regression: a mid-word cut once turned "$75" into "$7".
     clause = "3. LATE CHARGES. " + "word " * 20 + "pay a late charge of $75, plus more terms here."
     report = render_report([finding(1, "red", clause=clause)], "lease.md", "wa")
-    preview_line = next(line for line in report.splitlines() if line.startswith("### Clause 1:"))
+    # No "Clause 1:" prefix — this clause opens with its own number (see clause_label).
+    preview_line = next(line for line in report.splitlines() if line.startswith("### 3."))
     assert preview_line.endswith(" …")
     last_word = preview_line.removesuffix(" …").split()[-1]
     assert last_word in clause.split()

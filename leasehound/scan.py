@@ -849,6 +849,29 @@ def count_verdicts(findings: list[dict]) -> dict:
     return {v: sum(1 for f in findings if f["verdict"] == v) for v in ("red", "yellow", "green")}
 
 
+# A clause that opens with its own number: "3.", "3)", "12 .". The lease's numbering,
+# not ours.
+SELF_NUMBERED = re.compile(r"^\s*\d+\s*[.)]")
+
+
+def clause_label(finding: dict) -> str | None:
+    """"Clause 4", or nothing when the lease already says which clause this is.
+
+    The index is this scan's position after splitting, and it is not the number on the
+    page: in examples/sample_lease.md the title block is clause 1, so the lease's "3.
+    LATE CHARGES" is index 4 — and the report printed "Clause 4" directly above a quote
+    beginning "3. LATE CHARGES." Someone taking that to a landlord has to explain which
+    number to ignore, and an argument that opens by conceding a wrong number is worse
+    off than one with no number at all.
+
+    So the label appears only when the clause carries no number of its own — a lease
+    split by paragraphs rather than by numbered sections, where the index is the only
+    handle anyone has. Both renderers ask this function, so neither can decide it
+    differently.
+    """
+    return None if SELF_NUMBERED.match(finding["clause"]) else f"Clause {finding['index']}"
+
+
 def clause_preview(clause: str, limit: int = CLAUSE_PREVIEW_CHARS) -> str:
     """Collapse whitespace and cut at a word boundary.
 
@@ -1021,7 +1044,9 @@ def render_report(
         lines.append(f"## {BADGE[verdict]} {SECTION_TITLES[verdict]}")
         lines.append("")
         for f in matching:
-            lines.append(f"### Clause {f['index']}: {clause_preview(f['clause'])}")
+            label = clause_label(f)
+            heading = f"{label}: " if label else ""
+            lines.append(f"### {heading}{clause_preview(f['clause'])}")
             lines.append("")
             lines.append(f["explanation"])
             for section in f["citations"]:
