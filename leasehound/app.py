@@ -47,6 +47,7 @@ from leasehound.scan import (
     count_verdicts,
     render_report,
     scan_steps,
+    summary_counts,
 )
 from leasehound.upload import MAX_UPLOAD_BYTES, read_document
 
@@ -105,9 +106,11 @@ CSS = """
 .report-panel .lh-missing i {background: var(--lh-teal);}
 .report-panel .lh-green i {background: var(--lh-green);}
 .report-panel .lh-note {font-size: 0.85em; color: var(--lh-body); line-height: 1.42;
-                        /* 10px, the radius .lh-finding and the card's blocks use.
-                           It was 8, for no reason but the order they were written. */
-                        margin: 0 0 10px; padding: 8px 12px; border-radius: 10px;
+                        /* 8px, the app's one radius — see the theme tokens in
+                           UI_STYLE. Was 8, then 10 to match .lh-finding, now 8 again
+                           with .lh-finding: the panel agreeing with itself was the
+                           small version of the problem. */
+                        margin: 0 0 10px; padding: 8px 12px; border-radius: 8px;
                         background: #f8fafc; border-left: 3px solid var(--lh-hair);}
 .report-panel .lh-note-jurisdiction, .report-panel .lh-note-gate,
 .report-panel .lh-note-partial {background: #fffbeb; border-left-color: var(--lh-amber);}
@@ -120,7 +123,7 @@ CSS = """
    together as heading + paragraph + list, so which explanation belonged to which
    clause was a matter of reading order. */
 .report-panel .lh-finding {position: relative; margin: 0 0 9px; padding: 12px 15px 12px 19px;
-                           border: 1px solid var(--lh-hair); border-radius: 10px;
+                           border: 1px solid var(--lh-hair); border-radius: 8px;
                            background: #fff; overflow: hidden;}
 .report-panel .lh-finding::before {content: ""; position: absolute; left: 0; top: 0;
                                    bottom: 0; width: 4px;}
@@ -245,12 +248,32 @@ CSS = """
   .main-row .chat-col {flex-grow: 1 !important; flex-basis: auto !important; max-width: 100% !important;}
 }
 footer {visibility: hidden;}
+
+/* The example rows, in the report's label language. Gradio gives an Examples group a
+   teal 14px semibold heading with a list glyph in front of it; the report's own
+   section headings are 11px, uppercase, tracked, muted. Two ways of saying "this is a
+   label" on one screen, and the louder one was on the less important thing — a heading
+   in the accent colour outranked the findings it sat under. Same style for both now,
+   and the glyph goes: it is decoration that reads as a control. */
+#example-scan .label svg, #example-prompts .label svg {display: none;}
+#example-scan .label, #example-prompts .label {font-size: 0.69rem; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--body-text-color-subdued) !important; gap: 0;}
+/* Uniform chips. Their widths still differ — the questions are different lengths and
+   padding them to a common width would be a grid of half-empty buttons — but the
+   padding, border and radius no longer do. */
+#example-scan .gallery-item, #example-prompts .gallery-item {padding: 7px 13px;}
 """
 
 LAW_ONLY_CONTEXT = (
     "🧠 The hound knows **Washington tenant law (RCW 59.18)**. "
     "Scan a lease and it will know your report too."
 )
+# The empty conversation. Deliberately not a second copy of the line above it: that
+# one says what the hound knows, this one says what to do. No emoji — the context line
+# already carries one in the same viewport, and two metaphors above an empty box is
+# where "cluttered" starts.
+CHAT_PLACEHOLDER = "Attach a lease, or pick an example below."
 ALREADY_SNIFFED = "🐕 Already sniffed this one — the report is still on the right."
 # Everything before the first verdict: reading the document, splitting it, and the
 # gate call. The pair to ask mode's "🐕 Thinking…", and short for the same reason —
@@ -721,17 +744,20 @@ def missing_protections(result: ScanResult) -> int:
 
 
 def scan_summary(result: ScanResult) -> str:
-    counts = count_verdicts(result.findings)
     coverage = (f" — across clauses 1–{result.clauses_judged} of {result.clauses_total}"
                 if result.partial else "")
-    # Same order as the report's own summary line and its sections: everything
-    # actionable first, "clear" last. Three orderings of the same four counts is what
-    # this used to be.
+    # summary_counts, the same function the panel's chips and the .md report are built
+    # from, so all three name the counts identically — this line used to write its own
+    # "7 red" beside a chip reading "7 red flags".
+    #
+    # And no 🚩⚠️🔍✅. The panel expresses these four counts as coloured chips two
+    # inches to the right; expressing them again as four emoji, in a different order of
+    # visual weight, is the same data in two languages on one screen. The hound keeps
+    # its own emoji — the voice is deliberate — but one per message, not five.
+    row = ", ".join(label for _, label in
+                    summary_counts(result.findings, result.protections))
     return (
-        f"🐕 Sniff complete{coverage}: 🚩 {counts['red']} red · "
-        f"⚠️ {counts['yellow']} caution · "
-        f"🔍 {missing_protections(result)} missing protections · "
-        f"✅ {counts['green']} clear. "
+        f"🐕 Sniff complete{coverage}: {row}. "
         "Full report on the right — ask me about any clause."
     )
 
@@ -935,10 +961,29 @@ TRASH_JS = """
 # on <body>, which killed both the autofocus and the click handler that makes the
 # example chips submit. It has to be a load event instead (see demo.load below).
 UI_STYLE = {
+    # One corner radius for the whole app, set as tokens rather than in CSS so every
+    # control Gradio draws picks it up — including the ones this app never names.
+    #
+    # Measured before touching it, on the live page: message blocks 4px, example
+    # buttons 6px, the composer 0px, the report's findings 10px, verdict chips 999px.
+    # Five radii in one viewport. Nobody reads a radius, but the eye counts corners,
+    # and five kinds of corner is most of what "杂乱" is made of.
+    #
+    # 8px is Soft's own radius_lg, so it is a value the theme already contains rather
+    # than one invented here. Two radii survive: 8px for anything rectangular, and
+    # 999px for the verdict chips, which are pills — a different shape, not a
+    # different radius.
     "theme": gr.themes.Soft(
         primary_hue="teal",
         neutral_hue="slate",
         font=[gr.themes.GoogleFont("Inter"), "ui-sans-serif", "system-ui", "sans-serif"],
+    ).set(
+        block_radius="*radius_lg",
+        container_radius="*radius_lg",
+        input_radius="*radius_lg",
+        button_large_radius="*radius_lg",
+        button_medium_radius="*radius_lg",
+        button_small_radius="*radius_lg",
     ),
     "css": CSS,
 }
@@ -967,9 +1012,21 @@ with gr.Blocks(title=SOCIAL_TITLE) as demo:
             # Gradio's default toolbar is ["share", "copy_all"], and its "share"
             # posts to Hugging Face Spaces Discussions — a no-op anywhere else, so
             # on Cloud Run it is a button that cannot do anything. Naming the list
-            # drops it and keeps the two that work.
+            # drops it and keeps the ones that work.
+            #
+            # "copy" is gone from that list: it hangs a copy icon under EVERY message,
+            # and with two messages on screen that was three floating icons — the
+            # per-message ones plus the toolbar's — at three different left edges, the
+            # loudest non-content thing on the page. copy_all stays, in the toolbar at
+            # the top-right, which is the same corner the report's own actions sit in.
+            # One place where actions live.
+            #
+            # placeholder, because the empty state was 440px of bordered white. An
+            # empty box with a frame reads as a widget that has not loaded; one quiet
+            # line reads as a product waiting for input.
             chatbot = gr.Chatbot(height=440, show_label=False,
-                                 buttons=["copy", "copy_all"])
+                                 buttons=["copy_all"],
+                                 placeholder=CHAT_PLACEHOLDER)
             message_box = gr.MultimodalTextbox(
                 placeholder="Attach a lease, or ask about renting in Washington…",
                 show_label=False,
