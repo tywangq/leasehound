@@ -157,12 +157,15 @@ CSS = """
                         /* 20px above, because the thing above is the chip row and a
                            filled callout 2px under a row of pills reads as touching it.
                            Held here rather than on .lh-chips, which cannot keep a bottom
-                           margin (see above). 10px below, and 8px between two notices —
-                           consecutive warnings are one group and should not drift apart
-                           as far as they sit from the summary. */
+                           margin (see above). 10px below, which is also what separates two
+                           stacked notices: sibling margins collapse to the larger, and the
+                           larger there is this 10. Half the distance to the summary, so a
+                           run of warnings reads as one group. A `+ .lh-note
+                           {margin-top: 8px}` sat here to say that explicitly and never
+                           applied — 8 loses the collapse to 10. Measured on the deployed
+                           page: 20px above the first notice, 10px between two. */
                         margin: 20px 0 10px; padding: 12px 14px; border-radius: 8px;
                         background: var(--lh-card); border-left: 3px solid var(--lh-hair);}
-.report-panel .lh-note + .lh-note {margin-top: 8px;}
 .report-panel .lh-note-jurisdiction, .report-panel .lh-note-gate,
 .report-panel .lh-note-partial {background: #fffbeb; border-left-color: var(--lh-amber);}
 .report-panel .lh-section {font-size: var(--t-label); font-weight: 700; letter-spacing: 0.08em;
