@@ -278,7 +278,15 @@ CSS = """
    predated the upgrade. The vertical centering it used to do is now the textarea's
    own align-content, below. */
 .chat-col .multimodal-textbox .input-container {align-items: stretch !important;}
-.chat-col .multimodal-textbox textarea {align-content: center;}
+/* Slack under the text, which is the whole fix for "the placeholder is cut off". The
+   textarea is `overflow-y: hidden` with a content box of exactly one line box — 24px of
+   line-height in 24px of room — so it renders fine at a whole-number pixel ratio and
+   clips descenders (the g in "renting") the moment sub-pixel rounding costs it a
+   pixel, which is what a fractional device ratio or a zoomed page does. Nothing was
+   overlapping it; there was simply no room to spare. Now: a 20px line box in 26px of
+   content box, centred, so there is 3px above and below to lose. */
+.chat-col .multimodal-textbox textarea {align-content: center; line-height: 20px;
+    padding: 8px 0; min-height: 42px;}
 /* Attached-file chip: gradio's 48px thumbnail dwarfs the 30px attach/send
    icons beside it. Direct-child only, so the delete ✕ keeps its own size. */
 .chat-col .multimodal-textbox .thumbnail-item {width: 30px !important; height: 30px !important;}
@@ -357,6 +365,18 @@ CSS = """
    rather than a change event: the placeholder is presentation, and routing it through
    the server would put a round-trip between attaching a file and being able to type. */
 .chat-col .multimodal-textbox:has(.thumbnail-item) textarea::placeholder {color: transparent;}
+/* …and a hint that fits the new state takes its place. Drawn rather than swapped through
+   the server for the same reason the old one is hidden in CSS: a round-trip between
+   attaching a file and being able to type is a worse trade than a pseudo-element.
+   :placeholder-shown is what makes it disappear the moment anything is typed — it stops
+   matching as soon as the textarea has a value. */
+.chat-col .multimodal-textbox:has(.thumbnail-item):has(textarea:placeholder-shown) .input-row {
+    position: relative;}
+.chat-col .multimodal-textbox:has(.thumbnail-item):has(textarea:placeholder-shown) .input-row::after {
+    content: "Ask about this lease, or press send to scan it";
+    position: absolute; left: 40px; top: 50%; transform: translateY(-50%);
+    color: var(--body-text-color-subdued); font-size: var(--t-control);
+    pointer-events: none; white-space: nowrap;}
 
 footer {visibility: hidden;}
 
@@ -379,9 +399,14 @@ footer {visibility: hidden;}
    inherited from two different wrappers. */
 #example-scan .gallery-item, #example-prompts .gallery-item {padding: 8px 12px;
     line-height: 20px;}
+/* font-size too, and that omission is why the rows still looked different after the
+   last pass: a question example's words live in a <p>, and gradio's prose rules set that
+   <p> to 16px directly — which outranks the 14px on the button it sits in. The scan
+   example's words are a bare div and inherited the 14. Measured on the leaf node that
+   actually holds the text, not on the button. */
 #example-scan .gallery-item > div, #example-prompts .gallery-item .container,
 #example-prompts .gallery-item p {padding: 0 !important; margin: 0 !important;
-    line-height: 20px !important;}
+    font-size: var(--t-control) !important; line-height: 20px !important;}
 
 /* One hairline, one surface, for the conversation too. The user's bubble was tinted and
    outlined in the accent colour, so the question was louder than the answer to it, and
