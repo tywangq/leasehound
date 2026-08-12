@@ -92,7 +92,7 @@ CSS = """
     --t-meta: 12px;      /* verdict chips, file names, statute citations */
     --t-label: 11px;     /* every uppercase label, and the caveat */
 }
-.hero {text-align: center; padding: 28px 0 8px;}
+.hero {text-align: center; padding: 12px 0 8px;}
 .hero .wordmark {font-size: var(--t-display); font-weight: 700; letter-spacing: -0.5px;}
 .hero .tagline {font-size: var(--t-lead); margin: 6px 0 4px;}
 .step-sub {font-size: var(--t-doc); opacity: 0.75;}
@@ -1298,11 +1298,22 @@ with gr.Blocks(title=SOCIAL_TITLE) as demo:
             # examples under it moved while the reader was mid-sentence. A stable frame
             # beats a tight one in the one region the eye is already fixed on.
             #
+            # The height is min(420px, 45vh) rather than a pixel count, and the hero gives
+            # up 16px of padding to the same cause: what has to fit above the fold is the
+            # first example plus enough of the next one to say "there is more", and the
+            # fold moves. On a 13" MacBook in Chrome it is around 780px fullscreen and
+            # about 720 in a window; at a fixed 440 the first example fell 14px below the
+            # fold and the page appeared to end inside a button, and at a fixed 380 the
+            # windowed case still cleared it by 2px. A viewport fraction fits both, and it
+            # is still FIXED in the sense that matters — it does not move while messages
+            # arrive, only when the window itself changes. The 420 cap keeps a large
+            # monitor from turning the conversation into a canyon.
+            #
             # One gr.Group around the pair: the messages and the thing you type into
             # them are one surface, and a frame around only the message area made the
             # composer look like a separate widget that happened to sit below it.
             with gr.Group(elem_classes="chat-surface"):
-                chatbot = gr.Chatbot(height=440, show_label=False,
+                chatbot = gr.Chatbot(height="min(420px, 45vh)", show_label=False,
                                      buttons=["copy_all"])
                 message_box = gr.MultimodalTextbox(
                     placeholder="Attach a lease, or ask about renting in Washington…",
