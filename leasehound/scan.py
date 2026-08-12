@@ -38,7 +38,12 @@ from leasehound.retrieval import (
     fetch_unranked,
     llm_retry,
 )
-from leasehound.upload import MAX_CLAUSE_CHARS, read_document, split_clauses_with_mode
+from leasehound.upload import (
+    MAX_CLAUSE_CHARS,
+    EncryptedDocument,
+    read_document,
+    split_clauses_with_mode,
+)
 
 # When the statute corpus was fetched from app.leg.wa.gov (see corpus/wa/).
 # Laws change; a report should say which snapshot of the law judged it.
@@ -566,6 +571,11 @@ class ScanResult:
     @property
     def partial(self) -> bool:
         return self.clauses_total > self.clauses_judged
+
+
+# Re-exported from upload, where it is raised: callers import their upload failures
+# from this module and there is no reason for this one to be the exception.
+__all__ = ["EncryptedDocument"]
 
 
 class NoTextExtracted(Exception):

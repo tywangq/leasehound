@@ -1,5 +1,7 @@
 """Clause splitting: deterministic, so it gets exact tests."""
 
+import pytest
+
 from leasehound.upload import MIN_CLAUSE_CHARS, split_clauses, split_clauses_with_mode
 
 FILLER = "The parties agree to the terms set forth in this provision as written. "
@@ -59,3 +61,33 @@ def test_pdf_dependency_is_installed():
     # read_document imports pypdf lazily, so a missing install only explodes on
     # the first real PDF upload — which is exactly how it shipped broken once.
     import pypdf  # noqa: F401
+
+
+def test_a_locked_pdf_says_so_instead_of_crashing(tmp_path, monkeypatch):
+    """An AES-encrypted PDF used to reach the generic error handler.
+
+    pypdf raises before this app sees the file — DependencyError without a crypto backend,
+    NOT_DECRYPTED with one — and the visitor got "the hound tripped over an error", which
+    names nothing they can act on. Found in Cloud Run's logs after an application form was
+    uploaded to the demo; `cryptography` is a dependency now, so the owner-password kind
+    (the "no printing" kind that most forms carry) reads normally, and only a file with a
+    real user password gets refused.
+    """
+    from pypdf import PdfWriter
+
+    from leasehound.upload import EncryptedDocument, read_document
+
+    owner = tmp_path / "owner.pdf"
+    writer = PdfWriter()
+    writer.add_blank_page(width=200, height=200)
+    writer.encrypt("", owner_password="owner", algorithm="AES-256")
+    writer.write(str(owner))
+    assert read_document(owner) == "", "an owner-password PDF must open"
+
+    locked = tmp_path / "locked.pdf"
+    writer = PdfWriter()
+    writer.add_blank_page(width=200, height=200)
+    writer.encrypt("secret", algorithm="AES-256")
+    writer.write(str(locked))
+    with pytest.raises(EncryptedDocument):
+        read_document(locked)

@@ -32,6 +32,11 @@ requires-python = ">=3.11"
 # CI notices upstream breakage early.
 dependencies = [
     "chromadb>=1.0,<2",
+    # pypdf needs a crypto backend to open an AES-encrypted PDF. Most such
+    # files carry only an owner password ("no printing") and read fine once it
+    # is installed; without it pypdf raises before this app sees the file, and
+    # every application form uploaded to the demo came back as a generic error.
+    "cryptography>=42,<51",
     "fastapi>=0.110,<1",
     "gradio>=6.6,<7",
     "litellm>=1.40,<2",

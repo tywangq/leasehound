@@ -42,6 +42,7 @@ from leasehound.report_html import render_report_html
 from leasehound.scan import (
     MAX_CLAUSES,
     DocumentTooLarge,
+    EncryptedDocument,
     NoTextExtracted,
     ScanResult,
     count_verdicts,
@@ -290,6 +291,10 @@ CSS = """
    predated the upgrade. The vertical centering it used to do is now the textarea's
    own align-content, below. */
 .chat-col .multimodal-textbox .input-row {align-items: center;}
+/* With a file attached the chip sits ABOVE the input, and its glyph was centred in a 40px
+   box — so the icon began 10px to the right of the text under it. Left-align the glyph
+   and both start on the same edge, with no measurement to go stale. */
+.chat-col .multimodal-textbox .thumbnail-item {justify-content: flex-start;}
 /* …and inside the row, the textarea's own wrapper, which gradio stretches to the row
    height and then top-aligns the textarea within. That is the last 2px between the
    paperclip and the words it belongs to. ONE alignment property, no heights, no
@@ -372,8 +377,12 @@ CSS = """
    groups of the same idea in the same corner, drawn by two different mechanisms — one
    gradio's chatbot toolbar, one a gr.Button row. Same size, same grey, same hover. */
 .chat-col .icon-button-wrapper button, #report-actions button,
+#stop-button, #stop-button button,
 .chat-col button[class*="scroll"], .chat-col [class*="scroll-down"] {
-    border-radius: 8px !important; transition: background-color 0.15s ease;}
+    border-radius: 8px !important; transition: background-color 0.15s ease;
+    background: #ffffff !important; border: 1px solid #e2e8f0 !important;
+    box-shadow: none !important; color: var(--body-text-color) !important;}
+#stop-button:hover, #stop-button button:hover {background: #f0fdfa !important;}
 /* No shadows and no movement on hover — the scroll-to-bottom button was doing both,
    which made it the only control on the page that jumped. */
 .chat-col button[class*="scroll"]:hover, .chat-col [class*="scroll-down"]:hover {
@@ -472,6 +481,15 @@ CACHED_SNIFF = (
     "no fresh API calls. Attach a different lease to watch a live scan."
 )
 CALLED_OFF = "🐕 Called off — the hound stopped mid-sniff. Scan again whenever you're ready."
+# A locked PDF, which used to arrive as "the hound tripped over an error" — the generic
+# handler, because pypdf raised before anything in this file could say anything better.
+# Names the fix rather than the failure: nobody can do anything with "unsupported
+# encryption", and everybody can print a PDF to a new PDF.
+LOCKED_PDF = (
+    "🐕 That PDF is locked with a password, so the hound can't open it at all. Nothing "
+    "was scanned and nothing was spent. Print or export it as a new PDF — that copy "
+    "opens — and attach that."
+)
 NOTHING_EXTRACTED = (
     "🐕 The hound couldn't find any text in this document — a scanned or photo PDF has "
     "no text layer. Try a text-based .pdf, .md, or .txt."
@@ -587,16 +605,6 @@ QUESTION_EXAMPLES = [
     {"text": "How much notice before my landlord can enter?", "files": []},
     {"text": "When do I get my security deposit back after moving out?", "files": []},
 ]
-
-
-# What the panel says while it has nothing to show. The column stays open across a new
-# scan, so it needs something honest to hold: a line, not an empty box, and never a
-# leftover report from the previous lease.
-NOT_JUDGED = "Nothing judged — see the message on the left."
-
-
-def panel_waiting(text: str) -> str:
-    return f'<p class="lh-waiting">{escape(text)}</p>'
 
 
 def report_context(name: str) -> str:
@@ -853,12 +861,15 @@ def scan_flow(path, key, history, report, scanned, context_base, question="",
     # that the chat was already narrating. Now the split survives the scan, including a
     # refusal: the panel says what happened and the layout holds. Only the trash closes
     # it, which is the one case where the user asked for the report to be gone.
-    keep_split = gr.skip() if report else gr.update(visible=False)
+    # Nothing on the right is touched until there is something to put there. The column
+    # used to close and reopen — a 900ms rearrangement of the page to report progress the
+    # chat was already narrating — and then it cleared the panel, the state and the
+    # context, so a lease that failed to open cost you the report you already had. Both
+    # were the same mistake: treating "a new scan started" as "the old result is gone".
+    # It is gone when it is replaced (finished_scan) or when the trash says so.
     yield _out(history, box=gr.update(interactive=False),
-               report=panel_waiting(f"Sniffing {name}…") if report else "",
-               state="", context=LAW_ONLY_CONTEXT, source="",
-               stop=gr.update(visible=True), col=keep_split,
-               actions=gr.update(visible=False))
+               stop=gr.update(visible=True),
+               col=gr.skip() if report else gr.update(visible=False))
     try:
         for step in scan_steps(text, name, state=DEMO_STATE, scan_anyway=scan_anyway,
                                client="ui"):
@@ -915,24 +926,25 @@ def scan_flow(path, key, history, report, scanned, context_base, question="",
                 # path uniform. Leaving the context on law-only matters more:
                 # telling ask mode "you have the scan report of X" when no clause
                 # was judged would invent a report for it to reason from.
+                # A refusal is a no-op for everything on the right: the report you
+                # already had, its state, its context and its buttons all stay exactly as
+                # they were. This used to clear all four and print "nothing judged" in the
+                # panel, which charged a bad upload the price of your last good one.
                 yield _out(history, box=gr.update(interactive=True),
-                           report=panel_waiting(NOT_JUDGED) if report else "",
-                           state="", context=LAW_ONLY_CONTEXT, source="",
-                           stop=gr.update(visible=False),
-                           col=keep_split,
-                           actions=gr.update(visible=False))
+                           stop=gr.update(visible=False))
             elif step.kind == "done":
                 cache_put(digest, step.result)
                 history[-1]["content"] = scan_summary(step.result)
                 yield from finished_scan(step.result, name, key, history,
                                          context_base, question)
+    except EncryptedDocument:
+        history[-1]["content"] = LOCKED_PDF
+        yield _out(history, box=gr.update(interactive=True),
+                   stop=gr.update(visible=False))
     except NoTextExtracted:
         history[-1]["content"] = NOTHING_EXTRACTED
         yield _out(history, box=gr.update(interactive=True),
-                   report=panel_waiting(NOT_JUDGED) if report else "",
-                   state="", context=LAW_ONLY_CONTEXT, source="",
-                   stop=gr.update(visible=False), col=keep_split,
-                   actions=gr.update(visible=False))
+                   stop=gr.update(visible=False))
     except DocumentTooLarge as oversized:
         history[-1]["content"] = TOO_LARGE.format(
             pages=in_pages(oversized.chars), limit=in_pages(oversized.limit))
@@ -1310,7 +1322,8 @@ with gr.Blocks(title=SOCIAL_TITLE) as demo:
             # an app where red means "this clause is a red flag". It is an ordinary
             # secondary button and hovers like every other one.
             stop_button = gr.Button(
-                "✋ Call off the hound", size="sm", visible=False
+                "✋ Call off the hound", size="sm", visible=False,
+                elem_id="stop-button",
             )
             # One row pinned at the panel's top-right corner (see the CSS), so
             # all three actions share the same position and appear together,

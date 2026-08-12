@@ -270,15 +270,50 @@ def test_a_refused_scan_leaves_ask_mode_on_law_only_context(monkeypatch, tmp_pat
     assert judged["count"] == 0, "no clause may be judged after a refusal"
     assert any(app.NOT_ABOUT_RENTING in (m.get("content") or "") for m in history)
     # _out's positional contract: report, state, context are 3rd, 4th, 5th.
-    _, _, report, state, context = frames[-1][:5]
-    assert report == "" and state == ""
-    assert context == app.LAW_ONLY_CONTEXT
+    #
+    # A refusal is a no-op on the right-hand side now — it neither pins a report nor
+    # rewrites the context, because the panel may be showing a PREVIOUS lease's report and
+    # that report is still true. So the assertion is about what no frame may DO, rather
+    # than about a cleared value: nothing may claim a report for the document that was
+    # refused.
+    texts = [f[4] for f in frames if isinstance(f[4], str)]
+    assert app.report_context("resume.pdf") not in texts
+    assert all(t == app.LAW_ONLY_CONTEXT for t in texts)
+    assert all(not f[3] for f in frames if isinstance(f[3], str)), "no state may be pinned"
+    assert all(not f[2] for f in frames if isinstance(f[2], str)), "no report may be pinned"
 
     # And the override gets through: same document, same stubs, one word added.
     app._scan_cache.clear()
     override: list = []
     list(app.scan_flow(Path("resume.pdf"), "key", override, "", "", [], scan_anyway=True))
     assert judged["count"] == 1
+    app._scan_cache.clear()
+
+
+def test_a_refusal_leaves_an_existing_report_alone(monkeypatch, tmp_path):
+    """Uploading a non-lease while a report is on screen used to cost you the report.
+
+    The panel, the state, the context and the buttons were all cleared at the start of
+    every scan, so a document that could not even be opened took the last good result with
+    it. Nothing on the right is touched now until there is something to replace it with.
+    """
+    import leasehound.metrics as metrics
+
+    monkeypatch.setattr(app, "read_document", lambda path: "Intro.\n\n1. HEADING. Text.")
+    monkeypatch.setattr(scan, "classify_document", gate_returns("other"))
+    monkeypatch.setattr(scan, "check_protections", lambda clauses, meter=None: [])
+    monkeypatch.setattr(metrics, "LOG_PATH", tmp_path / "scan_metrics.jsonl")
+    app._scan_cache.clear()
+
+    history: list = []
+    previous = "# LeaseHound scan report\n\nDocument: `first.md`"
+    frames = list(app.scan_flow(Path("resume.pdf"), "key2", history, previous, "key1", []))
+
+    for frame in frames:
+        report, state, context, source = frame[2], frame[3], frame[4], frame[5]
+        for value in (report, state, context, source):
+            assert not isinstance(value, str) or value == app.LAW_ONLY_CONTEXT, (
+                "a refusal must not overwrite the report on screen")
     app._scan_cache.clear()
 
 

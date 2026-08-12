@@ -46,11 +46,43 @@ CLAUSE_SPLIT_RE = re.compile(
 MAX_CLAUSE_CHARS = 1200
 
 
+class EncryptedDocument(Exception):
+    """A PDF locked with a user password: pypdf cannot read a page of it.
+
+    Separate from NoTextExtracted, which is the scanned-photo case — there the file
+    opens and has no text layer, here it does not open. The two need different advice
+    ("try a text-based PDF" against "export an unprotected copy"), and telling someone
+    to re-export a file that has no text layer sends them in a circle.
+
+    Owner-password PDFs — the "no printing, no copying" kind that most application forms
+    carry — are NOT this: they open with an empty password once a crypto backend is
+    installed, which is what `cryptography` is in the dependencies for. Without it pypdf
+    raises DependencyError on those too, and every such upload came back as the generic
+    "the hound tripped over an error" (found in Cloud Run's logs, not reproduced here:
+    the deployed image had no cryptography and neither did this venv).
+    """
+
+
 def read_document(path: Path) -> str:
     if path.suffix.lower() == ".pdf":
         from pypdf import PdfReader
+        from pypdf.errors import DependencyError, PdfReadError
 
-        reader = PdfReader(str(path))
+        try:
+            reader = PdfReader(str(path))
+            # An owner-password PDF ("no printing, no copying") opens with an empty
+            # password and is the common case — application forms and anything produced
+            # by a document portal. A user-password one returns NOT_DECRYPTED, and there
+            # is nothing to do but say so.
+            if reader.is_encrypted and not reader.decrypt(""):
+                raise EncryptedDocument(path.name)
+        except DependencyError as missing:
+            # The crypto backend is a dependency now, so this is a broken install rather
+            # than a locked file — but it used to surface as the generic error handler,
+            # so it says something true either way.
+            raise EncryptedDocument(path.name) from missing
+        except PdfReadError as unreadable:
+            raise EncryptedDocument(path.name) from unreadable
         return "\n".join(page.extract_text() or "" for page in reader.pages)
     return path.read_text(encoding="utf-8")
 
