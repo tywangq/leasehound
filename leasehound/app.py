@@ -289,8 +289,17 @@ CSS = """
     padding: 8px 0; min-height: 42px;}
 /* Attached-file chip: gradio's 48px thumbnail dwarfs the 30px attach/send
    icons beside it. Direct-child only, so the delete ✕ keeps its own size. */
-.chat-col .multimodal-textbox .thumbnail-item {width: 30px !important; height: 30px !important;}
-.chat-col .multimodal-textbox .thumbnail-item > :is(svg, img) {width: 16px !important; height: 16px !important;}
+/* The chip is the upload button's twin: same 36px box, no tile behind it, and the same
+   glyph — see PLACEHOLDER_JS, which copies the upload button's own <svg> into it rather
+   than drawing a lookalike. Gradio's version is a 30px thumbnail on an #f8fafc rounded
+   tile, which made the left end of the composer change shape, size and position between
+   "nothing attached" and "a lease attached". */
+.chat-col .multimodal-textbox .thumbnail-item {width: 36px !important; height: 36px !important;
+    background: none !important; border: 0 !important; border-radius: 8px !important;
+    display: flex !important; align-items: center; justify-content: center;
+    color: var(--body-text-color);}
+.chat-col .multimodal-textbox .thumbnail-item > :is(svg, img) {width: 20px !important;
+    height: 20px !important;}
 /* And the chip sits BESIDE the input, not above it. Gradio stacks .thumbnails over
    .input-row, so attaching a lease grew the composer from 67px to 101px — a second row
    appearing under the reader's cursor at the exact moment they were about to type, with
@@ -299,8 +308,17 @@ CSS = """
    because .thumbnails is a full-width flex row and the first attempt at this squeezed
    the textarea to zero. */
 .chat-col .multimodal-textbox .input-wrapper {flex-direction: row !important;
-    align-items: center !important; gap: 6px !important;}
-.chat-col .multimodal-textbox .input-row {flex: 1 1 auto !important; min-width: 0 !important;}
+    align-items: center !important; gap: 4px !important;}
+.chat-col .multimodal-textbox .input-row {flex: 1 1 auto !important; min-width: 0 !important;
+    align-items: center !important;}
+/* The textarea sits in a wrapper 5px taller than itself, top-aligned, so its text rode
+   2px above the centre line the two icons share — the "not on the same line" that
+   survived centring the row. And a fixed wrapper height, because the wrapper was 50px with
+   nothing attached and 48px with a lease attached: the composer changed height when you
+   picked a file. */
+.chat-col .multimodal-textbox .textarea-wrapper {display: flex !important;
+    align-items: center !important;}
+.chat-col .multimodal-textbox .input-wrapper {min-height: 50px !important;}
 .chat-col .multimodal-textbox .thumbnails {flex: 0 0 auto !important;
     width: max-content !important; padding: 0 !important; margin: 0 !important;}
 #example-scan button, #example-prompts button {text-align: left !important; justify-content: flex-start !important;}
@@ -332,6 +350,12 @@ CSS = """
 @media (min-width: 901px) {
   .main-row:has(.report-col) .report-col {border-left: 1px solid #e2e8f0; padding-left: 22px;}
 }
+/* A frame around the conversation. It had none once its placeholder went, so the empty
+   state was a large white nothing with no edges — nobody can tell that is where the
+   answers will appear. One hairline, the app's radius, no fill: the messages inside it
+   are white, and a filled box behind white bubbles would be a box inside a box. */
+.chat-col .bubble-wrap {border: 1px solid #e2e8f0; border-radius: 8px;}
+
 /* ── The chat column's controls, made to agree with each other ──────────────
    Everything below is one answer to the same question: the same kind of thing should
    look and behave the same way. Measured first, in every case.
@@ -371,19 +395,10 @@ CSS = """
    instruction for something already done, sitting beside the chip that did it. :has()
    rather than a change event: the placeholder is presentation, and routing it through
    the server would put a round-trip between attaching a file and being able to type. */
-.chat-col .multimodal-textbox:has(.thumbnail-item) textarea::placeholder {color: transparent;}
-/* …and a hint that fits the new state takes its place. Drawn rather than swapped through
-   the server for the same reason the old one is hidden in CSS: a round-trip between
-   attaching a file and being able to type is a worse trade than a pseudo-element.
-   :placeholder-shown is what makes it disappear the moment anything is typed — it stops
-   matching as soon as the textarea has a value. */
-.chat-col .multimodal-textbox:has(.thumbnail-item):has(textarea:placeholder-shown) .input-row {
-    position: relative;}
-.chat-col .multimodal-textbox:has(.thumbnail-item):has(textarea:placeholder-shown) .input-row::after {
-    content: "Ask about this lease, or press send to scan it";
-    position: absolute; left: 40px; top: 50%; transform: translateY(-50%);
-    color: var(--body-text-color-subdued); font-size: var(--t-control);
-    pointer-events: none; white-space: nowrap;}
+/* The placeholder itself is swapped in PLACEHOLDER_JS — the attribute, not a drawing of
+   it. A pseudo-element had to guess the real placeholder's x, font and baseline, and got
+   all three slightly wrong, which is exactly the kind of "almost aligned" this pass
+   exists to remove. */
 
 footer {visibility: hidden;}
 
@@ -1106,6 +1121,50 @@ EXAMPLES_JS = """
 }
 """
 
+# Two things that have to happen the moment a file is attached, and neither is worth a
+# round-trip to the server: the placeholder stops being true ("Attach a lease" beside an
+# attached lease), and gradio swaps the upload button for a thumbnail drawn differently.
+# The svg is CLONED from the upload button rather than redrawn, so the two states cannot
+# diverge — a hand-drawn lookalike is a second source of truth for one glyph.
+PLACEHOLDER_JS = """
+() => {
+    const EMPTY = "Attach a lease, or ask about renting in Washington…";
+    const ATTACHED = "Ask about this lease, or press send to scan it";
+    let clip = null;
+    const sync = () => {
+        const box = document.querySelector('.chat-col .multimodal-textbox');
+        if (!box) return;
+        const upload = box.querySelector('button[aria-label*="Upload"] svg');
+        if (upload) clip = upload.outerHTML;      // cached while the button still exists
+        const chip = box.querySelector('.thumbnail-item');
+        const input = box.querySelector('textarea');
+        if (input) input.placeholder = chip ? ATTACHED : EMPTY;
+        if (chip && clip && !chip.dataset.clip) {
+            const icon = chip.querySelector('svg, img');
+            if (icon) { icon.outerHTML = clip; chip.dataset.clip = '1'; }
+        }
+    };
+    sync();
+    // Scoped to the composer's column and coalesced to one call per frame. Observing
+    // document.body would run this on every token of every streamed reply.
+    let queued = false;
+    const observer = new MutationObserver(() => {
+        if (queued) return;
+        queued = true;
+        requestAnimationFrame(() => { queued = false; sync(); });
+    });
+    const watch = () => {
+        const col = document.querySelector('.chat-col');
+        if (col) { observer.observe(col, {childList: true, subtree: true}); return true; }
+        return false;
+    };
+    if (!watch()) {
+        let tries = 0;
+        const wait = setInterval(() => { if (watch() || ++tries > 40) clearInterval(wait); }, 50);
+    }
+}
+"""
+
 # Starts the two-columns-to-one slide immediately on click; on_trash sleeps
 # past the transition before removing the report column from the DOM. The
 # class comes off on a timer (the column is long gone by then) so a future
@@ -1293,6 +1352,7 @@ with gr.Blocks(title=SOCIAL_TITLE) as demo:
     # Client-side setup: focus the input, and make the example chips submit. A load
     # event is the only place this runs under Gradio 6 — see UI_STYLE above.
     demo.load(None, js=EXAMPLES_JS)
+    demo.load(None, js=PLACEHOLDER_JS)
 
 # Public-hosting guardrails: a bounded waiting room instead of an unbounded
 # queue, and a few concurrent turns so one long scan doesn't serialize everyone.
