@@ -350,11 +350,26 @@ CSS = """
 @media (min-width: 901px) {
   .main-row:has(.report-col) .report-col {border-left: 1px solid #e2e8f0; padding-left: 22px;}
 }
-/* A frame around the conversation. It had none once its placeholder went, so the empty
-   state was a large white nothing with no edges — nobody can tell that is where the
-   answers will appear. One hairline, the app's radius, no fill: the messages inside it
-   are white, and a filled box behind white bubbles would be a box inside a box. */
-.chat-col .bubble-wrap {border: 1px solid #e2e8f0; border-radius: 8px;}
+/* A frame around the conversation AND the composer, because they are one surface: the
+   messages and the thing you type into them belong to the same box, and framing only the
+   message area made the composer read as a separate widget parked underneath. The empty
+   state needs the frame at all because taking the placeholder away left a large white
+   nothing with no edges — nobody can tell that is where the answers will appear.
+   One hairline for the pair, one rule between them, no fill: the bubbles inside are
+   white, and a filled box behind white bubbles is a box inside a box. */
+.chat-col .chat-surface {border: 1px solid #e2e8f0 !important; border-radius: 8px;
+    overflow: hidden; background: #ffffff;}
+/* gradio renders a Group as a wrapper inside a wrapper and puts elem_classes on both, so
+   the rule above landed twice and drew two touching hairlines — which reads as one heavy
+   2px line, not as the hairline it was meant to be. */
+.chat-col .chat-surface .chat-surface {border: 0 !important; border-radius: 0 !important;}
+/* Inside the group, the children keep no borders of their own — the chatbot block ships
+   a 3px #1e293b one, which drew a heavy dark rectangle around the message area the
+   moment the two were grouped. The only line left inside is the one between the messages
+   and the composer. */
+.chat-col .chat-surface .block {border-width: 0 !important;}
+.chat-col .chat-surface .multimodal-textbox {border-top: 1px solid #e2e8f0 !important;
+    border-radius: 0 !important;}
 
 /* ── The chat column's controls, made to agree with each other ──────────────
    Everything below is one answer to the same question: the same kind of thing should
@@ -1274,16 +1289,21 @@ with gr.Blocks(title=SOCIAL_TITLE) as demo:
             # surface it saved: the box resized on every turn, so the composer and the
             # examples under it moved while the reader was mid-sentence. A stable frame
             # beats a tight one in the one region the eye is already fixed on.
-            chatbot = gr.Chatbot(height=440, show_label=False,
-                                 buttons=["copy_all"])
-            message_box = gr.MultimodalTextbox(
-                placeholder="Attach a lease, or ask about renting in Washington…",
-                show_label=False,
-                file_types=[".pdf", ".md", ".txt"],
-                file_count="single",
-                # Cursor lands here on load: asking is the zero-friction entry
-                # point, and the scan button is one click away either way.
-            )
+            #
+            # One gr.Group around the pair: the messages and the thing you type into
+            # them are one surface, and a frame around only the message area made the
+            # composer look like a separate widget that happened to sit below it.
+            with gr.Group(elem_classes="chat-surface"):
+                chatbot = gr.Chatbot(height=440, show_label=False,
+                                     buttons=["copy_all"])
+                message_box = gr.MultimodalTextbox(
+                    placeholder="Attach a lease, or ask about renting in Washington…",
+                    show_label=False,
+                    file_types=[".pdf", ".md", ".txt"],
+                    file_count="single",
+                    # Cursor lands here on load: asking is the zero-friction entry
+                    # point, and the scan button is one click away either way.
+                )
             gr.Examples(
                 examples=[SCAN_EXAMPLE],
                 example_labels=[SCAN_EXAMPLE_LABEL],
