@@ -1146,9 +1146,21 @@ PLACEHOLDER_JS = """
     const EMPTY = "Attach a lease, or ask about renting in Washington…";
     const ATTACHED = "Ask about this lease, or press send to scan it";
     let clip = null;
+    // The bug that outlived three explanations. gradio writes the example's text into
+    // the textarea and clears it again a moment later, and the browser scrolls to the
+    // caret while the value is long. `overflow-y: hidden` hides the scrollbar; it does
+    // NOT make the element unscrollable, so the line stays shifted up by a few pixels
+    // with nothing on screen to say so — the placeholder's top half is simply gone.
+    // Reproduced by setting scrollTop to 6 and comparing against her screenshot: pixel
+    // for pixel the same picture. Chromium happens to reset it when the value is
+    // cleared, which is why it never appeared in any automated run here.
+    // An empty textarea has nothing to scroll to, so this is safe: it only ever fires
+    // when the placeholder is what is showing.
+    const unscroll = (input) => { if (input && !input.value && input.scrollTop) input.scrollTop = 0; };
     const sync = () => {
         const box = document.querySelector('.chat-col .multimodal-textbox');
         if (!box) return;
+        unscroll(box.querySelector('textarea'));
         const upload = box.querySelector('button[aria-label*="Upload"] svg');
         if (upload) clip = upload.outerHTML;      // cached while the button still exists
         const chip = box.querySelector('.thumbnail-item');
@@ -1160,6 +1172,12 @@ PLACEHOLDER_JS = """
         }
     };
     sync();
+    // 'scroll' is the direct signal: it fires the instant the browser moves the line.
+    for (const type of ['scroll', 'input', 'change', 'blur', 'focus']) {
+        document.addEventListener(type, (e) => {
+            if (e.target && e.target.tagName === 'TEXTAREA') unscroll(e.target);
+        }, true);
+    }
     // Scoped to the composer's column and coalesced to one call per frame. Observing
     // document.body would run this on every token of every streamed reply.
     let queued = false;
