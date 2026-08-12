@@ -277,50 +277,15 @@ CSS = """
    it — the tests render no CSS, and the README screenshot that would have shown it
    predated the upgrade. The vertical centering it used to do is now the textarea's
    own align-content, below. */
-.chat-col .multimodal-textbox .input-container {align-items: stretch !important;}
-/* Slack under the text, which is the whole fix for "the placeholder is cut off". The
-   textarea is `overflow-y: hidden` with a content box of exactly one line box — 24px of
-   line-height in 24px of room — so it renders fine at a whole-number pixel ratio and
-   clips descenders (the g in "renting") the moment sub-pixel rounding costs it a
-   pixel, which is what a fractional device ratio or a zoomed page does. Nothing was
-   overlapping it; there was simply no room to spare. Now: a 20px line box in 26px of
-   content box, centred, so there is 3px above and below to lose. */
-.chat-col .multimodal-textbox textarea {align-content: center; line-height: 20px;
-    padding: 8px 0; min-height: 42px;}
-/* Attached-file chip: gradio's 48px thumbnail dwarfs the 30px attach/send
-   icons beside it. Direct-child only, so the delete ✕ keeps its own size. */
-/* The chip is the upload button's twin: same 36px box, no tile behind it, and the same
-   glyph — see PLACEHOLDER_JS, which copies the upload button's own <svg> into it rather
-   than drawing a lookalike. Gradio's version is a 30px thumbnail on an #f8fafc rounded
-   tile, which made the left end of the composer change shape, size and position between
-   "nothing attached" and "a lease attached". */
-.chat-col .multimodal-textbox .thumbnail-item {width: 36px !important; height: 36px !important;
-    background: none !important; border: 0 !important; border-radius: 8px !important;
-    display: flex !important; align-items: center; justify-content: center;
-    color: var(--body-text-color);}
-.chat-col .multimodal-textbox .thumbnail-item > :is(svg, img) {width: 20px !important;
-    height: 20px !important;}
-/* And the chip sits BESIDE the input, not above it. Gradio stacks .thumbnails over
-   .input-row, so attaching a lease grew the composer from 67px to 101px — a second row
-   appearing under the reader's cursor at the exact moment they were about to type, with
-   a full-width strip above the placeholder. One row now: 65px with a file attached,
-   65px without. The chip needs `width: max-content` as well as `flex: 0 0 auto`,
-   because .thumbnails is a full-width flex row and the first attempt at this squeezed
-   the textarea to zero. */
-.chat-col .multimodal-textbox .input-wrapper {flex-direction: row !important;
-    align-items: center !important; gap: 4px !important;}
-.chat-col .multimodal-textbox .input-row {flex: 1 1 auto !important; min-width: 0 !important;
-    align-items: center !important;}
-/* The textarea sits in a wrapper 5px taller than itself, top-aligned, so its text rode
-   2px above the centre line the two icons share — the "not on the same line" that
-   survived centring the row. And a fixed wrapper height, because the wrapper was 50px with
-   nothing attached and 48px with a lease attached: the composer changed height when you
-   picked a file. */
-.chat-col .multimodal-textbox .textarea-wrapper {display: flex !important;
-    align-items: center !important;}
-.chat-col .multimodal-textbox .input-wrapper {min-height: 50px !important;}
-.chat-col .multimodal-textbox .thumbnails {flex: 0 0 auto !important;
-    width: max-content !important; padding: 0 !important; margin: 0 !important;}
+/* The composer and the message bubbles are gradio's, untouched.
+   Everything that used to be here reached inside them — an inline attachment row, a
+   restyled thumbnail, textarea metrics, wrapper heights — and each fix created the next
+   problem: the row changed the geometry, the geometry needed wrapper heights, the
+   heights left the textarea with no slack, and a textarea with no slack showed a line
+   that had been scrolled where no scrollbar could say so. Stock gradio has none of that
+   because it is not fighting itself. What is left below styles only what this app owns:
+   the group around the pair, the example rows, and the report panel. */
+
 #example-scan button, #example-prompts button {text-align: left !important; justify-content: flex-start !important;}
 /* One example per row. Gradio lays a gallery out as a wrapping flex ROW, so the three
    questions packed two-and-one and the shape of the block changed with the width of the
@@ -337,14 +302,7 @@ CSS = """
   .main-row {flex-direction: column !important;}
   .main-row .chat-col {flex-grow: 1 !important; flex-basis: auto !important; max-width: 100% !important;}
 }
-/* The composer's loading veil. `.wrap.default.full` is gradio's status overlay: white,
-   position absolute, z-index 30, the full size of the block, faded in whenever the
-   component is pending. Over the composer that means the placeholder is half-erased
-   for the length of a scan and again on the way out — which is what "输入框被遮挡"
-   was, not a layout overflow (the textarea measured 32px content in a 32px box at
-   every stage of a scan). Transparent rather than hidden, so a spinner inside it would
-   still show; the input is disabled during a scan and reads as disabled anyway. */
-.chat-col .multimodal-textbox > .wrap {background: transparent !important;}
+
 /* A hairline between the two columns. The conversation has no frame of its own now, so
    on a wide screen the two halves ran together at the seam. One rule, not a box. */
 @media (min-width: 901px) {
@@ -396,24 +354,12 @@ CSS = """
     border-radius: 8px !important; transition: background-color 0.15s ease;}
 .chat-col .icon-button-wrapper button:hover, #report-actions button:hover {
     background: #f1f5f9 !important;}
-/* The attachment reads as a paperclip in the conversation and as a document glyph in the
-   composer, for the same file. The glyph is gradio's; this masks a paperclip over it, so
-   both places call the same thing by the same picture. */
-.chat-col .multimodal-textbox .thumbnail-item > :is(svg, img) {visibility: hidden !important;}
-.chat-col .multimodal-textbox .thumbnail-item {position: relative;}
-.chat-col .multimodal-textbox .thumbnail-item::after {content: ""; position: absolute;
-    inset: 0; margin: auto; width: 16px; height: 16px;
-    background: var(--body-text-color-subdued);
-    -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48'/></svg>") center / 16px no-repeat;
-    mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48'/></svg>") center / 16px no-repeat;}
+
 /* With a lease attached, "Attach a lease, or ask about renting in Washington…" is an
    instruction for something already done, sitting beside the chip that did it. :has()
    rather than a change event: the placeholder is presentation, and routing it through
    the server would put a round-trip between attaching a file and being able to type. */
-/* The placeholder itself is swapped in PLACEHOLDER_JS — the attribute, not a drawing of
-   it. A pseudo-element had to guess the real placeholder's x, font and baseline, and got
-   all three slightly wrong, which is exactly the kind of "almost aligned" this pass
-   exists to remove. */
+
 
 footer {visibility: hidden;}
 
@@ -436,6 +382,11 @@ footer {visibility: hidden;}
    inherited from two different wrappers. */
 #example-scan .gallery-item, #example-prompts .gallery-item {padding: 8px 12px;
     line-height: 20px;}
+/* S4's one accent surface. This lives with the examples, not with the conversation: the
+   example rows are this app's own markup, so styling them is not reaching into gradio. */
+#example-scan .gallery-item, #example-prompts .gallery-item {background: #ffffff;
+    border-color: #e2e8f0; color: var(--body-text-color);}
+#example-scan .gallery-item {background: #0f766e; border-color: #0f766e; color: #ffffff;}
 /* font-size too, and that omission is why the rows still looked different after the
    last pass: a question example's words live in a <p>, and gradio's prose rules set that
    <p> to 16px directly — which outranks the 14px on the button it sits in. The scan
@@ -445,19 +396,7 @@ footer {visibility: hidden;}
 #example-prompts .gallery-item p {padding: 0 !important; margin: 0 !important;
     font-size: var(--t-control) !important; line-height: 20px !important;}
 
-/* One hairline, one surface, for the conversation too. The user's bubble was tinted and
-   outlined in the accent colour, so the question was louder than the answer to it, and
-   the attachment inside it was a bordered box inside a bordered box. The accent now
-   appears on exactly one surface in this column — the scan example, which is the one
-   thing a first visitor should click. */
-.chat-col .message {border-color: #e2e8f0 !important; background: #ffffff !important;}
-/* Example chips are boxes too. The composer deliberately stays white: it is the one
-   place you type, and an input lighter than its surroundings is how that reads. */
-#example-scan .gallery-item, #example-prompts .gallery-item {background: #ffffff;
-    border-color: #e2e8f0; color: var(--body-text-color);}
-#example-scan .gallery-item {background: #0f766e; border-color: #0f766e; color: #ffffff;}
-.chat-col .message .file, .chat-col .message .attachment {border: 0 !important;
-                    background: none !important; padding: 0 !important;}
+
 /* The chatbot's toolbar sat in the same corner as the report's three actions and drew
    its icons in teal while those were grey. Same rule, two answers.
    `color` only. A `stroke: currentColor` here also painted the <rect> inside Gradio's
@@ -1136,65 +1075,18 @@ EXAMPLES_JS = """
 }
 """
 
-# Two things that have to happen the moment a file is attached, and neither is worth a
-# round-trip to the server: the placeholder stops being true ("Attach a lease" beside an
-# attached lease), and gradio swaps the upload button for a thumbnail drawn differently.
-# The svg is CLONED from the upload button rather than redrawn, so the two states cannot
-# diverge — a hand-drawn lookalike is a second source of truth for one glyph.
-PLACEHOLDER_JS = """
+# The one guard that survives the retreat to stock gradio: an empty textarea whose
+# scrollTop is not zero shows its placeholder with the top sheared off, and
+# `overflow-y: hidden` means no scrollbar appears to explain it. Reproduced by setting
+# scrollTop to 6 and matching the screenshot pixel for pixel. Three lines, no layout,
+# and it only ever fires when there is nothing to scroll to.
+UNSCROLL_JS = """
 () => {
-    const EMPTY = "Attach a lease, or ask about renting in Washington…";
-    const ATTACHED = "Ask about this lease, or press send to scan it";
-    let clip = null;
-    // The bug that outlived three explanations. gradio writes the example's text into
-    // the textarea and clears it again a moment later, and the browser scrolls to the
-    // caret while the value is long. `overflow-y: hidden` hides the scrollbar; it does
-    // NOT make the element unscrollable, so the line stays shifted up by a few pixels
-    // with nothing on screen to say so — the placeholder's top half is simply gone.
-    // Reproduced by setting scrollTop to 6 and comparing against her screenshot: pixel
-    // for pixel the same picture. Chromium happens to reset it when the value is
-    // cleared, which is why it never appeared in any automated run here.
-    // An empty textarea has nothing to scroll to, so this is safe: it only ever fires
-    // when the placeholder is what is showing.
-    const unscroll = (input) => { if (input && !input.value && input.scrollTop) input.scrollTop = 0; };
-    const sync = () => {
-        const box = document.querySelector('.chat-col .multimodal-textbox');
-        if (!box) return;
-        unscroll(box.querySelector('textarea'));
-        const upload = box.querySelector('button[aria-label*="Upload"] svg');
-        if (upload) clip = upload.outerHTML;      // cached while the button still exists
-        const chip = box.querySelector('.thumbnail-item');
-        const input = box.querySelector('textarea');
-        if (input) input.placeholder = chip ? ATTACHED : EMPTY;
-        if (chip && clip && !chip.dataset.clip) {
-            const icon = chip.querySelector('svg, img');
-            if (icon) { icon.outerHTML = clip; chip.dataset.clip = '1'; }
-        }
-    };
-    sync();
-    // 'scroll' is the direct signal: it fires the instant the browser moves the line.
+    const fix = (t) => { if (t && t.tagName === 'TEXTAREA' && !t.value && t.scrollTop) t.scrollTop = 0; };
     for (const type of ['scroll', 'input', 'change', 'blur', 'focus']) {
-        document.addEventListener(type, (e) => {
-            if (e.target && e.target.tagName === 'TEXTAREA') unscroll(e.target);
-        }, true);
+        document.addEventListener(type, (e) => fix(e.target), true);
     }
-    // Scoped to the composer's column and coalesced to one call per frame. Observing
-    // document.body would run this on every token of every streamed reply.
-    let queued = false;
-    const observer = new MutationObserver(() => {
-        if (queued) return;
-        queued = true;
-        requestAnimationFrame(() => { queued = false; sync(); });
-    });
-    const watch = () => {
-        const col = document.querySelector('.chat-col');
-        if (col) { observer.observe(col, {childList: true, subtree: true}); return true; }
-        return false;
-    };
-    if (!watch()) {
-        let tries = 0;
-        const wait = setInterval(() => { if (watch() || ++tries > 40) clearInterval(wait); }, 50);
-    }
+    setInterval(() => fix(document.querySelector('.chat-col textarea')), 500);
 }
 """
 
@@ -1390,7 +1282,7 @@ with gr.Blocks(title=SOCIAL_TITLE) as demo:
     # Client-side setup: focus the input, and make the example chips submit. A load
     # event is the only place this runs under Gradio 6 — see UI_STYLE above.
     demo.load(None, js=EXAMPLES_JS)
-    demo.load(None, js=PLACEHOLDER_JS)
+    demo.load(None, js=UNSCROLL_JS)
 
 # Public-hosting guardrails: a bounded waiting room instead of an unbounded
 # queue, and a few concurrent turns so one long scan doesn't serialize everyone.
