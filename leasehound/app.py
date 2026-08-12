@@ -184,13 +184,15 @@ CSS = """
 .report-panel .lh-explain {font-size: var(--t-doc); line-height: 1.45; color: var(--lh-body);
                            margin: 0 !important;}
 .report-panel .lh-cites {display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 0;}
-/* 3 — no underline. These were the only underlined things in the app, and every other
-   clickable thing here is a button, so an underline read as a different kind of object
-   rather than as "this is a link". Weight and colour carry it; the underline comes back
-   on hover, which is where it is actually useful. */
+/* No underline anywhere, at rest or on hover. Every clickable thing in this app now says
+   so the same way: a mint wash under the pointer. The citation gets it as a rounded
+   highlight rather than as a filled button, because it lives inside a sentence — same
+   colour, same message, shaped for where it sits. */
 .report-panel .lh-cite {font-size: var(--t-meta); font-weight: 500; color: #0f766e;
-                        text-decoration: none;}
-.report-panel a.lh-cite:hover {text-decoration: underline;}
+                        text-decoration: none; border-radius: 4px;
+                        padding: 1px 3px; margin: 0 -3px;
+                        transition: background-color 0.15s ease;}
+.report-panel a.lh-cite:hover {background: #f0fdfa; text-decoration: none;}
 .report-panel .lh-missing-list {margin: 0; padding-left: 20px; font-size: var(--t-doc);
                                 line-height: 1.6; color: var(--lh-body);}
 .report-panel .lh-tail {font-size: var(--t-doc); color: var(--lh-muted); margin: 14px 0 0;}
@@ -287,6 +289,13 @@ CSS = """
    it — the tests render no CSS, and the README screenshot that would have shown it
    predated the upgrade. The vertical centering it used to do is now the textarea's
    own align-content, below. */
+.chat-col .multimodal-textbox .input-row {align-items: center;}
+/* …and inside the row, the textarea's own wrapper, which gradio stretches to the row
+   height and then top-aligns the textarea within. That is the last 2px between the
+   paperclip and the words it belongs to. ONE alignment property, no heights, no
+   min-heights, nothing about the thumbnail — the cascade came from those, not from this. */
+.chat-col .multimodal-textbox .textarea-wrapper {display: flex; align-items: center;}
+
 /* The composer and the message bubbles are gradio's, untouched.
    Everything that used to be here reached inside them — an inline attachment row, a
    restyled thumbnail, textarea metrics, wrapper heights — and each fix created the next
@@ -362,8 +371,16 @@ CSS = """
 /* The conversation's [delete][copy] and the report's [delete][copy][download] are two
    groups of the same idea in the same corner, drawn by two different mechanisms — one
    gradio's chatbot toolbar, one a gr.Button row. Same size, same grey, same hover. */
-.chat-col .icon-button-wrapper button, #report-actions button {
+.chat-col .icon-button-wrapper button, #report-actions button,
+.chat-col button[class*="scroll"], .chat-col [class*="scroll-down"] {
     border-radius: 8px !important; transition: background-color 0.15s ease;}
+/* No shadows and no movement on hover — the scroll-to-bottom button was doing both,
+   which made it the only control on the page that jumped. */
+.chat-col button[class*="scroll"]:hover, .chat-col [class*="scroll-down"]:hover {
+    background: #f0fdfa !important; box-shadow: none !important; transform: none !important;}
+.chat-col button:hover, #report-actions button:hover,
+#example-scan .gallery-item:hover, #example-prompts .gallery-item:hover {
+    box-shadow: none !important; transform: none !important;}
 .chat-col .icon-button-wrapper button:hover, #report-actions button:hover {
     background: #f0fdfa !important;}
 
@@ -572,10 +589,22 @@ QUESTION_EXAMPLES = [
 ]
 
 
+# What the panel says while it has nothing to show. The column stays open across a new
+# scan, so it needs something honest to hold: a line, not an empty box, and never a
+# leftover report from the previous lease.
+NOT_JUDGED = "Nothing judged — see the message on the left."
+
+
+def panel_waiting(text: str) -> str:
+    return f'<p class="lh-waiting">{escape(text)}</p>'
+
+
 def report_context(name: str) -> str:
     # The pair to LAW_ONLY_CONTEXT, and emoji-free for the same reason: this is the
     # status line above the conversation, not the hound talking.
-    return f"The hound knows **Washington tenant law** + the **scan report of {name}**."
+    # Both runs are complete noun phrases, article and all: "the" sitting outside the
+    # bold made one half look like a different kind of thing from the other.
+    return f"The hound knows **Washington tenant law** + **the scan report of {name}**."
 
 
 # No --- divider: markdown gives an <hr> generous margins on top of the
@@ -815,12 +844,20 @@ def scan_flow(path, key, history, report, scanned, context_base, question="",
     # this function used to re-assemble them from the same primitives the CLI uses,
     # and two copies of a sequence that spends money stay in step only by luck.
     history.append({"role": "assistant", "content": SNIFF_STARTING})
-    # A fresh scan makes any previous report stale immediately: law-only context
-    # until the new report lands. The panel column stays CLOSED through the gate —
-    # opening it here meant a refusal had to close it again a second later.
+    # A fresh scan makes any previous report stale immediately: law-only context until the
+    # new report lands, and the stale report comes off the panel at once.
+    #
+    # The COLUMN, though, stays where it is. It used to close here and reopen a second
+    # later, so uploading a second lease made the whole page collapse to one column and
+    # slide back out — a 900ms rearrangement of everything on screen to report progress
+    # that the chat was already narrating. Now the split survives the scan, including a
+    # refusal: the panel says what happened and the layout holds. Only the trash closes
+    # it, which is the one case where the user asked for the report to be gone.
+    keep_split = gr.skip() if report else gr.update(visible=False)
     yield _out(history, box=gr.update(interactive=False),
-               report="", state="", context=LAW_ONLY_CONTEXT, source="",
-               stop=gr.update(visible=True), col=gr.update(visible=False),
+               report=panel_waiting(f"Sniffing {name}…") if report else "",
+               state="", context=LAW_ONLY_CONTEXT, source="",
+               stop=gr.update(visible=True), col=keep_split,
                actions=gr.update(visible=False))
     try:
         for step in scan_steps(text, name, state=DEMO_STATE, scan_anyway=scan_anyway,
@@ -879,9 +916,10 @@ def scan_flow(path, key, history, report, scanned, context_base, question="",
                 # telling ask mode "you have the scan report of X" when no clause
                 # was judged would invent a report for it to reason from.
                 yield _out(history, box=gr.update(interactive=True),
-                           report="", state="", context=LAW_ONLY_CONTEXT, source="",
+                           report=panel_waiting(NOT_JUDGED) if report else "",
+                           state="", context=LAW_ONLY_CONTEXT, source="",
                            stop=gr.update(visible=False),
-                           col=gr.update(visible=False),
+                           col=keep_split,
                            actions=gr.update(visible=False))
             elif step.kind == "done":
                 cache_put(digest, step.result)
@@ -891,8 +929,9 @@ def scan_flow(path, key, history, report, scanned, context_base, question="",
     except NoTextExtracted:
         history[-1]["content"] = NOTHING_EXTRACTED
         yield _out(history, box=gr.update(interactive=True),
-                   report="", state="", context=LAW_ONLY_CONTEXT, source="",
-                   stop=gr.update(visible=False), col=gr.update(visible=False),
+                   report=panel_waiting(NOT_JUDGED) if report else "",
+                   state="", context=LAW_ONLY_CONTEXT, source="",
+                   stop=gr.update(visible=False), col=keep_split,
                    actions=gr.update(visible=False))
     except DocumentTooLarge as oversized:
         history[-1]["content"] = TOO_LARGE.format(
@@ -1267,8 +1306,11 @@ with gr.Blocks(title=SOCIAL_TITLE) as demo:
                 elem_id="example-prompts",
             )
         with gr.Column(scale=1, visible=False, elem_classes="report-col") as report_col:
+            # No variant="stop": that painted it in gradio's red, the only red control in
+            # an app where red means "this clause is a red flag". It is an ordinary
+            # secondary button and hovers like every other one.
             stop_button = gr.Button(
-                "✋ Call off the hound", variant="stop", size="sm", visible=False
+                "✋ Call off the hound", size="sm", visible=False
             )
             # One row pinned at the panel's top-right corner (see the CSS), so
             # all three actions share the same position and appear together,
