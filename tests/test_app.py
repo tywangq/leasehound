@@ -290,6 +290,42 @@ def test_a_refused_scan_leaves_ask_mode_on_law_only_context(monkeypatch, tmp_pat
     app._scan_cache.clear()
 
 
+def test_the_stop_button_waits_for_the_gate(monkeypatch, tmp_path):
+    """"Call off the hound" used to appear the moment a scan started — beside the previous
+    lease's report and its three action buttons, so the screen offered to cancel something
+    while showing the result of something else. It arrives in the same frame that clears
+    them, which is also after the gate: a refused document never flashes a cancel button
+    for a scan that will not happen.
+    """
+    import leasehound.metrics as metrics
+
+    filler = "The parties agree to the terms set forth in this provision as written. "
+    text = "Intro.\n\n" + "\n\n".join(f"{i}. HEADING. {filler}" for i in range(1, 4))
+
+    def fake_scan_clauses(clauses, config, meter=None):
+        for index, clause in enumerate(clauses, start=1):
+            yield {"index": index, "clause": clause, "verdict": "green",
+                   "citations": [], "urls": {}, "explanation": "fine"}
+
+    monkeypatch.setattr(app, "read_document", lambda path: text)
+    monkeypatch.setattr(scan, "classify_document", gate_returns())
+    monkeypatch.setattr(scan, "scan_clauses", fake_scan_clauses)
+    monkeypatch.setattr(scan, "check_protections", lambda clauses, meter=None: [])
+    monkeypatch.setattr(metrics, "LOG_PATH", tmp_path / "scan_metrics.jsonl")
+    app._scan_cache.clear()
+
+    history: list = []
+    frames = list(app.scan_flow(Path("new.md"), "k2", history, "# old report", "k1", []))
+    # _out's positional contract: ..., stop is 7th, report 3rd, actions 10th.
+    first_stop = next(i for i, f in enumerate(frames) if f[6] not in (None,) and
+                      getattr(f[6], "get", lambda k, d=None: None)("visible") is True)
+    assert isinstance(frames[first_stop][2], str), (
+        "the frame that shows the stop button must also replace the old report")
+    assert not any(getattr(f[6], "get", lambda k, d=None: None)("visible") is True
+                   for f in frames[:first_stop]), "nothing may offer to cancel before the gate"
+    app._scan_cache.clear()
+
+
 def test_a_locked_pdf_gets_its_own_message_and_touches_nothing(monkeypatch, tmp_path):
     """The handler was in the wrong function and nobody noticed until a locked PDF hit the
     deployed app: read_document is called OUTSIDE the try that wraps the scan, so

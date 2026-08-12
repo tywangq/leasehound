@@ -132,7 +132,7 @@ CSS = """
    summary used to be one bold run with "·" between the numbers, and four emoji
    doing the colour coding — 🚩⚠️🔍✅ is four visual weights and four metaphors in
    a row, rendered differently on every platform. The dot is drawn now. */
-.report-panel .lh-chips {display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px;}
+.report-panel .lh-chips {display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 20px;}
 .report-panel .lh-chip {display: inline-flex; align-items: center; gap: 8px;
                         font-size: var(--t-meta); font-weight: 600; color: var(--lh-body);
                         padding: 6px 12px; border: 1px solid var(--lh-hair);
@@ -148,7 +148,7 @@ CSS = """
                            UI_STYLE. Was 8, then 10 to match .lh-finding, now 8 again
                            with .lh-finding: the panel agreeing with itself was the
                            small version of the problem. */
-                        margin: 0 0 10px; padding: 12px 14px; border-radius: 8px;
+                        margin: 2px 0 10px; padding: 12px 14px; border-radius: 8px;
                         background: var(--lh-card); border-left: 3px solid var(--lh-hair);}
 .report-panel .lh-note-jurisdiction, .report-panel .lh-note-gate,
 .report-panel .lh-note-partial {background: #fffbeb; border-left-color: var(--lh-amber);}
@@ -292,10 +292,11 @@ CSS = """
    predated the upgrade. The vertical centering it used to do is now the textarea's
    own align-content, below. */
 .chat-col .multimodal-textbox .input-row {align-items: center;}
-/* With a file attached the chip sits ABOVE the input, and its glyph was centred in a 40px
-   box — so the icon began 10px to the right of the text under it. Left-align the glyph
-   and both start on the same edge, with no measurement to go stale. */
-.chat-col .multimodal-textbox .thumbnail-item {justify-content: flex-start;}
+/* The chip's own left edge already lines up with the text below it — gradio puts both at
+   the same x. The glyph stays centred INSIDE the chip, because the chip is the visible
+   object and an icon off-centre in its own tile looks like a mistake, while a 10px offset
+   between a glyph and a line of text below it does not. Left-aligning the glyph was the
+   wrong one of the two to move. */
 /* …and inside the row, the textarea's own wrapper, which gradio stretches to the row
    height and then top-aligns the textarea within. That is the last 2px between the
    paperclip and the words it belongs to. ONE alignment property, no heights, no
@@ -377,17 +378,32 @@ CSS = """
 /* The conversation's [delete][copy] and the report's [delete][copy][download] are two
    groups of the same idea in the same corner, drawn by two different mechanisms — one
    gradio's chatbot toolbar, one a gr.Button row. Same size, same grey, same hover. */
-.chat-col .icon-button-wrapper button, #report-actions button,
-#stop-button, #stop-button button,
-.chat-col button[class*="scroll"], .chat-col [class*="scroll-down"] {
+#report-actions button, #stop-button, #stop-button button {
     border-radius: 8px !important; transition: background-color 0.15s ease;
     background: #ffffff !important; border: 1px solid #e2e8f0 !important;
     box-shadow: none !important; color: var(--body-text-color) !important;}
+/* The chatbot's toolbar gets everything except the border: those two buttons already sit
+   on a white rounded panel of gradio's, so a hairline each was a frame inside a frame —
+   which at their size reads as a circle around every glyph. The report's three actions
+   keep theirs because they stand alone on the panel with nothing behind them. */
+.chat-col .icon-button-wrapper button {border: 0 !important; box-shadow: none !important;
+    border-radius: 8px !important; transition: background-color 0.15s ease;
+    color: var(--body-text-color) !important;}
 #stop-button:hover, #stop-button button:hover {background: #f0fdfa !important;}
-/* No shadows and no movement on hover — the scroll-to-bottom button was doing both,
-   which made it the only control on the page that jumped. */
-.chat-col button[class*="scroll"]:hover, .chat-col [class*="scroll-down"]:hover {
-    background: #f0fdfa !important; box-shadow: none !important; transform: none !important;}
+/* No shadows and no movement on hover. The scroll-to-bottom control did both — it slid
+   sideways out from under the pointer — and it is the only thing on the page that moved.
+   gradio's class for it is scroll-down-button-container; the descendant rule covers the
+   button inside, since the transform could be on either. */
+.chat-col .scroll-down-button-container,
+.chat-col .scroll-down-button-container *,
+.chat-col [class*="scroll-down"], .chat-col [class*="scroll-down"] * {
+    transition: background-color 0.15s ease !important;}
+.chat-col .scroll-down-button-container:hover,
+.chat-col .scroll-down-button-container:hover *,
+.chat-col [class*="scroll-down"]:hover, .chat-col [class*="scroll-down"]:hover * {
+    transform: none !important; box-shadow: none !important;}
+.chat-col .scroll-down-button-container:hover button,
+.chat-col [class*="scroll-down"]:hover button {background: #f0fdfa !important;}
 .chat-col button:hover, #report-actions button:hover,
 #example-scan .gallery-item:hover, #example-prompts .gallery-item:hover {
     box-shadow: none !important; transform: none !important;}
@@ -881,7 +897,6 @@ def scan_flow(path, key, history, report, scanned, context_base, question="",
     # were the same mistake: treating "a new scan started" as "the old result is gone".
     # It is gone when it is replaced (finished_scan) or when the trash says so.
     yield _out(history, box=gr.update(interactive=False),
-               stop=gr.update(visible=True),
                col=gr.skip() if report else gr.update(visible=False))
     try:
         for step in scan_steps(text, name, state=DEMO_STATE, scan_anyway=scan_anyway,
@@ -902,10 +917,21 @@ def scan_flow(path, key, history, report, scanned, context_base, question="",
                 # what it had to key on before this step existed. 0/N is honest now:
                 # it appears only once N clauses are certain to be judged.
                 history[-1]["content"] = progress_line(0, step.judged)
+                # One frame for the three things that belong to this moment: the previous
+                # lease's report leaves the panel, its download and copy buttons leave with
+                # it, and the button that can stop THIS scan arrives. They used to be split
+                # — "call off the hound" appeared at the very start, next to a finished
+                # report and its buttons, so the screen offered to cancel something while
+                # showing the result of something else. Waiting for the gate also means a
+                # refused document never flashes a cancel button for a scan that will not
+                # happen.
                 yield _out(history, col=gr.update(visible=True),
                            report=f'<p class="lh-waiting">Sniffing '
                                   f'<code>{escape(name)}</code> — the report will '
-                                  f'appear here.</p>')
+                                  f'appear here.</p>',
+                           state="", context=LAW_ONLY_CONTEXT, source="",
+                           stop=gr.update(visible=True),
+                           actions=gr.update(visible=False))
             elif step.kind == "gate_flagged":
                 history.insert(-1, {"role": "assistant", "content": NOT_A_LEASE})
                 yield _out(history)
