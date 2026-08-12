@@ -304,6 +304,13 @@ CSS = """
 .chat-col .multimodal-textbox .thumbnails {flex: 0 0 auto !important;
     width: max-content !important; padding: 0 !important; margin: 0 !important;}
 #example-scan button, #example-prompts button {text-align: left !important; justify-content: flex-start !important;}
+/* One example per row. Gradio lays a gallery out as a wrapping flex ROW, so the three
+   questions packed two-and-one and the shape of the block changed with the width of the
+   words in it. A column reads as a list of choices, which is what it is. Left-aligned at
+   their natural widths rather than stretched: full-width buttons would make a form out
+   of three suggestions. */
+#example-scan .gallery, #example-prompts .gallery {flex-direction: column !important;
+    align-items: flex-start !important; gap: 8px !important;}
 /* Both example rows at --t-control, the size every other control on the page uses.
    The scan example used to be var(--text-lg) — 16px against the question chips' 14 —
    from a time when the question chips rendered as markdown <p> and this one did not. */
