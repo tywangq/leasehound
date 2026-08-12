@@ -826,7 +826,19 @@ def scan_flow(path, key, history, report, scanned, context_base, question="",
             yield from answer_flow(question, history, report, context_base)
         return
 
-    text = read_document(path)
+    # read_document is called OUTSIDE the try that wraps the scan, which is why the
+    # EncryptedDocument handler added below it never fired: a locked PDF raised here and
+    # went straight to respond()'s generic "tripped over an error". Found by uploading one
+    # to the deployed revision — the fix for the message was in the wrong function.
+    try:
+        text = read_document(path)
+    except EncryptedDocument:
+        cleanup_upload(path)
+        history.append({"role": "assistant", "content": LOCKED_PDF})
+        # Nothing on the right is touched: the file never opened, so whatever report is
+        # on screen is still the current one.
+        yield _out(history, box=gr.update(interactive=True))
+        return
     cleanup_upload(path)
 
     digest = cache_key(text)
@@ -937,10 +949,6 @@ def scan_flow(path, key, history, report, scanned, context_base, question="",
                 history[-1]["content"] = scan_summary(step.result)
                 yield from finished_scan(step.result, name, key, history,
                                          context_base, question)
-    except EncryptedDocument:
-        history[-1]["content"] = LOCKED_PDF
-        yield _out(history, box=gr.update(interactive=True),
-                   stop=gr.update(visible=False))
     except NoTextExtracted:
         history[-1]["content"] = NOTHING_EXTRACTED
         yield _out(history, box=gr.update(interactive=True),

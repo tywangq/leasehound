@@ -290,6 +290,31 @@ def test_a_refused_scan_leaves_ask_mode_on_law_only_context(monkeypatch, tmp_pat
     app._scan_cache.clear()
 
 
+def test_a_locked_pdf_gets_its_own_message_and_touches_nothing(monkeypatch, tmp_path):
+    """The handler was in the wrong function and nobody noticed until a locked PDF hit the
+    deployed app: read_document is called OUTSIDE the try that wraps the scan, so
+    EncryptedDocument went to respond()'s generic "tripped over an error" instead.
+
+    Also pins the other half: a file that never opened cannot cost the report on screen.
+    """
+    from leasehound.upload import EncryptedDocument
+
+    def locked(path):
+        raise EncryptedDocument(path.name)
+
+    monkeypatch.setattr(app, "read_document", locked)
+    history: list = []
+    previous = "# LeaseHound scan report\n\nDocument: `first.md`"
+    frames = list(app.scan_flow(Path("locked.pdf"), "key2", history, previous, "key1", []))
+
+    assert any(app.LOCKED_PDF in (m.get("content") or "") for m in history)
+    assert not any(app.SNIFF_STARTING in (m.get("content") or "") for m in history), (
+        "nothing may promise a scan of a file that never opened")
+    for frame in frames:
+        for value in (frame[2], frame[3], frame[4], frame[5]):
+            assert not isinstance(value, str), "a locked PDF must not touch the panel"
+
+
 def test_a_refusal_leaves_an_existing_report_alone(monkeypatch, tmp_path):
     """Uploading a non-lease while a report is on screen used to cost you the report.
 
