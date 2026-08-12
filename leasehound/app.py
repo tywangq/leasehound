@@ -83,7 +83,8 @@ CSS = """
     --t-display: 34px;   /* the wordmark, once per page */
     --t-title: 18px;     /* "Scan report" — the title of a surface, not of the page */
     --t-lead: 17px;      /* the tagline under the wordmark */
-    --t-body: 16px;      /* conversation, and anything read as prose */
+    /* No --t-body. The conversation reads at gradio's own 16px and this file does not
+       override it — a token nothing reads is documentation pretending to be code. */
     --t-control: 14px;   /* composer, example buttons — Gradio's own size */
     --t-quote: 14px;     /* the lease's own words: a serif set at --doc reads smaller
                             than the sans beside it, and this is the one thing on the
