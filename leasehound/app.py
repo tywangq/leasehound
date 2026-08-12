@@ -132,7 +132,13 @@ CSS = """
    summary used to be one bold run with "·" between the numbers, and four emoji
    doing the colour coding — 🚩⚠️🔍✅ is four visual weights and four metaphors in
    a row, rendered differently on every platform. The dot is drawn now. */
-.report-panel .lh-chips {display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 20px;}
+/* No bottom margin here, and not because none is wanted: gradio ships
+   `.prose :last-child {margin-bottom: 0 !important}`, and this <p> is the last child of
+   .lh-head, so any margin-bottom written here is discarded. A `margin: 0 0 20px` sat on
+   this line and measured 20px in every standalone render — the standalone had no .prose
+   ancestor, so the rule that beat it was not in the page being measured. The space
+   belongs to whatever comes next, which can hold it. */
+.report-panel .lh-chips {display: flex; flex-wrap: wrap; gap: 8px; margin: 0;}
 .report-panel .lh-chip {display: inline-flex; align-items: center; gap: 8px;
                         font-size: var(--t-meta); font-weight: 600; color: var(--lh-body);
                         padding: 6px 12px; border: 1px solid var(--lh-hair);
@@ -148,8 +154,15 @@ CSS = """
                            UI_STYLE. Was 8, then 10 to match .lh-finding, now 8 again
                            with .lh-finding: the panel agreeing with itself was the
                            small version of the problem. */
-                        margin: 2px 0 10px; padding: 12px 14px; border-radius: 8px;
+                        /* 20px above, because the thing above is the chip row and a
+                           filled callout 2px under a row of pills reads as touching it.
+                           Held here rather than on .lh-chips, which cannot keep a bottom
+                           margin (see above). 10px below, and 8px between two notices —
+                           consecutive warnings are one group and should not drift apart
+                           as far as they sit from the summary. */
+                        margin: 20px 0 10px; padding: 12px 14px; border-radius: 8px;
                         background: var(--lh-card); border-left: 3px solid var(--lh-hair);}
+.report-panel .lh-note + .lh-note {margin-top: 8px;}
 .report-panel .lh-note-jurisdiction, .report-panel .lh-note-gate,
 .report-panel .lh-note-partial {background: #fffbeb; border-left-color: var(--lh-amber);}
 .report-panel .lh-section {font-size: var(--t-label); font-weight: 700; letter-spacing: 0.08em;
@@ -302,6 +315,15 @@ CSS = """
    paperclip and the words it belongs to. ONE alignment property, no heights, no
    min-heights, nothing about the thumbnail — the cascade came from those, not from this. */
 .chat-col .multimodal-textbox .textarea-wrapper {display: flex; align-items: center;}
+/* …and once a file IS attached, the line of text below the chip starts 6px in rather than
+   flush with the chip's left edge. Flush is what a grid says and not what the eye reads:
+   the chip is a filled tile whose glyph sits 10px inside it, so text hard against the
+   tile's edge looks like it has fallen further left than the thing it belongs to. 6px is
+   the tile's own corner radius — the point where its left edge stops curving — so the
+   number comes from the chip rather than from taste. Scoped by :has(.thumbnails): the
+   inline composer, with no chip above the text, has nothing to align to and keeps
+   gradio's padding. */
+.chat-col .multimodal-textbox .input-wrapper:has(.thumbnails) textarea {padding-left: 6px;}
 
 /* The composer and the message bubbles are gradio's, untouched.
    Everything that used to be here reached inside them — an inline attachment row, a
@@ -390,20 +412,23 @@ CSS = """
     border-radius: 8px !important; transition: background-color 0.15s ease;
     color: var(--body-text-color) !important;}
 #stop-button:hover, #stop-button button:hover {background: #f0fdfa !important;}
-/* No shadows and no movement on hover. The scroll-to-bottom control did both — it slid
-   sideways out from under the pointer — and it is the only thing on the page that moved.
-   gradio's class for it is scroll-down-button-container; the descendant rule covers the
-   button inside, since the transform could be on either. */
-.chat-col .scroll-down-button-container,
-.chat-col .scroll-down-button-container *,
-.chat-col [class*="scroll-down"], .chat-col [class*="scroll-down"] * {
+/* The scroll-to-bottom control slid out from under the pointer, and it is the only thing
+   on the page that moved on hover. gradio lifts the BUTTON by translateY(-2px) and adds a
+   second shadow; both are pinned below, in both states, so hovering changes the fill and
+   nothing else.
+   What must not be touched is the CONTAINER's transform. gradio centres it with
+   `left: 50%; transform: translate(-50%)`, so `transform: none` on the container is not
+   "hold still" — it is "un-centre", and it jumped the button 13px to the right, which is
+   the sideways dodge this rule was written to stop. Measured: matrix(1,0,0,1,-13,0) → none
+   on hover, on a 26px-wide container. Naming only the button is the fix.
+   The `[class*="scroll-down"]` half of the old selector is gone too: it was a guess at
+   gradio's class name, and a guess wide enough to catch the container is how the container
+   got caught. The name is confirmed from the shipped stylesheet. */
+.chat-col .scroll-down-button-container button,
+.chat-col .scroll-down-button-container button:hover {
+    transform: none !important; box-shadow: var(--shadow-drop) !important;
     transition: background-color 0.15s ease !important;}
-.chat-col .scroll-down-button-container:hover,
-.chat-col .scroll-down-button-container:hover *,
-.chat-col [class*="scroll-down"]:hover, .chat-col [class*="scroll-down"]:hover * {
-    transform: none !important; box-shadow: none !important;}
-.chat-col .scroll-down-button-container:hover button,
-.chat-col [class*="scroll-down"]:hover button {background: #f0fdfa !important;}
+.chat-col .scroll-down-button-container button:hover {background: #f0fdfa !important;}
 .chat-col button:hover, #report-actions button:hover,
 #example-scan .gallery-item:hover, #example-prompts .gallery-item:hover {
     box-shadow: none !important; transform: none !important;}
