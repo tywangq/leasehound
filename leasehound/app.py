@@ -351,21 +351,21 @@ CSS = """
 /* Hover, which neither row had. A chip that does not react to the pointer reads as a
    label, and these are the only things on the page a first visitor should click. */
 #example-scan .gallery-item, #example-prompts .gallery-item {transition: background-color 0.15s ease;}
-#example-prompts .gallery-item:hover {background: #f8fafc;}
+#example-prompts .gallery-item:hover {background: #f0fdfa; border-color: #99f6e4;}
 #example-scan .gallery-item:hover {background: #115e59; border-color: #115e59;}
 /* Attach and send sit in the same composer and had two different hovers: send lifted to
    grey, attach did nothing. Same surface now, and the same 8px corner as everything else. */
 .chat-col .multimodal-textbox :is(button[aria-label*="Upload"], button[aria-label*="Submit"]) {
     border-radius: 8px; transition: background-color 0.15s ease;}
 .chat-col .multimodal-textbox button[aria-label*="Upload"]:hover,
-.chat-col .multimodal-textbox button[aria-label*="Submit"]:hover {background: #f1f5f9;}
+.chat-col .multimodal-textbox button[aria-label*="Submit"]:hover {background: #f0fdfa;}
 /* The conversation's [delete][copy] and the report's [delete][copy][download] are two
    groups of the same idea in the same corner, drawn by two different mechanisms — one
    gradio's chatbot toolbar, one a gr.Button row. Same size, same grey, same hover. */
 .chat-col .icon-button-wrapper button, #report-actions button {
     border-radius: 8px !important; transition: background-color 0.15s ease;}
 .chat-col .icon-button-wrapper button:hover, #report-actions button:hover {
-    background: #f1f5f9 !important;}
+    background: #f0fdfa !important;}
 
 /* With a lease attached, "Attach a lease, or ask about renting in Washington…" is an
    instruction for something already done, sitting beside the chip that did it. :has()
@@ -575,7 +575,7 @@ QUESTION_EXAMPLES = [
 def report_context(name: str) -> str:
     # The pair to LAW_ONLY_CONTEXT, and emoji-free for the same reason: this is the
     # status line above the conversation, not the hound talking.
-    return f"The hound knows **Washington tenant law** + the **scan report of `{name}`**."
+    return f"The hound knows **Washington tenant law** + the **scan report of {name}**."
 
 
 # No --- divider: markdown gives an <hr> generous margins on top of the
@@ -1099,18 +1099,33 @@ EXAMPLES_JS = """
 }
 """
 
-# The one guard that survives the retreat to stock gradio: an empty textarea whose
+# Two things the app keeps doing for the composer, both content rather than layout: an
+# empty textarea whose
 # scrollTop is not zero shows its placeholder with the top sheared off, and
 # `overflow-y: hidden` means no scrollbar appears to explain it. Reproduced by setting
 # scrollTop to 6 and matching the screenshot pixel for pixel. Three lines, no layout,
 # and it only ever fires when there is nothing to scroll to.
-UNSCROLL_JS = """
+COMPOSER_JS = """
 () => {
+    const EMPTY = "Attach a lease, or ask about renting in Washington…";
+    const ATTACHED = "Ask about this lease, or press send to scan it";
     const fix = (t) => { if (t && t.tagName === 'TEXTAREA' && !t.value && t.scrollTop) t.scrollTop = 0; };
+    const sync = () => {
+        const box = document.querySelector('.chat-col .multimodal-textbox');
+        if (!box) return;
+        const input = box.querySelector('textarea');
+        fix(input);
+        // Attribute only. Everything else that used to live here — the cloned glyph, the
+        // inline row, the wrapper heights — is what the retreat to stock gradio removed,
+        // and none of it is coming back. A placeholder still asking for a lease while the
+        // lease sits next to it is a content bug, and content is this app's to fix.
+        if (input) input.placeholder = box.querySelector('.thumbnail-item') ? ATTACHED : EMPTY;
+    };
     for (const type of ['scroll', 'input', 'change', 'blur', 'focus']) {
         document.addEventListener(type, (e) => fix(e.target), true);
     }
-    setInterval(() => fix(document.querySelector('.chat-col textarea')), 500);
+    setInterval(sync, 300);
+    sync();
 }
 """
 
@@ -1306,7 +1321,7 @@ with gr.Blocks(title=SOCIAL_TITLE) as demo:
     # Client-side setup: focus the input, and make the example chips submit. A load
     # event is the only place this runs under Gradio 6 — see UI_STYLE above.
     demo.load(None, js=EXAMPLES_JS)
-    demo.load(None, js=UNSCROLL_JS)
+    demo.load(None, js=COMPOSER_JS)
 
 # Public-hosting guardrails: a bounded waiting room instead of an unbounded
 # queue, and a few concurrent turns so one long scan doesn't serialize everyone.
