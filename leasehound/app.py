@@ -304,6 +304,60 @@ CSS = """
   .main-row {flex-direction: column !important;}
   .main-row .chat-col {flex-grow: 1 !important; flex-basis: auto !important; max-width: 100% !important;}
 }
+/* The composer's loading veil. `.wrap.default.full` is gradio's status overlay: white,
+   position absolute, z-index 30, the full size of the block, faded in whenever the
+   component is pending. Over the composer that means the placeholder is half-erased
+   for the length of a scan and again on the way out — which is what "输入框被遮挡"
+   was, not a layout overflow (the textarea measured 32px content in a 32px box at
+   every stage of a scan). Transparent rather than hidden, so a spinner inside it would
+   still show; the input is disabled during a scan and reads as disabled anyway. */
+.chat-col .multimodal-textbox > .wrap {background: transparent !important;}
+/* A hairline between the two columns. The conversation has no frame of its own now, so
+   on a wide screen the two halves ran together at the seam. One rule, not a box. */
+@media (min-width: 901px) {
+  .main-row:has(.report-col) .report-col {border-left: 1px solid #e2e8f0; padding-left: 22px;}
+}
+/* ── The chat column's controls, made to agree with each other ──────────────
+   Everything below is one answer to the same question: the same kind of thing should
+   look and behave the same way. Measured first, in every case.
+
+   The two example rows were 42px and 44px tall at the same 14px and the same 6/12
+   padding: gradio wraps a question example in an extra .container carrying its own
+   4px 8px. Zeroed, so the rows differ by their words and nothing else. */
+/* Hover, which neither row had. A chip that does not react to the pointer reads as a
+   label, and these are the only things on the page a first visitor should click. */
+#example-scan .gallery-item, #example-prompts .gallery-item {transition: background-color 0.15s ease;}
+#example-prompts .gallery-item:hover {background: #f8fafc;}
+#example-scan .gallery-item:hover {background: #115e59; border-color: #115e59;}
+/* Attach and send sit in the same composer and had two different hovers: send lifted to
+   grey, attach did nothing. Same surface now, and the same 8px corner as everything else. */
+.chat-col .multimodal-textbox :is(button[aria-label*="Upload"], button[aria-label*="Submit"]) {
+    border-radius: 8px; transition: background-color 0.15s ease;}
+.chat-col .multimodal-textbox button[aria-label*="Upload"]:hover,
+.chat-col .multimodal-textbox button[aria-label*="Submit"]:hover {background: #f1f5f9;}
+/* The conversation's [delete][copy] and the report's [delete][copy][download] are two
+   groups of the same idea in the same corner, drawn by two different mechanisms — one
+   gradio's chatbot toolbar, one a gr.Button row. Same size, same grey, same hover. */
+.chat-col .icon-button-wrapper button, #report-actions button {
+    border-radius: 8px !important; transition: background-color 0.15s ease;}
+.chat-col .icon-button-wrapper button:hover, #report-actions button:hover {
+    background: #f1f5f9 !important;}
+/* The attachment reads as a paperclip in the conversation and as a document glyph in the
+   composer, for the same file. The glyph is gradio's; this masks a paperclip over it, so
+   both places call the same thing by the same picture. */
+.chat-col .multimodal-textbox .thumbnail-item > :is(svg, img) {visibility: hidden !important;}
+.chat-col .multimodal-textbox .thumbnail-item {position: relative;}
+.chat-col .multimodal-textbox .thumbnail-item::after {content: ""; position: absolute;
+    inset: 0; margin: auto; width: 16px; height: 16px;
+    background: var(--body-text-color-subdued);
+    -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48'/></svg>") center / 16px no-repeat;
+    mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48'/></svg>") center / 16px no-repeat;}
+/* With a lease attached, "Attach a lease, or ask about renting in Washington…" is an
+   instruction for something already done, sitting beside the chip that did it. :has()
+   rather than a change event: the placeholder is presentation, and routing it through
+   the server would put a round-trip between attaching a file and being able to type. */
+.chat-col .multimodal-textbox:has(.thumbnail-item) textarea::placeholder {color: transparent;}
+
 footer {visibility: hidden;}
 
 /* The example rows, in the report's label language. Gradio gives an Examples group a
@@ -319,7 +373,15 @@ footer {visibility: hidden;}
 /* Uniform chips. Their widths still differ — the questions are different lengths and
    padding them to a common width would be a grid of half-empty buttons — but the
    padding, border and radius no longer do. */
-#example-scan .gallery-item, #example-prompts .gallery-item {padding: 6px 12px;}
+/* One box for both rows. The two disagreed twice: gradio wraps a question example in an
+   extra .container with its own 4px 8px (42px against 44px), and zeroing that alone
+   swung them the other way (42 against 36). So the line box is stated here rather than
+   inherited from two different wrappers. */
+#example-scan .gallery-item, #example-prompts .gallery-item {padding: 8px 12px;
+    line-height: 20px;}
+#example-scan .gallery-item > div, #example-prompts .gallery-item .container,
+#example-prompts .gallery-item p {padding: 0 !important; margin: 0 !important;
+    line-height: 20px !important;}
 
 /* One hairline, one surface, for the conversation too. The user's bubble was tinted and
    outlined in the accent colour, so the question was louder than the answer to it, and
@@ -349,11 +411,6 @@ LAW_ONLY_CONTEXT = (
     "The hound knows **Washington tenant law (RCW 59.18)**. "
     "Scan a lease and it will know your report too."
 )
-# The empty conversation. Deliberately not a second copy of the line above it: that
-# one says what the hound knows, this one says what to do. No emoji — the context line
-# already carries one in the same viewport, and two metaphors above an empty box is
-# where "cluttered" starts.
-CHAT_PLACEHOLDER = "Findings appear here, each citing a statute."
 ALREADY_SNIFFED = "🐕 Already sniffed this one — the report is still on the right."
 # Everything before the first verdict: reading the document, splitting it, and the
 # gate call. The pair to ask mode's "🐕 Thinking…", and short for the same reason —
@@ -1115,9 +1172,11 @@ with gr.Blocks(title=SOCIAL_TITLE) as demo:
             # the top-right, which is the same corner the report's own actions sit in.
             # One place where actions live.
             #
-            # placeholder, because the empty state was 440px of bordered white. An
-            # empty box with a frame reads as a widget that has not loaded; one quiet
-            # line reads as a product waiting for input.
+            # No placeholder. There was one — "Findings appear here, each citing a
+            # statute." — and it sat directly above the composer's own "Attach a lease,
+            # or ask about renting in Washington…", two hints competing for the same
+            # glance. The composer's is attached to the thing you actually type in, so
+            # it is the one that survives.
             #
             # A FIXED height, deliberately. It was briefly min 180 / max 440 so the box
             # would hug short conversations, and the cost was worse than the empty
@@ -1125,8 +1184,7 @@ with gr.Blocks(title=SOCIAL_TITLE) as demo:
             # examples under it moved while the reader was mid-sentence. A stable frame
             # beats a tight one in the one region the eye is already fixed on.
             chatbot = gr.Chatbot(height=440, show_label=False,
-                                 buttons=["copy_all"],
-                                 placeholder=CHAT_PLACEHOLDER)
+                                 buttons=["copy_all"])
             message_box = gr.MultimodalTextbox(
                 placeholder="Attach a lease, or ask about renting in Washington…",
                 show_label=False,
