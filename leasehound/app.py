@@ -92,6 +92,21 @@ CSS = """
     --t-doc: 13px;       /* the report's body text, and the line about what is loaded */
     --t-meta: 12px;      /* verdict chips, file names, statute citations */
     --t-label: 11px;     /* every uppercase label, and the caveat */
+    /* One green, and everything pale derived from it.
+       The page used to hold two unrelated greens: the scan chip at #0f766e (175°) and a
+       hover wash at teal-50 #f0fdfa (166°). Nine degrees apart, and the wash kept 76%
+       saturation at 97% lightness — tailwind's 50s are tuned to look colourful when
+       pale, so it was not a lighter version of the chip, it was a bluer, more saturated
+       colour that happened to be pale. Two colours, not one colour at two strengths,
+       which is exactly what it looked like.
+       Mixed with white instead, the hue is carried along: 12% lands on 175°, the accent's
+       own hue, and saturation falls to 29% where a wash belongs. Changing --lh-accent now
+       moves the chip, the hover fill, the hover border and the pressed chip together —
+       there is nothing left to keep in sync by hand. */
+    --lh-accent: #0f766e;
+    --lh-wash: color-mix(in srgb, var(--lh-accent) 12%, #ffffff);
+    --lh-wash-border: color-mix(in srgb, var(--lh-accent) 36%, #ffffff);
+    --lh-accent-deep: color-mix(in srgb, var(--lh-accent) 82%, #000000);
 }
 .hero {text-align: center; padding: 12px 0 8px;}
 .hero .wordmark {font-size: var(--t-display); font-weight: 700; letter-spacing: -0.5px;}
@@ -115,7 +130,10 @@ CSS = """
    anything; then briefly the reverse of the card, grey page and white boxes, which had
    depth pointing the wrong way. --lh-card is read by every filled box in the panel, so
    this is one value to change, not eight. */
-.report-panel {--lh-red: #dc2626; --lh-amber: #d97706; --lh-teal: #0d9488;
+/* --lh-teal is gradio's own --primary-600, which is #0d9488 in both light and dark
+   (the ramp is constant; only what references it changes). It was written out as that
+   hex here, so the theme's teal and the report's teal were the same value stated twice. */
+.report-panel {--lh-red: #dc2626; --lh-amber: #d97706; --lh-teal: var(--primary-600);
                --lh-green: #16a34a; --lh-ink: #0f172a; --lh-body: #334155;
                --lh-muted: #94a3b8; --lh-hair: #e2e8f0; --lh-card: #f8fafc;}
 .report-panel .lh-md {display: none;}
@@ -206,11 +224,11 @@ CSS = """
    so the same way: a mint wash under the pointer. The citation gets it as a rounded
    highlight rather than as a filled button, because it lives inside a sentence — same
    colour, same message, shaped for where it sits. */
-.report-panel .lh-cite {font-size: var(--t-meta); font-weight: 500; color: #0f766e;
+.report-panel .lh-cite {font-size: var(--t-meta); font-weight: 500; color: var(--lh-accent);
                         text-decoration: none; border-radius: 4px;
                         padding: 1px 3px; margin: 0 -3px;
                         transition: background-color 0.15s ease;}
-.report-panel a.lh-cite:hover {background: #f0fdfa; text-decoration: none;}
+.report-panel a.lh-cite:hover {background: var(--lh-wash); text-decoration: none;}
 .report-panel .lh-missing-list {margin: 0; padding-left: 20px; font-size: var(--t-doc);
                                 line-height: 1.6; color: var(--lh-body);}
 .report-panel .lh-tail {font-size: var(--t-doc); color: var(--lh-muted); margin: 14px 0 0;}
@@ -392,14 +410,16 @@ CSS = """
 /* Hover, which neither row had. A chip that does not react to the pointer reads as a
    label, and these are the only things on the page a first visitor should click. */
 #example-scan .gallery-item, #example-prompts .gallery-item {transition: background-color 0.15s ease;}
-#example-prompts .gallery-item:hover {background: #f0fdfa; border-color: #99f6e4;}
-#example-scan .gallery-item:hover {background: #115e59; border-color: #115e59;}
+#example-prompts .gallery-item:hover {background: var(--lh-wash);
+    border-color: var(--lh-wash-border);}
+#example-scan .gallery-item:hover {background: var(--lh-accent-deep);
+    border-color: var(--lh-accent-deep);}
 /* Attach and send sit in the same composer and had two different hovers: send lifted to
    grey, attach did nothing. Same surface now, and the same 8px corner as everything else. */
 .chat-col .multimodal-textbox :is(button[aria-label*="Upload"], button[aria-label*="Submit"]) {
     border-radius: 8px; transition: background-color 0.15s ease;}
 .chat-col .multimodal-textbox button[aria-label*="Upload"]:hover,
-.chat-col .multimodal-textbox button[aria-label*="Submit"]:hover {background: #f0fdfa;}
+.chat-col .multimodal-textbox button[aria-label*="Submit"]:hover {background: var(--lh-wash);}
 /* The conversation's [delete][copy] and the report's [delete][copy][download] are two
    groups of the same idea in the same corner, drawn by two different mechanisms — one
    gradio's chatbot toolbar, one a gr.Button row. Same size, same grey, same hover. */
@@ -414,7 +434,7 @@ CSS = """
 .chat-col .icon-button-wrapper button {border: 0 !important; box-shadow: none !important;
     border-radius: 8px !important; transition: background-color 0.15s ease;
     color: var(--body-text-color) !important;}
-#stop-button:hover, #stop-button button:hover {background: #f0fdfa !important;}
+#stop-button:hover, #stop-button button:hover {background: var(--lh-wash) !important;}
 /* The scroll-to-bottom control slid out from under the pointer, and it is the only thing
    on the page that moved on hover. gradio lifts the BUTTON by translateY(-2px) and adds a
    second shadow; both are pinned below, in both states, so hovering changes the fill and
@@ -431,12 +451,12 @@ CSS = """
 .chat-col .scroll-down-button-container button:hover {
     transform: none !important; box-shadow: var(--shadow-drop) !important;
     transition: background-color 0.15s ease !important;}
-.chat-col .scroll-down-button-container button:hover {background: #f0fdfa !important;}
+.chat-col .scroll-down-button-container button:hover {background: var(--lh-wash) !important;}
 .chat-col button:hover, #report-actions button:hover,
 #example-scan .gallery-item:hover, #example-prompts .gallery-item:hover {
     box-shadow: none !important; transform: none !important;}
 .chat-col .icon-button-wrapper button:hover, #report-actions button:hover {
-    background: #f0fdfa !important;}
+    background: var(--lh-wash) !important;}
 
 /* With a lease attached, "Attach a lease, or ask about renting in Washington…" is an
    instruction for something already done, sitting beside the chip that did it. :has()
@@ -469,7 +489,8 @@ footer {visibility: hidden;}
    example rows are this app's own markup, so styling them is not reaching into gradio. */
 #example-scan .gallery-item, #example-prompts .gallery-item {background: #ffffff;
     border-color: #e2e8f0; color: var(--body-text-color);}
-#example-scan .gallery-item {background: #0f766e; border-color: #0f766e; color: #ffffff;}
+#example-scan .gallery-item {background: var(--lh-accent);
+    border-color: var(--lh-accent); color: #ffffff;}
 /* One green in the column, and it belongs to the action. The user's bubble was tinted in
    gradio's mint while the primary button is the app's teal — same hue family, two very
    different tints, which is what read as "not unified". This is a colour override and
@@ -638,13 +659,18 @@ HOUND_TRIPPED = (
     "🐕 The hound tripped over an error and lost the scent — nothing was changed. "
     "Try again, or try a different file."
 )
-# The example chip shows the file name; once clicked, the file rides along as an
-# attachment, so the message itself drops the "(sample_lease.md)" suffix.
+# The chip's label is the message, with nothing appended. It used to carry a
+# "(sample_lease.md)" suffix, which the heading above it ("Scan a lease") and the
+# attachment chip that appears the moment it is clicked both already say — and it cost
+# 129px of the chip's 388, a third of the one filled block on the page. Measured after:
+# 259px, against 388 for the longest question below it. The primary is now the smallest
+# thing in the group and still the only filled one, which is where its weight should
+# come from. The constant that held the suffixed copy is gone with it: two strings that
+# have to say the same thing are one string.
 SCAN_EXAMPLE = {
     "text": "Sniff this sample lease for red flags",
     "files": [str(SAMPLE_LEASE)],
 }
-SCAN_EXAMPLE_LABEL = "Sniff this sample lease for red flags (sample_lease.md)"
 QUESTION_EXAMPLES = [
     {"text": "Can my landlord charge a late fee if rent is 3 days late?", "files": []},
     {"text": "How much notice before my landlord can enter?", "files": []},
@@ -1380,7 +1406,7 @@ with gr.Blocks(title=SOCIAL_TITLE) as demo:
                 )
             gr.Examples(
                 examples=[SCAN_EXAMPLE],
-                example_labels=[SCAN_EXAMPLE_LABEL],
+                example_labels=[SCAN_EXAMPLE["text"]],
                 inputs=message_box,
                 label="Scan a lease",
                 elem_id="example-scan",
