@@ -668,8 +668,17 @@ HOUND_TRIPPED = (
 # thing in the group and still the only filled one, which is where its weight should
 # come from. The constant that held the suffixed copy is gone with it: two strings that
 # have to say the same thing are one string.
+#
+# "Scan", not "Sniff", and this was the only sniff on the page that was not the hound's:
+# every other one carries the 🐕 and is the hound talking about its own work
+# ("Sniffing…", "Already sniffed this one"), plus the tagline, which describes the
+# product in the third person. This string is neither — it is what the VISITOR says, and
+# it lands in the conversation as their message. They speak the app's plain verb, the
+# one already on the heading above the chip, on the report's title and on "Scan again";
+# the hound answers in character. "the" rather than "this", now that there is no file
+# name for "this" to point at.
 SCAN_EXAMPLE = {
-    "text": "Sniff this sample lease for red flags",
+    "text": "Scan the sample lease for red flags",
     "files": [str(SAMPLE_LEASE)],
 }
 QUESTION_EXAMPLES = [
