@@ -318,19 +318,32 @@ def test_truncating_a_turn_keeps_the_turn(monkeypatch, tmp_path):
     assert clamped[1] == history[1]
 
 
-def test_content_that_is_not_a_string_is_flattened_and_bounded(monkeypatch, tmp_path):
-    """Only a direct HTTP call to the Gradio endpoint sends this shape.
+def test_content_parts_are_unwrapped_and_bounded(monkeypatch, tmp_path):
+    """This shape is the UI's normal one, not an exotic direct-HTTP call.
 
-    route() and rewrite_query() interpolate the whole history into their prompts with
-    an f-string, so a nested structure was reaching the model as its repr and being
-    billed by the token. Flattening is what makes its size boundable at all.
+    It was believed to be the latter — the docstring here said so — until a running
+    gradio 6.22 was measured: the browser sends every message back as a list of parts.
+    The list used to be `str()`-ed, so route() and rewrite_query(), which interpolate
+    the whole history into their prompts, showed the model a python repr of its own
+    previous turn and were billed by the token for the punctuation.
     """
     nested = [{"role": "user",
                "content": [{"type": "text", "text": "w" * 50_000}]}]
     clamped = answer.clamp_history(nested)
     assert isinstance(clamped[0]["content"], str)
+    assert clamped[0]["content"].startswith("w")     # the words, not `[{'type': ...`
     assert len(clamped[0]["content"]) <= (
         answer.MAX_HISTORY_MESSAGE_CHARS + len(answer.TRUNCATION_MARK))
+
+
+def test_message_text_joins_the_parts_and_passes_strings_through():
+    assert answer.message_text({"content": "plain"}) == "plain"
+    assert answer.message_text(
+        {"content": [{"text": "one ", "type": "text"}, {"text": "two", "type": "text"}]}
+    ) == "one two"
+    # A part with no text (a file, say) contributes nothing rather than its repr.
+    assert answer.message_text({"content": [{"type": "image"}, {"text": "hi"}]}) == "hi"
+    assert answer.message_text({}) == "None"
 
 
 def test_a_history_entry_that_is_not_even_a_dict_does_not_crash_the_answer():

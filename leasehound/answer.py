@@ -81,6 +81,28 @@ class QuestionTooLong(Refused):
         super().__init__(f"{chars} characters, over the {limit}-character question limit")
 
 
+def message_text(message: dict) -> str:
+    """The text of a chat message, in whatever shape it arrives.
+
+    Gradio 6 hands a message's content back FROM the browser as a list of parts —
+    `[{"text": ..., "type": "text"}]` — not as the string the app put there. Measured on
+    6.22: every turn after the first arrives that way, for both roles.
+
+    That shape used to be `str()`-ed, which put a python repr of the list where the
+    previous turn's words belong: the model was shown
+    `[{'text': 'Within 30 days…', 'type': 'text'}]` as the last thing it said, and
+    sometimes answered in kind — a correct answer wrapped in `[{'text': …}]`, which is
+    the bug this function exists to make impossible. Walking the parts costs one join
+    and removes the wrapper from the prompt entirely.
+    """
+    content = message.get("content")
+    if isinstance(content, list):
+        return "".join(
+            part.get("text", "") if isinstance(part, dict) else str(part) for part in content
+        )
+    return content if isinstance(content, str) else str(content)
+
+
 def clamp_history(history: list | None) -> list:
     """Truncate any history message too long to be a real conversational turn.
 
@@ -88,20 +110,16 @@ def clamp_history(history: list | None) -> list:
     costs nothing rather than being billed three times on the way to being billed
     a fourth.
 
-    Content that is not a string is flattened rather than walked. Only a direct HTTP
-    call to the Gradio endpoint produces it — the UI and /v1/ask both build plain
-    strings — and `route` and `rewrite_query` already interpolate the whole history
-    into their prompts with an f-string, so a nested structure was reaching the model
-    as its repr and being billed by the token either way. Flattening makes the size
-    of that repr the thing this function can actually bound.
+    Content that is not a string goes through `message_text` first — `route` and
+    `rewrite_query` interpolate the whole history into their prompts with an f-string,
+    so whatever survives here is what the model reads, and the size of it is what this
+    function bounds.
     """
     clamped = []
     for message in history or []:
         if not isinstance(message, dict):
             message = {"role": "user", "content": message}
-        content = message.get("content")
-        if not isinstance(content, str):
-            content = str(content)
+        content = message_text(message)
         if len(content) > MAX_HISTORY_MESSAGE_CHARS:
             content = content[:MAX_HISTORY_MESSAGE_CHARS] + TRUNCATION_MARK
         clamped.append({**message, "content": content})

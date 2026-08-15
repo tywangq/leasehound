@@ -8,6 +8,7 @@ from fastapi import FastAPI
 import leasehound.app as app
 import leasehound.scan as scan
 from leasehound.app import (
+    FOOTER_MARK,
     MODEL_FOOTER,
     SAMPLE_LEASE,
     cleanup_upload,
@@ -178,6 +179,44 @@ def test_the_override_phrase_reaches_the_scan_and_is_not_answered_as_a_question(
     list(app._respond({"text": "what about my deposit?", "files": [str(upload)]},
                       [], "", ""))
     assert seen == {"question": "what about my deposit?", "scan_anyway": False}
+
+
+def test_the_browsers_content_parts_never_reach_the_model(monkeypatch, tmp_path):
+    """Gradio 6 returns each message's content as [{"text": ..., "type": "text"}].
+
+    Measured on 6.22 against a running server: every turn after the first arrives that
+    way. Two readers here assumed a string and both failed quietly — strip_footer's
+    isinstance guard stopped stripping, so the model was shown its own sources footer,
+    and clamp_history put the list's python repr in the prompt. The model, shown
+    `[{'text': 'Within 30 days…', 'type': 'text'}]` as the last thing it said, sometimes
+    answered in the same wrapper: a correct answer inside `[{'text': …}]` on screen.
+    """
+    import leasehound.answer as answer_module
+    import leasehound.metrics as metrics
+
+    seen = {}
+
+    def fake_answer(question, history=None, config=None, report_context=False):
+        seen["history"] = history
+        return answer_module.AskResult(stream=iter(["Day six."]), chunks=[],
+                                       meter=UsageMeter(), routed=True, jurisdiction="wa")
+
+    monkeypatch.setattr(app, "answer_question", fake_answer)
+    monkeypatch.setattr(metrics, "ASK_LOG_PATH", tmp_path / "ask_metrics.jsonl")
+
+    earlier = "Within 30 days.\n\n**Statutes cited:**\n- [RCW 59.18.280](https://law/x)"
+    from_browser = [
+        {"role": "user", "content": [{"text": "deposit?", "type": "text"}]},
+        {"role": "assistant", "content": [{"text": earlier, "type": "text"}]},
+    ]
+    out = list(app.respond({"text": "late fees?", "files": []}, from_browser, "", ""))
+
+    shown = "".join(m["content"] for m in seen["history"])
+    assert "'text':" not in shown and "'type':" not in shown, shown
+    assert "Within 30 days." in shown          # the words survive the unwrapping
+    assert FOOTER_MARK not in shown            # and strip_footer can see them again
+    # The bubbles the user keeps looking at are plain strings too, not the parts list.
+    assert all(isinstance(m["content"], str) for m in out[-1][0])
 
 
 def test_a_question_naming_another_state_is_warned_about_above_the_answer(

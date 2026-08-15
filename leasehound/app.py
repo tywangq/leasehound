@@ -35,6 +35,7 @@ from leasehound.answer import (
     MAX_HISTORY_MESSAGE_CHARS,
     QuestionTooLong,
     answer_question,
+    message_text,
 )
 from leasehound.jurisdiction import jurisdiction_mismatch
 from leasehound.metrics import UsageMeter, log_scan
@@ -1090,8 +1091,18 @@ def respond(message, history, report, scanned):
     """Guard around the real handler: an uncaught exception inside a generator
     event dies silently — the traceback goes to the server log and the user
     sees nothing happen at all (how a missing PDF dependency shipped). Turn any
-    failure into a hound apology and restore the pre-turn panel state."""
-    history = list(history)
+    failure into a hound apology and restore the pre-turn panel state.
+
+    Also the one place the incoming history is put back into the shape this app wrote
+    it in. Gradio returns each message's content from the browser as a list of parts
+    (see message_text), and every reader downstream assumed a string: strip_footer's
+    `isinstance(content, str)` guard quietly stopped stripping anything after the first
+    turn, so the model was shown its own sources footer and learned to write one, and
+    clamp_history repr'd the list into the prompt. Normalising once here fixes both,
+    and keeps the fix at the boundary rather than in each reader.
+    """
+    history = [{**m, "content": message_text(m)} if isinstance(m, dict) else m
+               for m in history]
     try:
         yield from _respond(message, history, report, scanned)
     except Exception:
