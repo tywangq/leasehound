@@ -159,3 +159,38 @@ def test_the_readme_reports_the_number_of_tests_that_exist():
     files = len(list((root / "tests").glob("test_*.py")))
     assert int(claimed.group(2)) == files, (
         f"README says {claimed.group(2)} test files, there are {files}")
+
+
+def test_the_readme_quotes_the_cost_band_it_says_it_quotes():
+    """The artifact holds two populations, and the README's argument depends on which.
+
+    `all_scans` is every logged scan — 5 to 49 clauses — and `scans_9_to_15_clauses` is
+    the homogeneous band. The cost section quotes the band on purpose: its next
+    paragraph produces the 49-clause HUD lease as a contrast, which only means anything
+    if the headline excluded it. Reading the wrong key looks like the README is stale by
+    14 scans and a tenth of a cent, and "fixing" it deletes the argument.
+    """
+    root = Path(__file__).parent.parent
+    summary = json.loads((root / "evaluation" / "scan_cost_summary.json").read_text())
+    band = summary["scans_9_to_15_clauses"]
+    readme = (root / "README.md").read_text()
+
+    quoted = re.search(
+        r"Across the ([\d,]+) scans in the log \((\d+)–(\d+) clauses each"
+        r"[^*]*\*\*mean ≈ \$([\d.]+)/scan, p50 ([\d.]+) s, p95 ([\d.]+) s, max ([\d.]+) s\*\*",
+        readme)
+    assert quoted, "the cost paragraph no longer states its numbers in the form this checks"
+    n, low, high, mean, p50, p95, worst = quoted.groups()
+    assert int(n.replace(",", "")) == band["scans"], "the README quotes a different population"
+    assert float(mean) == round(band["mean_cost_usd"], 4)
+    assert (float(p50), float(p95), float(worst)) == (
+        band["p50_seconds"], band["p95_seconds"], band["max_seconds"])
+    # The stated clause range must contain the band's own, or the sentence describes a
+    # set it did not measure.
+    assert int(low) <= band["clauses_min"] and int(high) >= band["clauses_max"]
+
+    headline = re.search(r"\| (\d+) logged scans \((\d+)–(\d+) clauses\) \| \*\*≈ \$([\d.]+)/scan",
+                         readme)
+    assert headline, "the evidence table no longer states the cost row in the form this checks"
+    assert int(headline.group(1)) == band["scans"]
+    assert float(headline.group(4)) == round(band["mean_cost_usd"], 3)

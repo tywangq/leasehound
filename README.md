@@ -273,7 +273,7 @@ A lease is sensitive: names, address, rent. LeaseHound keeps handling minimal �
 
 ```bash
 pip install -e ".[dev]"
-pytest          # 236 test functions across 22 files — see below for what they cover
+pytest          # 237 test functions across 22 files — see below for what they cover
 ruff check leasehound evaluation scripts tests
 ```
 
