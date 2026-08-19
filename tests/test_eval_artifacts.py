@@ -194,3 +194,27 @@ def test_the_readme_quotes_the_cost_band_it_says_it_quotes():
     assert headline, "the evidence table no longer states the cost row in the form this checks"
     assert int(headline.group(1)) == band["scans"]
     assert float(headline.group(4)) == round(band["mean_cost_usd"], 3)
+
+
+def test_no_speedup_claim_exceeds_the_pool_that_produces_it():
+    """The README claimed 9x from a pool of 8 workers, which is not reachable.
+
+    "a 15-clause lease scans in ~10 seconds instead of ~90" is a 9x claim, and
+    MAX_PARALLEL_SCANS is 8 — a constant in a public file, three clicks from the README.
+    A reader who divides is a reader who has found a number with no source. The ceiling
+    is clauses / ceil(clauses / workers): 7.5x at 15 clauses, 6.5x at the log's mean.
+    """
+    root = Path(__file__).parent.parent
+    from leasehound.scan import MAX_PARALLEL_SCANS
+
+    for doc in ("README.md", "evaluation/README.md"):
+        text = (root / doc).read_text()
+        for claim in re.findall(r"(\d+(?:\.\d+)?)\s*(?:x|×)\b", text):
+            factor = float(claim)
+            # Only speedup-shaped claims are bounded by the pool; cost multiples are not.
+            if factor <= MAX_PARALLEL_SCANS:
+                continue
+            context = text[max(0, text.index(claim + "x") - 120):text.index(claim + "x")] \
+                if claim + "x" in text else ""
+            assert not re.search(r"concurren|parallel|wall time|pool|faster", context, re.I), (
+                f"{doc} claims {factor}x on a {MAX_PARALLEL_SCANS}-worker pool: {context[-90:]}")
