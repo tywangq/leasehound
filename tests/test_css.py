@@ -71,6 +71,12 @@ def hexof(css_colour: str) -> str:
     return "#" + "".join(f"{n:02x}" for n in scaled)
 
 
+def hue(hex_colour: str) -> float:
+    import colorsys
+    channels = [int(hex_colour[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+    return colorsys.rgb_to_hls(*channels)[0] * 360
+
+
 def relative_luminance(hex_colour: str) -> float:
     channels = [int(hex_colour[i:i + 2], 16) / 255 for i in (1, 3, 5)]
     linear = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in channels]
@@ -218,6 +224,30 @@ def test_the_verdict_chips_stay_readable_in_dark_mode(page_factory):
     page.close()
     assert hexof(got["page"]) != "#ffffff", "the dark scheme did not engage"
     assert contrast(hexof(got["fg"]), hexof(got["bg"])) >= 4.5, json.dumps(got)
+
+
+@pytest.mark.parametrize("scheme", ["light", "dark"])
+def test_the_missing_marker_is_not_a_second_green(page_factory, scheme):
+    """Four verdict colours, and two of them used to be 33° apart.
+
+    `missing` was the theme's teal at 175°, next to `clear` at 142° — the closest pair in
+    the legend, on 9px squares. It was also the product's own colour, so a category wore
+    the brand, and #0d9488 on white is 3.74:1, under what a section heading needs. Blue
+    is 79° away and reads in both schemes, which needs two steps: the light value alone
+    measures 3.69:1 on the dark page.
+    """
+    page = page_factory(scheme)
+    got = page.evaluate("""() => {
+      const panel = document.querySelector('.report-panel');
+      const tok = n => getComputedStyle(panel).getPropertyValue(n).trim();
+      const head = document.querySelector('.report-panel h2.lh-missing');
+      return {missing: tok('--lh-missing'), green: tok('--lh-green'),
+              head_colour: head && getComputedStyle(head).color,
+              behind: getComputedStyle(document.body).backgroundColor};
+    }""")
+    page.close()
+    assert hue(got["missing"]) - hue(got["green"]) >= 60, got
+    assert contrast(hexof(got["head_colour"]), hexof(got["behind"])) >= 4.5, got
 
 
 @pytest.mark.parametrize("label,selector", [

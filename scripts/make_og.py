@@ -9,6 +9,15 @@ product, because a scanner whose whole claim is that it cites its sources should
 be able to show one doing it. Drawn rather than screenshotted so the type stays
 crisp at the ~360px LinkedIn actually renders.
 
+Two places it deliberately differs from the panel, and both come from that 360px.
+The panel dropped its red fill and its serif quote: with a whole report on screen,
+a section heading in red already says which pile a finding is in, and weight says
+"someone else wrote this" as well as a serif does. Neither holds at a third of the
+size. The heading becomes 4px of unreadable red, so the fill carries the signal
+instead; and New York's thin strokes disappear, so the quote is the app's sans at
+600. Everything else — the radius, the neutral chips, the hairline, the muted
+clause label — is the panel's.
+
 Almost nothing on it is typed here: the wording comes from app.py's social
 constants, the clause from examples/sample_lease.md, and the headline three from
 evaluation/. The one exception is the verdict row, and the reason is instructive.
@@ -42,13 +51,18 @@ PAD = 56
 PAGE = "#eef2f6"
 CARD, CHROME, EDGE = "#ffffff", "#f6f8fa", "#dbe2ea"
 INK, BODY, MUTED = "#0f172a", "#334155", "#94a3b8"
-TEAL, TEAL_D = "#0d9488", "#0f766e"
-RED, RED_BG, RED_EDGE = "#dc2626", "#fffbfb", "#f4d4d4"
+# TEAL is the product's own colour and appears where the product speaks: the statute
+# citation and the evidence row. MISSING is a verdict category and is blue — see the
+# --lh-missing comment in app.py for why it stopped being teal.
+TEAL_D = "#0f766e"
+MISSING = "#2563eb"
+RED, RED_BG, RED_EDGE = "#dc2626", "#fef2f2", "#fecaca"
 AMBER, GREEN = "#d97706", "#16a34a"
+# The panel's own two neutrals, for the chips and the finding that is not red-filled.
+CARD_FILL, HAIR = "#f8fafc", "#e2e8f0"
 
 SANS = "/System/Library/Fonts/HelveticaNeue.ttc"
 MONO = "/System/Library/Fonts/SFNSMono.ttf"
-SERIF = "/System/Library/Fonts/NewYork.ttf"
 
 
 def font(path: str, size: int, index: int = 0) -> ImageFont.FreeTypeFont:
@@ -87,11 +101,11 @@ def chips() -> list[tuple[str, str]]:
     put "0 cautions" on a card whose product shows one. The counts app.py carries
     are checked against the running app; see the comment beside CARD_VERDICTS.
     """
-    palette = {"red": RED, "caution": AMBER, "missing": TEAL, "clear": GREEN}
+    palette = {"red": RED, "caution": AMBER, "missing": MISSING, "clear": GREEN}
     out = []
     for part in constant("CARD_VERDICTS").split("|"):
         label = part.strip()
-        colour = next((c for k, c in palette.items() if k in label), TEAL)
+        colour = next((c for k, c in palette.items() if k in label), MISSING)
         out.append((colour, label))
     # Cross-check the two the artifact does cover, so a card and an evaluation
     # that disagree fail the build instead of shipping.
@@ -205,20 +219,21 @@ def main() -> None:
     for colour, label in chips():
         wide = d.textlength(label, font=cf) + 46
         d.rounded_rectangle([cx, by + 152, cx + wide, by + 190], radius=19,
-                            fill="#f8fafc", outline="#e2e8f0", width=2)
+                            fill=CARD_FILL, outline=HAIR, width=2)
         d.rounded_rectangle([cx + 16, by + 165, cx + 27, by + 176], radius=3, fill=colour)
         d.text((cx + 35, by + 162), label, font=cf, fill=BODY)
         cx += wide + 12
 
     fy = by + 222
-    d.rounded_rectangle([ix, fy, right, fy + 180], radius=10, fill=RED_BG,
+    d.rounded_rectangle([ix, fy, right, fy + 180], radius=8, fill=RED_BG,
                         outline=RED_EDGE, width=2)
-    d.rectangle([ix, fy, ix + 6, fy + 180], fill=RED)
+    d.rounded_rectangle([ix, fy, ix + 6, fy + 180], radius=3, fill=RED)
+    d.rectangle([ix + 3, fy, ix + 6, fy + 180], fill=RED)
     d.text((ix + 28, fy + 20), "CLAUSE 3 · LATE CHARGES", font=font(SANS, 15, 1), fill=RED)
-    quote = font(SERIF, 24)
+    quote = font(SANS, 23, 1)
     for i, line in enumerate(clause_excerpt(d, quote, right - ix - 60)):
-        d.text((ix + 28, fy + 50 + i * 34), line, font=quote, fill=INK)
-    d.text((ix + 28, fy + 132), constant("CARD_CITATION"), font=font(MONO, 18), fill=TEAL_D)
+        d.text((ix + 28, fy + 52 + i * 32), line, font=quote, fill=INK)
+    d.text((ix + 28, fy + 132), constant("CARD_CITATION"), font=font(SANS, 18, 1), fill=TEAL_D)
 
     y = by + bh - 72
     d.line([ix, y - 24, right, y - 24], fill=PAGE, width=2)

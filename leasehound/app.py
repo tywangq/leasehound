@@ -136,10 +136,17 @@ CSS = """
    anything; then briefly the reverse of the card, grey page and white boxes, which had
    depth pointing the wrong way. --lh-card is read by every filled box in the panel, so
    this is one value to change, not eight. */
-/* --lh-teal is gradio's own --primary-600, which is #0d9488 in both light and dark
-   (the ramp is constant; only what references it changes). It was written out as that
-   hex here, so the theme's teal and the report's teal were the same value stated twice. */
-.report-panel {--lh-red: #dc2626; --lh-amber: #d97706; --lh-teal: var(--primary-600);
+/* --lh-missing is blue, and it used to be the theme's teal — briefly written as
+   var(--primary-600), which is the same #0d9488, on the reasoning that one value stated
+   twice should be stated once. The reasoning was right and the value was wrong: teal is
+   the PRODUCT's colour (the primary button, every statute link), so a verdict category
+   wearing it made "this is LeaseHound" and "this protection is missing" the same symbol.
+   It was also the closest pair in the legend — teal 175° against green 142°, 33° apart,
+   on 9px squares — and it failed contrast where it mattered most: #0d9488 on white is
+   3.74:1, under the 4.5 a section heading needs. Blue is 79° from green and 5.17:1.
+   Two steps, like .lh-cite: #2563eb reads on white, #60a5fa reads on #0a0f1e (3.69
+   there, measured, so the light value alone would have been the old bug inverted). */
+.report-panel {--lh-red: #dc2626; --lh-amber: #d97706; --lh-missing: #2563eb;
                --lh-green: #16a34a; --lh-ink: #0f172a; --lh-body: #334155;
                --lh-muted: #94a3b8; --lh-hair: #e2e8f0; --lh-card: #f8fafc;}
 .report-panel .lh-md {display: none;}
@@ -171,7 +178,7 @@ CSS = """
 .report-panel .lh-chip i {width: 9px; height: 9px; border-radius: 2px; flex: none;}
 .report-panel .lh-red i {background: var(--lh-red);}
 .report-panel .lh-yellow i {background: var(--lh-amber);}
-.report-panel .lh-missing i {background: var(--lh-teal);}
+.report-panel .lh-missing i {background: var(--lh-missing);}
 .report-panel .lh-green i {background: var(--lh-green);}
 .report-panel .lh-note {font-size: var(--t-doc); color: var(--lh-body); line-height: 1.42;
                         /* 8px, the app's one radius — see the theme tokens in
@@ -196,7 +203,7 @@ CSS = """
                            text-transform: uppercase; margin: 18px 0 8px;}
 .report-panel h2.lh-red {color: var(--lh-red);}
 .report-panel h2.lh-yellow {color: var(--lh-amber);}
-.report-panel h2.lh-missing {color: var(--lh-teal);}
+.report-panel h2.lh-missing {color: var(--lh-missing);}
 /* One finding, one card: hairline border, white fill, nothing else. Findings used to
    run together as heading + paragraph + list, so which explanation belonged to which
    clause was a matter of reading order — that is what the card fixes.
@@ -255,7 +262,7 @@ CSS = """
      panel, in the right place: a chip at #f8fafc with #c3ccd6 lettering.
      One token, four elements, no rule per element. */
   .report-panel {--lh-ink: #e6edf3; --lh-body: #c3ccd6; --lh-muted: #7d8b99;
-                 --lh-hair: #263139; --lh-card: #11181f;}
+                 --lh-hair: #263139; --lh-card: #11181f; --lh-missing: #60a5fa;}
   .report-panel .lh-finding {border-color: #263139;}
   .report-panel .lh-finding.lh-red {background: #1b1315; border-color: #4a2226;}
   .report-panel .lh-note-jurisdiction, .report-panel .lh-note-gate,
