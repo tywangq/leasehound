@@ -62,6 +62,13 @@ dev = [
 [tool.setuptools]
 packages = ["leasehound"]
 
+# The deployment copies the source tree, so these have always been present at runtime
+# (the Dockerfile's `COPY leasehound ./leasehound`). Declaring them means a wheel built
+# from this project carries them too, rather than installing a package whose stylesheet
+# and icons are missing.
+[tool.setuptools.package-data]
+leasehound = ["style.css", "assets/*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # evaluation/ ships as scripts, not an installed package, so the repo root has

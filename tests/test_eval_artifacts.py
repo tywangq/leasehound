@@ -15,6 +15,7 @@ eye twice, so the tests below count them and hold the prose to it.
 """
 
 import json
+import re
 from itertools import dropwhile, takewhile
 from pathlib import Path
 
@@ -135,3 +136,26 @@ def test_the_jsonl_logs_are_not_claimed_as_stamped():
     assert not [p.name for p in logs if is_stamped(p)], (
         "a .jsonl now stamps every row, so evaluation/README.md's claim that none "
         "of them do is stale")
+
+
+def test_the_readme_reports_the_number_of_tests_that_exist():
+    """The README said 212 for long enough that it had drifted to 260 collected.
+
+    A count in prose is a fact about the repository stated in a second place, and this
+    is the cheapest way to keep the two honest. Test FUNCTIONS, not collected items:
+    parametrised cases expand at collection time, and a number that changes when someone
+    adds a parameter is a number nobody will maintain.
+    """
+    root = Path(__file__).parent.parent
+    written = sum(
+        len(re.findall(r"^def test_", path.read_text(), re.M))
+        for path in sorted((root / "tests").glob("test_*.py"))
+    )
+    readme = (root / "README.md").read_text()
+    claimed = re.search(r"# (\d+) test functions across (\d+) files", readme)
+    assert claimed, "the README no longer states a test count in the form this checks"
+    assert int(claimed.group(1)) == written, (
+        f"README says {claimed.group(1)} test functions, the suite has {written}")
+    files = len(list((root / "tests").glob("test_*.py")))
+    assert int(claimed.group(2)) == files, (
+        f"README says {claimed.group(2)} test files, there are {files}")

@@ -53,7 +53,11 @@ Two corpus layers, two query modes:
 | Content | State statutes + official guidance | The lease you upload |
 | Processing | Offline ingestion, evaluated with an ablation suite | Split into clauses on the fly (deterministic, no LLM) |
 
-- **Scan mode** — walks your lease clause by clause, retrieves the governing statute for each, and produces a structured red-flag report with citations. Each clause queries the statutes directly, skipping the query-rewriting stages: those bridge renter vocabulary to statute vocabulary (see the adversarial experiment below), and a lease clause already speaks statute — a hybrid lexical channel was [measured here and rejected](evaluation/README.md#hybrid-retrieval-bm25--dense--measured-and-not-shipped) too. Clause judgments are independent API calls, so they run concurrently — a 15-clause lease scans in ~10 seconds instead of ~90. A second, negative-space pass checks a hand-curated, statute-cited checklist of required protections and reports what the lease *fails to include* (the LLM only judges presence — it never invents requirements); because "this lease omits X" is a claim about the whole document, that pass reads the document in 24k windows and merges them — concurrently, on the same pool the clause pass uses — rather than reading the first 24k and inferring the rest. A document sanity check runs before any clause is judged: a document *about* renting is scanned with its verdicts marked unreliable, and one unrelated to renting is [refused rather than judged](#the-gate--three-answers-that-used-to-be-two) — overridably, because a document that can suppress its own report is the most effective attack on a scanner. Scans judge at most 60 clauses; past that the scan is [partial and says so](#when-a-lease-is-longer-than-the-cap) rather than refused, because [real WA housing agreements run to 270 clauses](evaluation/README.md#document-formats--real-published-leases-and-real-numbering). The document itself is capped separately, at 384,000 characters — [the clause cap never bounded a scan's spend](#what-a-scan-costs) and the protections pass, which reads everything, is why
+- **Scan mode** — walks your lease clause by clause, retrieves the governing statute for each, and produces a structured red-flag report with citations. Each clause queries the statutes directly, skipping the query-rewriting stages: those bridge renter vocabulary to statute vocabulary (see the adversarial experiment below), and a lease clause already speaks statute — a hybrid lexical channel was [measured here and rejected](evaluation/README.md#hybrid-retrieval-bm25--dense--measured-and-not-shipped) too.
+  - *Concurrency.* Clause judgments are independent API calls, so they run concurrently — a 15-clause lease scans in ~10 seconds instead of ~90.
+  - *The negative-space pass.* A second pass checks a hand-curated, statute-cited checklist of required protections and reports what the lease *fails to include* — the LLM only judges presence, it never invents requirements. Because "this lease omits X" is a claim about the whole document, that pass reads the document in 24k windows and merges them, concurrently on the same pool the clause pass uses, rather than reading the first 24k and inferring the rest.
+  - *The gate.* A document sanity check runs before any clause is judged: a document *about* renting is scanned with its verdicts marked unreliable, and one unrelated to renting is [refused rather than judged](#the-gate--three-answers-that-used-to-be-two) — overridably, because a document that can suppress its own report is the most effective attack on a scanner.
+  - *Two caps, for two different failures.* Scans judge at most 60 clauses; past that the scan is [partial and says so](#when-a-lease-is-longer-than-the-cap) rather than refused, because [real WA housing agreements run to 270 clauses](evaluation/README.md#document-formats--real-published-leases-and-real-numbering). The document itself is capped separately at 384,000 characters — [the clause cap never bounded a scan's spend](#what-a-scan-costs), and the protections pass, which reads everything, is why.
 - **Ask mode** — RAG Q&A over the statute corpus ("Can my landlord charge a late fee on day 3?"); once you've scanned a lease, the report joins the chat context so answers are about *your* lease. A session-scoped vector collection for full lease-text retrieval is planned.
 
 Retrieval pipeline: LLM-driven semantic chunking & augmentation (Pydantic structured outputs, parallel ingestion with validation + retry) → query router (greetings and small talk skip retrieval entirely — [and it used to skip real questions too](evaluation/README.md#the-router--every-metric-above-assumes-retrieval-ran-at-all), which is why it now runs on the generation model) → dual-query retrieval (original + rewritten) merged with reciprocal rank fusion → self-grading retrieval (CRAG-style) → LLM reranking → grounded generation with source citations.
@@ -269,11 +273,28 @@ A lease is sensitive: names, address, rent. LeaseHound keeps handling minimal �
 
 ```bash
 pip install -e ".[dev]"
-pytest          # 212 unit tests: clause splitting across seven real numbering conventions, the judge-window invariant, protections windowing + merge precedence + the window pool preserving document order, the partial-scan contract, an oversized document being refused before the split and before the gate so the refusal costs nothing and `--scan-anyway` cannot buy it, the worst-case completion count staying flat at 78, a stalled provider not holding a scan thread past the request timeout and the retry budget, every surface tagging its own metrics rows so the published cost mean names its population, the judge-audit sampler taking every case the LLM judge hesitated on and Cohen's kappa going undefined rather than 1.0 when a rater never varies, the gate refusing an unrelated document without judging a clause and the override reaching the scan, an out-of-state lease being scanned with the mismatch warned about in the report, in chat and in the log rather than refused, the protections checklist agreeing with the statute register that justifies every item on it, the yellow share being reported with the judges it rests on, the judge fingerprint moving when the prompt or the schema does, the router reporting the state a question named without costing an extra call and a question naming none not counting as a mismatch, the ask-mode warning arriving above the answer it qualifies, RRF merge + hybrid wiring, BM25 scoring, enumerated-catalog parsing and chunk-id ordering, ask-mode prompt assembly + stream unwrapping, the router call being counted and a usage-only stream chunk not crashing on it, statute-drift comparison, section completion, the injection scorer's negation handling, eval artifacts surviving a cheap re-run, the documented artifact inventory matching the directory, the HTTP contract and its spend gate, one orchestration serving all three clients, report rendering, cancellation, per-request metrics for both modes, scan cache, the synthetic-dataset verifier, prompts that must treat lease text as data, cited-sources footer, privacy cleanup
+pytest          # 236 test functions across 22 files — see below for what they cover
 ruff check leasehound evaluation scripts tests
 ```
 
-The tests render no CSS, which is a real gap and not a theoretical one: the gradio 6 upgrade flipped the composer's flex container from a row to a column, so a rule of ours that had been centering it vertically started collapsing it *horizontally* — 734 px of input bar down to 237, the placeholder wrapped onto two lines with "Washington…" clipped off the end. 166 green tests and a stale screenshot between them said nothing. Re-recording the README's assets is what surfaced it, which is the argument for `scripts/record_demo.py` existing at all. It needs a browser, dev-only and deliberately absent from `pyproject` and `requirements-lock.txt` — nothing that ships needs one:
+What they cover, by the kind of failure each group exists to catch:
+
+- **The pipeline's contracts** — clause splitting across seven real numbering conventions, the judge-window invariant, protections windowing with merge precedence and document order preserved, the partial-scan contract, one orchestration serving the CLI, the UI and the API.
+- **What a request is allowed to spend** — an oversized document refused before the split and before the gate, so the refusal costs nothing and `--scan-anyway` cannot buy it; the worst-case completion count staying flat at 78; a stalled provider not holding a scan thread past the timeout; every surface tagging its own metrics rows, so the published cost mean names its population.
+- **The gate and jurisdiction** — an unrelated document refused without judging a clause, the override reaching the scan, an out-of-state lease scanned with the mismatch warned about in the report, in chat and in the log rather than refused.
+- **Hostile input** — prompts that must treat lease text as data, the injection scorer's negation handling, and the report staying clean when it is carried into ask mode.
+- **The evaluation's own honesty** — the checklist agreeing with the statute register that justifies every item, the judge fingerprint moving when the prompt or schema does, Cohen's kappa going undefined rather than 1.0 when a rater never varies, eval artifacts surviving a cheap re-run, the documented inventory matching the directory.
+- **Retrieval and generation** — RRF merge and hybrid wiring, BM25 scoring, enumerated-catalog parsing, chunk-id ordering, ask-mode prompt assembly and stream unwrapping, the router being counted without an extra call.
+- **What a reader sees** — report rendering as the whole XSS boundary, the cited-sources footer, cancellation, the scan cache, privacy cleanup, and — [in a real browser](tests/test_css.py) — the computed styles.
+
+That last group used to be the sentence "the tests render no CSS, which is a real gap
+and not a theoretical one", and the gap was not theoretical: the gradio 6 upgrade
+flipped the composer's flex container from a row to a column, so a rule of ours that had
+been centering it vertically started collapsing it *horizontally* — 734px of input bar
+down to 237, the placeholder wrapped onto two lines with "Washington…" clipped off the
+end. Every test passed. `tests/test_css.py` now drives a real chromium against the
+shipped stylesheet and asserts computed values for the seams that have actually broken;
+it skips itself when playwright is absent, so CI runs it in [its own job](.github/workflows/ci.yml).
 
 ```bash
 pip install playwright && playwright install chromium
@@ -346,6 +367,28 @@ kept on purpose, because they are how the architecture earned its shape.
 - **[Five real published leases](evaluation/README.md#the-same-question-against-documents-nobody-here-wrote)** broke two things no self-generated test could: six of seven real numbering conventions, and a silent 24,000-character truncation that invented two "missing protections" out of text it never read.
 
 One caveat applies everywhere: a table is one run, `temperature=0` is not determinism, and a gap of one or two questions is a tie. The [full version](evaluation/README.md) sits with the write-ups.
+
+### Re-running them
+
+Every number above comes from a script in `evaluation/`, and every script writes its
+artifact next to itself, so a re-run either reproduces the committed JSON or shows you
+where it drifted.
+
+```bash
+python evaluation/eval_retrieval.py    # 82 questions, retrieval only — no generation model
+python evaluation/eval_scan.py         # the 6 labeled leases
+python evaluation/eval_baseline.py     # the same 6, closed-book, for the control
+python evaluation/eval_injection.py    # the 5 hostile leases
+python evaluation/eval_generation.py   # 82 questions, graded by the LLM judge
+```
+
+Cheapest first, which is the ordering the section describes rather than a suggestion:
+`eval_retrieval.py` never loads a generation model, and it is the one that killed the
+hybrid channel. For the paid ones, the per-unit costs measured above are the estimate —
+a scan is [≈ $0.011](#what-a-scan-costs) and a question [≈ $0.003](#what-a-question-costs-and-what-the-extra-stages-buy),
+so six labeled leases is cents and the 40-lease set (`eval_scan.py --generated`) is the
+≈ $0.6 the roadmap prices before proposing anything that needs it. All of them need the
+ingested index from [Setup](#setup); none of them touch the deployed app.
 
 ## Roadmap
 
