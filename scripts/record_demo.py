@@ -43,25 +43,40 @@ from typing import NamedTuple
 
 from PIL import Image, ImageDraw
 
+# Imported, not copied. Every string this script waits on is one the app emits, and the
+# copies drifted: the chip label was still "Sniff this sample lease for red flags" after
+# the app started saying "Scan the sample lease for red flags", which would have failed
+# the recording at the first click. Importing costs a few seconds of gradio startup in a
+# dev-only script and removes a whole class of silent staleness.
+from leasehound.app import (
+    ALREADY_SNIFFED,
+    CACHED_SNIFF,
+    FOOTER_MARK,
+    QUESTION_EXAMPLES,
+    SCAN_EXAMPLE,
+    SNIFF_STARTING,
+    THINKING,
+)
+
 DOCS = Path(__file__).parent.parent / "docs"
 GIF_PATH = DOCS / "demo.gif"
 STILL_PATH = DOCS / "screenshot.png"
 
 DEFAULT_URL = "http://127.0.0.1:7860"
 
-# The question the README's caption promises the screenshot shows. Kept here so
-# the caption and the image cannot drift apart silently.
-STILL_QUESTION = "Can my landlord charge a late fee if rent is 3 days late?"
+# The question the README's caption promises the screenshot shows: the app's own first
+# example, so the caption, the image and the chip cannot drift apart.
+STILL_QUESTION = QUESTION_EXAMPLES[0]["text"]
 
 # Strings the app itself emits. Waiting on these rather than on sleeps is what
 # makes the recording deterministic: a slow provider makes it take longer, not
 # capture the wrong moment.
-ANSWER_DONE_MARK = "Statutes cited"
-SAMPLE_CHIP = "Sniff this sample lease for red flags"
+ANSWER_DONE_MARK = FOOTER_MARK.strip().strip("*").rstrip(":")
+SAMPLE_CHIP = SCAN_EXAMPLE["text"]
 # Emitted when the content hash already has a report: a recording that sees this
 # has no live scan in it, so the GIF would be a still of a finished panel.
-CACHE_HIT_MARK = "Already sniffed"
-CACHED_SNIFF_MARK = "saved report"
+CACHE_HIT_MARK = ALREADY_SNIFFED[:24]
+CACHED_SNIFF_MARK = CACHED_SNIFF[:32]
 
 # 1280 wide is the layout's design width; 900 tall rather than 800 so the report
 # panel's verdict summary and the answer fit in one frame without scrolling.
@@ -83,9 +98,23 @@ GIF_MIN_MS, GIF_MAX_MS = 60, 1000
 # where to look. These are one frame each, not a second's worth of captures — a held
 # frame costs one frame's bytes however long it sits on screen, and identical frames
 # would only be merged back into one anyway.
-HOLD_BEFORE_CLICK_MS = 1400  # the untouched page, cursor resting on the chip
-HOLD_ON_CLICK_MS = 500  # the click itself, so the eye lands on the chip
-HOLD_ON_REPORT_MS = 1100  # the finished report, before the question starts typing
+# Five deliberate pauses now, not three, and longer: watching the result at 900px it was
+# still too fast to follow. What a reader needs time for is not the clause counter — that
+# only has to look like it is moving — but the moments where the app changes what it is
+# doing. Those are: the page before anything happens, the click, the hound starting to
+# sniff, the finished report, the hound starting to think, and the last frame before the
+# loop restarts.
+HOLD_BEFORE_CLICK_MS = 1500  # the untouched page, cursor resting on the chip
+HOLD_BEFORE_SECOND_CLICK_MS = 800  # by the second chip the reader is already watching
+HOLD_ON_CLICK_MS = 600  # the click itself, so the eye lands on the chip
+HOLD_ON_START_MS = 900  # "🐕 Sniffing…" — the scan has begun and nothing else has
+HOLD_ON_REPORT_MS = 1400  # the finished report, before the question starts typing
+HOLD_ON_THINKING_MS = 900  # "🐕 Thinking…" — the same beat, in the other mode
+HOLD_AT_END_MS = 2000  # the answer, before the loop throws the reader back to frame 0
+# These are what a hold ASKS for, not what it gets. A held frame identical to the ones
+# beside it is merged with them and the durations add, so 900ms next to a 1.1s wait plays
+# as two seconds. The first pass asked for 14.8s of holds and produced a 33s GIF — long
+# enough that nobody reaches the report. Tune against the total this script prints.
 
 # Real time is the right pace for the scan; it is the wrong pace for a GIF, and the
 # first recording with the holds showed why. Playback ran 19.4s of which the entire
@@ -97,7 +126,12 @@ HOLD_ON_REPORT_MS = 1100  # the finished report, before the question starts typi
 # screen is bounded at both ends: nothing informative flashes past, and nothing static
 # outstays its welcome. The wall-clock figure this script prints is unaffected and
 # still describes the real run.
-STATE_MIN_MS, STATE_MAX_MS = 260, 1200
+STATE_MIN_MS, STATE_MAX_MS = 260, 900
+# The clause counter is the one run of frames that does not have to be read: 0/15 to
+# 15/15 says "it is working through the document", and fifteen states at the floor above
+# is four and a half seconds of saying it. Its own, lower floor keeps the movement
+# without the wait.
+STATE_BRISK_MS = 170
 # A recording that never ends is worse than a missing asset — it hangs CI-less
 # local runs with no clue why. Each phase is bounded.
 PHASE_TIMEOUT_S = 180
@@ -134,12 +168,14 @@ class Frame(NamedTuple):
     cursor: tuple[float, float] | None = None
     ring: bool = False  # draw a click ripple around the cursor
     hold_ms: int | None = None
+    brisk: bool = False  # a progress frame: floor at STATE_BRISK_MS, not STATE_MIN_MS
 
 
-def frame(page, cursor=None, ring: bool = False, hold_ms: int | None = None) -> Frame:
+def frame(page, cursor=None, ring: bool = False, hold_ms: int | None = None,
+          brisk: bool = False) -> Frame:
     """One stamped frame, taken with the page held at the top."""
     page.evaluate(PIN_PAGE)
-    return Frame(time.time(), page.screenshot(type="png"), cursor, ring, hold_ms)
+    return Frame(time.time(), page.screenshot(type="png"), cursor, ring, hold_ms, brisk)
 
 
 def centre_of(locator) -> tuple[float, float] | None:
@@ -149,7 +185,7 @@ def centre_of(locator) -> tuple[float, float] | None:
 
 
 def wait_until(page, done, what: str, frames: list | None = None,
-               timeout_s: int = PHASE_TIMEOUT_S) -> None:
+               timeout_s: int = PHASE_TIMEOUT_S, brisk: bool = False) -> None:
     """Poll until `done()`, collecting stamped frames while waiting.
 
     Deliberately not page.wait_for_selector: what is being waited on is a message
@@ -159,15 +195,34 @@ def wait_until(page, done, what: str, frames: list | None = None,
     deadline = time.time() + timeout_s
     while time.time() < deadline:
         if frames is not None:
-            frames.append(frame(page))
+            frames.append(frame(page, brisk=brisk))
         else:
             page.evaluate(PIN_PAGE)
             page.wait_for_timeout(200)
         if done():
             if frames is not None:
-                frames.append(frame(page))
+                frames.append(frame(page, brisk=brisk))
             return
     raise TimeoutError(f"waited {timeout_s}s and {what} never happened")
+
+
+def hold_on(page, mark: str, frames, hold_ms: int, what: str, timeout_s: int = 60) -> None:
+    """Wait for one of the app's own milestone strings, then sit on that frame.
+
+    The wall clock is the right pace for a scan and the wrong one for a reader: these two
+    messages are each on screen for about a second of real time, and a second at 900px is
+    not enough to notice that the app said something. Waiting on the string rather than
+    on a sleep keeps the recording deterministic; the hold is only about playback.
+    """
+    try:
+        wait_until(page, lambda: mark in chat_text(page), what, frames, timeout_s=timeout_s)
+    except TimeoutError:
+        # A milestone that never arrived is not worth failing a recording over — the
+        # scan itself is still being waited on, by its own condition, further down.
+        print(f"  ({what} never appeared — carrying on)")
+        return
+    if frames is not None:
+        frames.append(frame(page, hold_ms=hold_ms))
 
 
 def panel_pinned(page):
@@ -182,34 +237,80 @@ def show_question_with_answer(page, question: str) -> None:
 
     The log auto-scrolls to the newest token, which pushes the question off the top
     — and a screenshot of an answer to an invisible question illustrates nothing.
-    This is the third time it has needed work; the first fix was by hand, the second
-    used scrollIntoView, which aligns an element's box but not its message wrapper,
-    so the previous reply's last line stayed visible above the question and the hero
-    image opened on a clipped bubble. Setting scrollTop against the scroll parent's
-    own geometry is arithmetic rather than a hint, so it lands where it is told.
+    This is the fourth time it has needed work. By hand, then scrollIntoView (which
+    aligns an element's box but not its message wrapper), then arithmetic against the
+    scroll parent — and the arithmetic was right about where to go and wrong about
+    whether it could get there. Measured on the recording it produced: the log wanted
+    scrollTop 233 and the log's maximum is 107, so it hit the bottom and stopped, seven
+    pixels into the message above, which reads as a half-cut line of text.
+
+    A log short enough to have slack is a log that cannot put the question at the top,
+    so the target is not the question: it is the lowest message edge the log can
+    actually reach. Whatever sits above that edge scrolls away completely, because the
+    space above a message is a gap, and the frame is cropped at a boundary someone
+    could have chosen rather than wherever the scrollbar ran out.
     """
-    page.evaluate(
+    framing = page.evaluate(
         """(text) => {
             const bubbles = [...document.querySelectorAll('.chat-col .message, .chat-col .bubble-wrap p')];
             const asked = bubbles.reverse().find(
                 el => el.innerText.trim().startsWith(text.slice(0, 40)));
-            if (asked) {
-                // The nearest ancestor that actually scrolls; the bubble's own parent
-                // usually does not.
-                let box = asked.parentElement;
-                while (box && box.scrollHeight <= box.clientHeight) box = box.parentElement;
-                if (box) {
-                    const top = asked.getBoundingClientRect().top
-                              - box.getBoundingClientRect().top + box.scrollTop;
-                    // A few pixels of air, so the bubble does not touch the top edge.
-                    box.scrollTop = Math.max(0, top - 8);
-                }
-            }
+            if (!asked) { window.scrollTo(0, 0); return; }
+            // The nearest ancestor that actually scrolls; the bubble's own parent
+            // usually does not.
+            let box = asked.parentElement;
+            while (box && box.scrollHeight <= box.clientHeight) box = box.parentElement;
+            if (!box) { window.scrollTo(0, 0); return; }
+            const origin = box.getBoundingClientRect().top - box.scrollTop;
+            const reach = box.scrollHeight - box.clientHeight;
+            // Every message's top edge, in the log's own coordinates. Landing on one of
+            // these is what makes the frame look composed instead of cropped: the gap
+            // above a message is empty, so the message above it ends off-screen cleanly.
+            // The BUBBLE's top edge, not the row's. A row includes the gap above it, so
+            // aligning to rows spent 33px on empty space and paid for it at the bottom,
+            // where it cut the "Statutes cited" links off the answer — the one thing the
+            // still exists to show. Aligning to bubbles, the same conversation landed
+            // exactly at the log's maximum scroll: question flush with the top, nothing
+            // lost at the bottom.
+            const edges = [...box.querySelectorAll('.message-row')]
+                .map(row => row.querySelector('.message') || row)
+                .map(el => Math.round(el.getBoundingClientRect().top - origin))
+                .filter(top => top <= reach + 1);
+            const wanted = Math.round(asked.getBoundingClientRect().top - origin);
+            // The lowest reachable edge at or above the question: as little of the
+            // earlier conversation as the log can actually scroll away.
+            // Reachable: crop at the boundary just above the question, and the bottom
+            // takes care of itself because everything below it fits. Not reachable —
+            // a short answer leaves the log with little to scroll — then the bottom is
+            // what matters and the top is what gives: an answer missing its last line
+            // is worse than a message clipped above the question. Measured both ways on
+            // real recordings; the framing line this prints says which one happened.
+            const target = wanted <= reach + 1
+                ? edges.filter(top => top <= wanted).pop()
+                : reach;
+            box.scrollTop = target === undefined ? reach : target;
             window.scrollTo(0, 0);
+            const last = box.querySelector('.message-row:last-child');
+            const overflow = last
+                ? Math.round(last.getBoundingClientRect().bottom
+                             - box.getBoundingClientRect().bottom) : 0;
+            return {log_height: Math.round(box.clientHeight),
+                    content: Math.round(box.scrollHeight),
+                    could_reach_question: wanted <= reach + 1,
+                    cut_off_bottom: Math.max(0, overflow)};
         }""",
         question,
     )
     page.wait_for_timeout(700)
+    # Printed, because the framing is a judgement the recording makes silently and got
+    # wrong twice: the log is taller than the exchange, so it cannot put the question at
+    # the top, and whether the last line survives depends on the length of an answer
+    # nobody controls. Two numbers say whether this run's still is composed or cropped.
+    if framing:
+        print(f"  framing: log {framing['log_height']}px of {framing['content']}px "
+              f"content, question reachable: {framing['could_reach_question']}, "
+              f"cut off the bottom: {framing['cut_off_bottom']}px")
+    return framing
 
 
 def question_asked(page, question: str) -> bool:
@@ -229,7 +330,8 @@ def ask(page, question: str) -> None:
     box.press("Enter")
 
 
-def click_chip(page, text: str, frames: list | None, what: str):
+def click_chip(page, text: str, frames: list | None, what: str,
+               hold_before: int = HOLD_BEFORE_CLICK_MS):
     """Click an example chip the way a visitor does, with the pointer drawn in.
 
     Both of the recording's interactions are chip clicks, and only one of them used
@@ -244,7 +346,7 @@ def click_chip(page, text: str, frames: list | None, what: str):
     # last of the three is below the fold and the first is only just above it.
     at = centre_of(chip)
     if frames is not None:
-        frames.append(frame(page, cursor=at, hold_ms=HOLD_BEFORE_CLICK_MS))
+        frames.append(frame(page, cursor=at, hold_ms=hold_before))
     print(f"clicking {what}…")
     # Dispatched on the button from inside the page, not driven through the mouse.
     #
@@ -345,7 +447,8 @@ def durations(frames: list[Frame]) -> list[int]:
 
 
 def collapse(images: list[Image.Image], timings: list[int],
-             deliberate: list[bool]) -> tuple[list, list[int]]:
+             deliberate: list[bool], brisk: list[bool] | None = None
+             ) -> tuple[list, list[int]]:
     """Merge runs of identical frames into one state, then bound its time on screen.
 
     PIL merges identical frames on its own, but only by summing their durations,
@@ -358,19 +461,32 @@ def collapse(images: list[Image.Image], timings: list[int],
     back to an empty page. Clamping the opening hold to 1.2s was this function's first
     bug, and it is the kind that looks like a tuning choice from outside.
     """
+    brisk = brisk or [False] * len(images)
     states: list[Image.Image] = []
     held: list[int] = []
     fixed: list[bool] = []
-    for image, milliseconds, is_fixed in zip(images, timings, deliberate):
+    quick: list[bool] = []
+    for image, milliseconds, is_fixed, is_brisk in zip(images, timings, deliberate, brisk):
         if states and image.tobytes() == states[-1].tobytes() and not is_fixed:
-            held[-1] += milliseconds
+            # A held frame keeps the length it asked for. Adding to it was how a 900ms
+            # hold on "🐕 Sniffing…" became six seconds: the gate call takes that long,
+            # the picture does not change while it runs, and every identical frame after
+            # the hold was merged into it — past the ceiling, which holds are exempt
+            # from. The hold is a decision about how long a reader looks at a state; how
+            # long the state lasted is not the same question.
+            if not fixed[-1]:
+                held[-1] += milliseconds
         else:
             states.append(image)
             held.append(milliseconds)
             fixed.append(is_fixed)
+            quick.append(is_brisk)
     fixed[-1] = True
-    return states, [ms if is_fixed else min(STATE_MAX_MS, max(STATE_MIN_MS, ms))
-                    for ms, is_fixed in zip(held, fixed)]
+    return states, [
+        ms if is_fixed
+        else min(STATE_MAX_MS, max(STATE_BRISK_MS if is_quick else STATE_MIN_MS, ms))
+        for ms, is_fixed, is_quick in zip(held, fixed, quick)
+    ]
 
 
 def write_gif(frames: list[Frame], path: Path) -> int:
@@ -399,7 +515,8 @@ def write_gif(frames: list[Frame], path: Path) -> int:
     # areas of one colour and costs bytes for noise nobody wants to see.
     images = [frame.quantize(palette=master, dither=Image.Dither.NONE) for frame in rgb]
     images, timings = collapse(images, durations(frames),
-                               [f.hold_ms is not None for f in frames])
+                               [f.hold_ms is not None for f in frames],
+                               [f.brisk for f in frames])
 
     images[0].save(path, save_all=True, append_images=images[1:],
                    duration=timings, loop=0, optimize=True, disposal=2)
@@ -429,10 +546,11 @@ def record(url: str, still_only: bool) -> None:
         # the first poll AFTER the click, so the GIF began on a page already
         # scanning. A reader saw a counter moving and never saw what set it off.
         click_chip(page, SAMPLE_CHIP, frames, repr(SAMPLE_CHIP))
+        hold_on(page, SNIFF_STARTING, frames, HOLD_ON_START_MS, "the hound started sniffing")
         # The report PANEL appearing, not a chat message: the fresh path ends with a
         # "Full report on the right" summary and the cached path does not, so keying
         # on that string worked exactly once and then hung for three minutes.
-        wait_until(page, panel_pinned(page), "a report was pinned", frames)
+        wait_until(page, panel_pinned(page), "a report was pinned", frames, brisk=True)
         print("  scan finished")
         if frames is not None:
             # The finished report, on its own, before anything is asked of it. The
@@ -467,9 +585,10 @@ def record(url: str, still_only: bool) -> None:
                        .find(b => b.innerText.includes('Call off the hound'));
                    return !box.querySelector('textarea').disabled
                           && !(stop && stop.offsetParent); }"""),
-            "the scan finished settling", frames, timeout_s=30)
+            "the scan finished settling", frames, timeout_s=30, brisk=True)
         if page.get_by_text(STILL_QUESTION, exact=False).count():
-            click_chip(page, STILL_QUESTION, frames, f"the question chip: {STILL_QUESTION}")
+            click_chip(page, STILL_QUESTION, frames, f"the question chip: {STILL_QUESTION}",
+                       hold_before=HOLD_BEFORE_SECOND_CLICK_MS)
             # Confirmed, not assumed. A chip does not submit itself: the click is
             # caught by a document-level listener that polls for the box to fill and
             # then presses send, and that handoff loses the race often enough against
@@ -485,6 +604,8 @@ def record(url: str, still_only: bool) -> None:
         else:
             print(f"asking (chip not found, typing): {STILL_QUESTION}")
             ask(page, STILL_QUESTION)
+        hold_on(page, THINKING, frames, HOLD_ON_THINKING_MS, "the hound started thinking",
+                timeout_s=20)
         wait_until(page, lambda: ANSWER_DONE_MARK in chat_text(page),
                    "the answer finished", frames)
         print("  answer finished")
@@ -493,12 +614,19 @@ def record(url: str, still_only: bool) -> None:
         # token, and screenshotting mid-yield catches the answer without it.
         page.wait_for_timeout(1200)
 
+        # The GIF ends BEFORE the reframing below; the still is taken after it. They want
+        # different things from the same moment. The still is a composition — the question
+        # with the answer it produced, cropped at a message boundary — and getting there
+        # means scrolling the log, which inside an animation is a jump nobody made. So the
+        # recording closes on the log where the conversation actually left it, held, and
+        # only the photograph is arranged.
+        if frames is not None:
+            frames.append(frame(page, hold_ms=HOLD_AT_END_MS))
+
         # The page is pinned to the top throughout now (see PIN_PAGE), so this is only
         # about the chat log's own scroll position: it auto-follows the newest token,
         # which pushed the question off the top of the log.
         show_question_with_answer(page, STILL_QUESTION)
-        if frames is not None:
-            frames.append(frame(page))
 
         DOCS.mkdir(exist_ok=True)
         page.screenshot(path=str(STILL_PATH))

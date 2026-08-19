@@ -36,6 +36,7 @@ from leasehound.scan import (
     jurisdiction_warning,
     partial_scan_notice,
     provenance_parts,
+    statute_url,
     summary_counts,
 )
 
@@ -184,9 +185,13 @@ def render_report_html(
         parts.append(f'<h2 class="lh-section lh-missing">{SECTION_TITLES["missing"]}</h2>')
         parts.append(f'<p class="lh-explain">{esc(MISSING_INTRO)}</p>')
         parts.append('<ul class="lh-missing-list">')
+        # _citation, the same helper the findings use, so a statute reference behaves
+        # the same wherever it appears. These used to be a bare <span>: the checklist
+        # retrieves nothing and so had no URL to carry, which is a fact about this
+        # module's plumbing and not about the citation. statute_url derives it.
         parts.extend(
             f'<li><strong>{esc(p["name"])}</strong> — {esc(p["requirement"])} '
-            f'<span class="lh-cite">{esc(p["citation"])}</span></li>'
+            f'{_citation(p["citation"], statute_url(p["citation"]))}</li>'
             for p in missing
         )
         parts.append("</ul>")

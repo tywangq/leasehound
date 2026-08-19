@@ -1,7 +1,9 @@
 """Report rendering and the parallel-scan cancellation contract (no API calls)."""
 
+import re
 import time
 from contextlib import ExitStack, contextmanager
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -550,3 +552,32 @@ def test_one_orchestration_serves_both_the_cli_and_the_ui():
     assert from_cli.split_mode == from_core.split_mode == "numbered"
     # And the UI renders that result through the same call the CLI's report uses.
     assert app.DEMO_STATE == "wa"
+
+
+def test_the_derived_statute_url_matches_the_corpus_source_line():
+    """statute_url builds a URL; the corpus files record the one they were fetched from.
+
+    Two statements of the same fact, and the corpus is not in the image — only
+    vector_db_runtime ships — so the runtime cannot read these files and the derivation
+    has to stand alone. Asserting it here is what keeps the pair honest: if
+    app.leg.wa.gov ever changes shape, the fetcher's output and this function disagree
+    and a test says so, rather than the report quietly linking to nothing.
+    """
+    statutes = Path(__file__).parent.parent / "corpus" / "wa" / "statutes"
+    checked = 0
+    for path in sorted(statutes.glob("*.md")):
+        text = path.read_text()
+        heading = re.match(r"#\s*(RCW [\d.]+)", text)
+        source = re.search(r"^Source:\s*(\S+)", text, re.M)
+        if not (heading and source):
+            continue
+        assert scan.statute_url(heading.group(1)) == source.group(1), path.name
+        checked += 1
+    assert checked > 20, f"only {checked} statutes had both a heading and a Source line"
+
+
+def test_a_missing_protection_cites_the_same_way_a_finding_does():
+    """The checklist retrieves nothing, so its citations had no URL and rendered as
+    plain text — three lines under an identical citation that was a link."""
+    for citation in (p["citation"] for p in scan.PROTECTION_CHECKLIST):
+        assert scan.statute_url(citation).startswith("https://")

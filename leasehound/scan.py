@@ -498,6 +498,24 @@ def base_section(citation: str) -> str:
     return match.group(0) if match else citation
 
 
+def statute_url(citation: str) -> str:
+    """The public URL for a citation, derived rather than looked up.
+
+    A clause verdict gets its links from the chunks it retrieved, which carry the URL in
+    their metadata. The protections checklist retrieves nothing — it is a fixed list of
+    what the law requires a lease to say — so its citations had no URL and rendered as
+    plain text, while the identical citation three lines above was a link. Nobody
+    reading a report knows that one came from a search and the other from a list.
+
+    The corpus is not in the image (see the Dockerfile: only vector_db_runtime ships),
+    so this cannot read the files at runtime. It derives the URL from the section
+    number, and test_scan.py checks the derivation against every `Source:` line in
+    corpus/wa/statutes — so the duplication is asserted rather than assumed.
+    """
+    section = base_section(citation).removeprefix("RCW ").strip()
+    return f"https://app.leg.wa.gov/RCW/default.aspx?cite={section}" if section else ""
+
+
 def scan_clause(clause: str, index: int, config: PipelineConfig,
                 meter: UsageMeter | None = None) -> dict:
     chunks = fetch_unranked(clause[:1200], config, meter)
@@ -1083,7 +1101,9 @@ def render_report(
         lines.append(MISSING_INTRO)
         lines.append("")
         for p in missing:
-            lines.append(f"- **{p['name']}** — {p['requirement']} ({p['citation']})")
+            link = statute_url(p["citation"])
+            cite = f"{p['citation']} — {link}" if link else p["citation"]
+            lines.append(f"- **{p['name']}** — {p['requirement']} ({cite})")
         lines.append("")
     green_indexes = [str(f["index"]) for f in findings if f["verdict"] == "green"]
     if green_indexes:

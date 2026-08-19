@@ -285,6 +285,20 @@ CSS = """
    balloons to full row width the instant its sibling leaves the DOM, then
    shrinks back. flex-basis is not !important so the entry keyframe can drive
    it (CSS animations lose to !important declarations). */
+/* The entry animation lives OUTSIDE the media query, and that is the whole reason the
+   split used to arrive in two moves. Inside it, gradio's CSS pipeline dropped both the
+   @keyframes and the `animation` declaration — verified on the shipped page, where the
+   column's computed animation-name read `none` and no `report-in` keyframes existed in
+   any stylesheet. With no entry animation, the column was inserted at its final width,
+   the row's nowrap squeezed both columns to 60:40, and only the chat column's
+   transition remained to slide them to 50:50. Sampled at 60fps: 0 -> 477px in one
+   frame, then a 450ms slide.
+   Hoisted, the same rule measures 22 -> 33 -> 63 -> 102 -> 146px, which is one motion.
+   `@starting-style` would express this more directly and is dropped by the same
+   pipeline, silently. Narrow screens stack, where flex-basis is a height, and a report
+   that grows from zero is the right entrance there too. */
+@keyframes report-in {from {flex-basis: 0px; opacity: 0;}}
+.report-col {animation: report-in 0.45s ease;}
 @media (min-width: 901px) {
   /* nowrap: gradio Rows wrap, and for the 0.45s the chat column spends animating from
      760px down to 50%, 760 + the report column's content did not fit — so the column
@@ -302,9 +316,7 @@ CSS = """
                flex-grow: 0 !important;
                flex-basis: calc(50% - (var(--layout-gap, 8px) / 2));
                min-width: 0 !important; overflow: hidden;
-               transition: flex-basis 0.45s ease, opacity 0.45s ease;
-               animation: report-in 0.45s ease;}
-  @keyframes report-in {from {flex-basis: 0px; opacity: 0;}}
+               transition: flex-basis 0.45s ease, opacity 0.45s ease;}
   /* overflow-y needs !important and the rest of this rule does not, which is worth
      writing down. As a gr.Markdown the panel took this rule as written. As a gr.HTML
      it also carries Gradio's `hide-contain`, which sets overflow and wins — so `flex`
@@ -451,6 +463,15 @@ CSS = """
    on a white rounded panel of gradio's, so a hairline each was a frame inside a frame —
    which at their size reads as a circle around every glyph. The report's three actions
    keep theirs because they stand alone on the panel with nothing behind them. */
+/* The statute links in the conversation, which the report styles and the chat did not:
+   the same RCW number was a teal chip with a wash on hover in the panel and default
+   markdown blue-and-underlined in the answer beside it. Colour and hover only — the
+   markdown around them is gradio's. */
+.chat-col .message a[href^="http"] {color: var(--lh-accent); font-weight: 500;
+    text-decoration: none; border-radius: 4px; padding: 1px 3px; margin: 0 -3px;
+    transition: background-color 0.15s ease;}
+.chat-col .message a[href^="http"]:hover {background: var(--lh-wash);
+    text-decoration: none;}
 .chat-col .icon-button-wrapper button {border: 0 !important; box-shadow: none !important;
     border-radius: 8px !important; transition: background-color 0.15s ease;
     color: var(--body-text-color) !important;}
@@ -571,6 +592,11 @@ ALREADY_SNIFFED = "🐕 Already sniffed this one — the report is still on the 
 # the app changing its mind. Nothing is claimed about the clauses until the gate has
 # answered, and the panel does not open until the first verdict.
 SNIFF_STARTING = "🐕 Sniffing…"
+# Ask mode's equivalent, and a module constant rather than a literal at the point of use
+# because scripts/record_demo.py holds the GIF on this frame: it is one of the two
+# moments the recording has to let a reader see. A copy of a string in a script is a
+# string that goes stale — the recording's chip label did exactly that.
+THINKING = "🐕 Thinking…"
 CACHED_SNIFF = (
     "🐕 The hound has sniffed this exact lease before — here's the saved report, "
     "no fresh API calls. Attach a different lease to watch a live scan."
@@ -882,7 +908,7 @@ def _out(history=gr.skip(), box=gr.skip(), report=gr.skip(), state=gr.skip(),
 
 def answer_flow(question, history, report, context_base):
     """Append the hound's answer to an already-appended user message."""
-    history.append({"role": "assistant", "content": "🐕 Thinking…"})
+    history.append({"role": "assistant", "content": THINKING})
     yield _out(history)
     # Trim BEFORE prepending, so the report survives; strip footers so the
     # model doesn't mimic them (see strip_footer).
