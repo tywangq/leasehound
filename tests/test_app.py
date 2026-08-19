@@ -181,6 +181,22 @@ def test_the_override_phrase_reaches_the_scan_and_is_not_answered_as_a_question(
     assert seen == {"question": "what about my deposit?", "scan_anyway": False}
 
 
+def test_an_answer_wrapped_in_content_parts_is_unwrapped_for_the_reader():
+    """Belt and suspenders, exactly like MODEL_FOOTER above.
+
+    message_text keeps the wrapper out of the prompt, which is the cause. It cannot
+    promise a model will never produce the shape anyway — this one arrived as
+    `[{'text': '<the whole answer>'}]` and was only noticed because a user pasted it.
+    """
+    answer = "Within 30 days.\n\nAnd twice the deposit if they refuse (RCW 59.18.280(2))."
+    for wrapped in (f"[{{'text': '{answer}'}}]".replace("\n", "\\n"),
+                    f'[{{"text": "{answer}", "type": "text"}}]'.replace("\n", "\\n")):
+        assert app.unwrap_parts(wrapped) == answer
+    # An answer that merely mentions the shape, or opens a list, is left alone.
+    assert app.unwrap_parts("Use [{'text': ...}] in the API.") == "Use [{'text': ...}] in the API."
+    assert app.unwrap_parts(answer) == answer
+
+
 def test_the_browsers_content_parts_never_reach_the_model(monkeypatch, tmp_path):
     """Gradio 6 returns each message's content as [{"text": ..., "type": "text"}].
 

@@ -24,6 +24,31 @@ jobs:
       - name: Test
         run: pytest -q
 
+  css:
+    # tests/test_css.py measures computed styles in a real browser and skips itself when
+    # playwright is absent — which is every environment except this job. A test that only
+    # ever skips guards nothing, and these are the failures nothing else here can see:
+    # a rule gradio out-specifies, a token a dark-mode block forgets, a hover that moves
+    # the thing it was written to hold still. All three shipped.
+    #
+    # Separate from `test` because it is the only job that wants a 150MB browser. It
+    # builds no vector store and makes no API call: the page it drives imports the
+    # shipped UI_STYLE and lays out the same elements.
+    runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ci-dummy-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          pip install -e ".[dev]" playwright
+          playwright install --with-deps chromium
+      - name: Measure the styles
+        run: pytest -q tests/test_css.py
+
   image:
     # The container is what visitors actually reach, and until this job existed
     # nothing built it between deploys. It fails on a different class of problem

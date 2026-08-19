@@ -103,10 +103,15 @@ CSS = """
        Mixed with white instead, the hue is carried along: 12% lands on 175°, the accent's
        own hue, and saturation falls to 29% where a wash belongs. Changing --lh-accent now
        moves the chip, the hover fill, the hover border and the pressed chip together —
-       there is nothing left to keep in sync by hand. */
+       there is nothing left to keep in sync by hand.
+       Mixed into the PAGE rather than into white, so one line is right in both colour
+       schemes: gradio adds .dark to <body> when the system asks for it (measured) and
+       switches --body-background-fill with it, while a wash mixed into #ffffff stayed a
+       pale mint block on a #0a0f1e page. In light mode this resolves to exactly what the
+       white mix gave, because the theme sets that fill to #ffffff. */
     --lh-accent: #0f766e;
-    --lh-wash: color-mix(in srgb, var(--lh-accent) 12%, #ffffff);
-    --lh-wash-border: color-mix(in srgb, var(--lh-accent) 36%, #ffffff);
+    --lh-wash: color-mix(in srgb, var(--lh-accent) 12%, var(--body-background-fill));
+    --lh-wash-border: color-mix(in srgb, var(--lh-accent) 36%, var(--body-background-fill));
     --lh-accent-deep: color-mix(in srgb, var(--lh-accent) 82%, #000000);
 }
 .hero {text-align: center; padding: 12px 0 8px;}
@@ -242,11 +247,17 @@ CSS = """
 .report-panel .lh-waiting {font-size: var(--t-doc); color: var(--lh-muted);}
 .report-panel .lh-notjudged {color: var(--lh-amber);}
 @media (prefers-color-scheme: dark) {
+  /* --lh-card belongs in this list and was missing from it. The two rules below used to
+     set `background: #11181f` on .lh-finding and .lh-note directly — the same value the
+     token holds — so everything that reads the token instead was left on the light
+     value. The verdict chips do read the token: on a #0a0f1e page they were white pills
+     carrying --lh-body's light-mode-inverted text, about 1.4:1. Measured on the deployed
+     panel, in the right place: a chip at #f8fafc with #c3ccd6 lettering.
+     One token, four elements, no rule per element. */
   .report-panel {--lh-ink: #e6edf3; --lh-body: #c3ccd6; --lh-muted: #7d8b99;
-                 --lh-hair: #263139;}
-  .report-panel .lh-finding {background: #11181f; border-color: #263139;}
+                 --lh-hair: #263139; --lh-card: #11181f;}
+  .report-panel .lh-finding {border-color: #263139;}
   .report-panel .lh-finding.lh-red {background: #1b1315; border-color: #4a2226;}
-  .report-panel .lh-note {background: #11181f;}
   .report-panel .lh-note-jurisdiction, .report-panel .lh-note-gate,
   .report-panel .lh-note-partial {background: #1d1710;}
   .report-panel .lh-cite {color: #2dd4bf; border-bottom-color: rgba(45, 212, 191, 0.3);}
@@ -705,6 +716,30 @@ FOOTER_MARK = "\n\n**Statutes cited:**"
 MODEL_FOOTER = re.compile(
     r"\n+(?:-{3,}\n+)?\**Statutes cited(?: in this answer)?:?\**[\s\S]*\Z"
 )
+# The same idea as MODEL_FOOTER, for the other thing a model copies out of its own
+# history: gradio's content-parts wrapper. An answer once arrived on screen as
+# `[{'text': '<the whole correct answer>'}]`. The cause was upstream — the browser sends
+# history back as those parts and it was being str()-ed into the prompt, which
+# message_text now prevents — but a model repeating a shape it has seen is not something
+# a prompt fix can promise to have ended, and it was invisible until a user pasted it.
+# So: unwrap it if it happens, and say so in the log, which is how anyone would learn
+# that it is still happening at all.
+MODEL_PARTS_WRAPPER = re.compile(
+    r"\A\s*\[\s*\{\s*(['\"])text\1\s*:\s*(['\"])([\s\S]*?)\2"   # lazy: a trailing
+    r"\s*(?:,[\s\S]*?)?\}\s*,?\s*\]\s*\Z"                       # "type": "text" is not
+)                                                               # part of the answer
+
+
+def unwrap_parts(answer: str) -> str:
+    """Undo a model's imitation of `[{'text': …}]`, if that is the whole answer."""
+    match = MODEL_PARTS_WRAPPER.match(answer)
+    if not match:
+        return answer
+    inner = match.group(3)
+    print(f"model wrapped its answer in content parts ({len(answer)} chars)", flush=True)
+    # The repr escapes the newlines it contains; undo the two that matter, and nothing
+    # else — this is a display repair, not a parser.
+    return inner.replace("\\n", "\n").replace("\\'", "'").strip()
 
 
 def sources_footer(answer: str, chunks) -> str:
@@ -880,7 +915,7 @@ def answer_flow(question, history, report, context_base):
         answer += delta
         history[-1]["content"] = answer
         yield _out(history)
-    answer = MODEL_FOOTER.sub("", answer).rstrip()
+    answer = MODEL_FOOTER.sub("", unwrap_parts(answer)).rstrip()
     history[-1]["content"] = answer + sources_footer(answer, answered.chunks)
     yield _out(history)
 
