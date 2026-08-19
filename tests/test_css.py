@@ -51,6 +51,9 @@ with gr.Blocks() as demo:
             gr.Examples(examples=QUESTION_EXAMPLES, inputs=box, label="Ask a question",
                         elem_id="example-prompts")
         with gr.Column(scale=1, elem_classes="report-col"):
+            gr.Button("✋ Call off the hound", size="sm", elem_id="stop-button")
+            with gr.Row(elem_id="report-actions"):
+                gr.Button("", size="sm")
             gr.HTML(REPORT, elem_classes="report-panel")
 """
 
@@ -215,6 +218,38 @@ def test_the_verdict_chips_stay_readable_in_dark_mode(page_factory):
     page.close()
     assert hexof(got["page"]) != "#ffffff", "the dark scheme did not engage"
     assert contrast(hexof(got["fg"]), hexof(got["bg"])) >= 4.5, json.dumps(got)
+
+
+@pytest.mark.parametrize("label,selector", [
+    ("example chip", "#example-prompts .gallery-item"),
+    ("user bubble", ".chat-col .message.user"),
+    ("stop button", "#stop-button"),
+    ("report action", "#report-actions button"),
+    ("verdict chip", ".report-panel .lh-chip"),
+])
+def test_every_surface_stays_readable_in_dark_mode(page_factory, label, selector):
+    """Four rules wrote `background: #ffffff` and `color: var(--body-text-color)`.
+
+    Half a rule reading the theme is worse than none of it: in dark mode the text
+    followed the token to #f1f5f9 and the fill stayed white, so the example chips, the
+    user's bubble, the stop button and the report's actions all measured 1.1:1 — not low,
+    invisible. The chips test above passed throughout, which is why this one is a list.
+    """
+    page = page_factory("dark")
+    got = page.evaluate("""(sel) => {
+      const el = document.querySelector(sel);
+      if (!el) return null;
+      const s = getComputedStyle(el);
+      return {bg: s.backgroundColor, fg: s.color,
+              page: getComputedStyle(document.body).backgroundColor};
+    }""", selector)
+    page.close()
+    assert got, f"{label} did not render"
+    assert hexof(got["page"]) != "#ffffff", "the dark scheme did not engage"
+    # A transparent fill inherits whatever is behind it, which in dark mode is dark.
+    if got["bg"].startswith("rgba") and got["bg"].endswith(", 0)"):
+        pytest.skip(f"{label} has no fill of its own")
+    assert contrast(hexof(got["fg"]), hexof(got["bg"])) >= 4.5, f"{label}: {got}"
 
 
 def test_the_text_under_an_attachment_clears_the_chip_edge(page_factory, tmp_path):

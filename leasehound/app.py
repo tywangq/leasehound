@@ -396,8 +396,8 @@ CSS = """
    nothing with no edges — nobody can tell that is where the answers will appear.
    One hairline for the pair, one rule between them, no fill: the bubbles inside are
    white, and a filled box behind white bubbles is a box inside a box. */
-.chat-col .chat-surface {border: 1px solid #e2e8f0 !important; border-radius: 8px;
-    overflow: hidden; background: #ffffff;}
+.chat-col .chat-surface {border: 1px solid var(--border-color-primary) !important;
+    border-radius: 8px; overflow: hidden; background: var(--block-background-fill);}
 /* gradio renders a Group as a wrapper inside a wrapper and puts elem_classes on both, so
    the rule above landed twice and drew two touching hairlines — which reads as one heavy
    2px line, not as the hairline it was meant to be. */
@@ -437,7 +437,8 @@ CSS = """
    gradio's chatbot toolbar, one a gr.Button row. Same size, same grey, same hover. */
 #report-actions button, #stop-button, #stop-button button {
     border-radius: 8px !important; transition: background-color 0.15s ease;
-    background: #ffffff !important; border: 1px solid #e2e8f0 !important;
+    background: var(--block-background-fill) !important;
+    border: 1px solid var(--border-color-primary) !important;
     box-shadow: none !important; color: var(--body-text-color) !important;}
 /* The chatbot's toolbar gets everything except the border: those two buttons already sit
    on a white rounded panel of gradio's, so a hairline each was a frame inside a frame —
@@ -498,17 +499,26 @@ footer {visibility: hidden;}
 #example-scan .gallery-item, #example-prompts .gallery-item {padding: 8px 12px;
     line-height: 20px;}
 /* S4's one accent surface. This lives with the examples, not with the conversation: the
-   example rows are this app's own markup, so styling them is not reaching into gradio. */
-#example-scan .gallery-item, #example-prompts .gallery-item {background: #ffffff;
-    border-color: #e2e8f0; color: var(--body-text-color);}
+   example rows are this app's own markup, so styling them is not reaching into gradio.
+   Surfaces come from gradio's tokens rather than from a literal, and the reason is a bug
+   that shipped: four rules here wrote `background: #ffffff` and then set `color:
+   var(--body-text-color)`. In dark mode the text follows the token to #f1f5f9 and the
+   fill stays white — the example chips, the user's bubble, the stop button and the
+   report's three actions all measured 1.1:1, which is invisible, not merely low. Half a
+   rule reading the theme is worse than none of it. --block-background-fill is white in
+   light and #1e293b in dark; --border-color-primary is the theme's own hairline, which
+   also retires this file's second, nearly identical #e2e8f0. */
+#example-scan .gallery-item, #example-prompts .gallery-item {
+    background: var(--block-background-fill);
+    border-color: var(--border-color-primary); color: var(--body-text-color);}
 #example-scan .gallery-item {background: var(--lh-accent);
     border-color: var(--lh-accent); color: #ffffff;}
 /* One green in the column, and it belongs to the action. The user's bubble was tinted in
    gradio's mint while the primary button is the app's teal — same hue family, two very
    different tints, which is what read as "not unified". This is a colour override and
    not a layout one: the composer bugs all came from the second kind. */
-.chat-col .message.user {background: #ffffff !important;
-    border-color: #e2e8f0 !important;}
+.chat-col .message.user {background: var(--block-background-fill) !important;
+    border-color: var(--border-color-primary) !important;}
 /* The attached file's name, third copy of the same string: the context line had it as a
    markdown code chip, the report has it plain, and the bubble had it in gradio's mono.
    One typeface means one typeface — this is the last thing in the app that was not Inter. */
