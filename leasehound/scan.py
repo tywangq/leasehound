@@ -493,7 +493,17 @@ def scan_config(state: str = "wa", collection: str | None = None) -> PipelineCon
 
 
 def base_section(citation: str) -> str:
-    """Normalize subsection citations like 'RCW 59.18.150(6)' for URL lookup."""
+    """Normalize subsection citations like 'RCW 59.18.150(6)' for URL lookup.
+
+    WA-only, and it fails quietly outside it. The pattern is Washington's citation
+    format; anything else falls through to the original string, statute_url() then
+    finds no URL, and every statute reference in the report degrades to plain text
+    with no error anywhere. California's `Civil Code 1950.5` is already a case that
+    would do this.
+
+    jurisdiction.py exists, so a second state is on the map — this function and
+    statute_url() are two of the places that have to become per-jurisdiction first.
+    """
     match = re.match(r"RCW \d+\.\d+\.\d+", citation)
     return match.group(0) if match else citation
 
