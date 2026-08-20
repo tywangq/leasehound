@@ -20,11 +20,23 @@ every convention must split, and no clause may exceed the retrieval window.
 
 import pytest
 
+from leasehound.scan import RETRIEVAL_QUERY_CHARS
 from leasehound.upload import (
     MAX_CLAUSE_CHARS,
     cap_clause_length,
     split_clauses_with_mode,
 )
+
+
+def test_clause_cap_never_exceeds_the_retrieval_window():
+    """The assertions below use MAX_CLAUSE_CHARS as a stand-in for the retrieval
+    window, which only holds while the two agree. Assert the coupling itself, or
+    raising the cap alone moves the goalposts with it: every test in this file
+    stays green while long clauses get retrieved against their opening only.
+
+    Not `==`. A wider query window is harmless -- the slice becomes a no-op.
+    The one-way direction is what correctness needs."""
+    assert RETRIEVAL_QUERY_CHARS >= MAX_CLAUSE_CHARS
 
 BODIES = [
     "Tenant shall pay $2,000 monthly on the first day of each month without demand.",

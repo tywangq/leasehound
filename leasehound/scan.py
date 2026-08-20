@@ -516,9 +516,23 @@ def statute_url(citation: str) -> str:
     return f"https://app.leg.wa.gov/RCW/default.aspx?cite={section}" if section else ""
 
 
+# How much of a clause is used as the retrieval query.
+#
+# This must not be smaller than upload.MAX_CLAUSE_CHARS. If it were, a clause
+# longer than the window would be retrieved against its opening only, and a
+# violation living past that point draws a legitimate green -- the judge is told
+# not to flag anything the extracts do not address, so it obeys. That is the
+# failure tests/test_upload_formats.py was written for.
+#
+# It was a bare `1200` here until 2026-08-19, which meant the invariant could not
+# be asserted: the splitter's cap had a name and its consumer did not, so raising
+# MAX_CLAUSE_CHARS alone left every test green and silently reintroduced the bug.
+RETRIEVAL_QUERY_CHARS = 1200
+
+
 def scan_clause(clause: str, index: int, config: PipelineConfig,
                 meter: UsageMeter | None = None) -> dict:
-    chunks = fetch_unranked(clause[:1200], config, meter)
+    chunks = fetch_unranked(clause[:RETRIEVAL_QUERY_CHARS], config, meter)
     verdict = judge_clause(clause, chunks, meter)
     url_by_section = {c.metadata.get("section"): c.metadata.get("url") for c in chunks}
     return {
