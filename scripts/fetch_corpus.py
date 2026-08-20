@@ -1,4 +1,4 @@
-"""Fetch and normalize the LeaseGuard reference corpus (Layer 1).
+"""Fetch and normalize the LeaseHound reference corpus (Layer 1).
 
 Sources (public domain, WA government):
   - RCW Chapter 59.18 "Residential Landlord-Tenant Act", full chapter view:
