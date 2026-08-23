@@ -119,3 +119,49 @@ def test_a_stalled_provider_cannot_hold_a_worker_indefinitely():
     # before the fifth try starts, so the budget is the limit that actually protects a
     # caller. Whichever trips first wins.
     assert RETRY_BUDGET_SECONDS <= 300
+
+
+# --- the reranker's output is not trusted to be complete -------------------------
+
+def _chunks(n: int) -> list:
+    from leasehound.retrieval import Result
+    return [Result(page_content=f"chunk {i}", metadata={"section": f"s{i}"})
+            for i in range(1, n + 1)]
+
+
+def test_a_rank_order_that_omits_ids_does_not_drop_those_chunks():
+    """The failure that left no trace. `rerank` runs immediately before
+    `chunks[:final_k]`, so a chunk the model forgot to mention used to vanish from the
+    judge's context — and the prompt asking for "every id" was the only thing making
+    that not happen."""
+    from leasehound.retrieval import apply_rank_order
+
+    chunks = _chunks(5)
+    ranked = apply_rank_order(chunks, [3, 1])
+    assert len(ranked) == 5, "every chunk survives a partial ranking"
+    assert [c.page_content for c in ranked[:2]] == ["chunk 3", "chunk 1"]
+    # The rest keep retrieval order behind them: the reranker not mentioning a chunk
+    # is not evidence against it, and dense similarity beats nothing.
+    assert [c.page_content for c in ranked[2:]] == ["chunk 2", "chunk 4", "chunk 5"]
+
+
+def test_a_repeated_id_does_not_occupy_two_slots():
+    from leasehound.retrieval import apply_rank_order
+
+    ranked = apply_rank_order(_chunks(4), [2, 2, 1])
+    assert [c.page_content for c in ranked] == [
+        "chunk 2", "chunk 1", "chunk 3", "chunk 4"]
+
+
+def test_out_of_range_ids_are_ignored_without_losing_anything():
+    from leasehound.retrieval import apply_rank_order
+
+    ranked = apply_rank_order(_chunks(3), [9, 0, -1, 2])
+    assert [c.page_content for c in ranked] == ["chunk 2", "chunk 1", "chunk 3"]
+
+
+def test_a_full_ranking_is_applied_exactly():
+    from leasehound.retrieval import apply_rank_order
+
+    ranked = apply_rank_order(_chunks(3), [3, 2, 1])
+    assert [c.page_content for c in ranked] == ["chunk 3", "chunk 2", "chunk 1"]

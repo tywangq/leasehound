@@ -581,3 +581,39 @@ def test_a_missing_protection_cites_the_same_way_a_finding_does():
     plain text — three lines under an identical citation that was a link."""
     for citation in (p["citation"] for p in scan.PROTECTION_CHECKLIST):
         assert scan.statute_url(citation).startswith("https://")
+
+
+def test_a_checklist_item_no_window_judged_stops_the_scan(monkeypatch):
+    """The protections pass claims what a lease OMITS, so it may not answer partially.
+
+    Nothing made the model return one verdict per item, and an omitted one used to
+    fall out of the loop — leaving a report with fewer rows than the checklist has,
+    which every consumer downstream reads as a clean bill because they only count
+    `missing`. Never observed across the 51 measured documents, which is why it would
+    have been so hard to notice starting.
+    """
+    from leasehound.scan import (
+        PROTECTION_CHECKLIST,
+        ProtectionsIncomplete,
+        ProtectionStatus,
+        check_protections,
+    )
+
+    full = [ProtectionStatus(index=i, status="present", evidence="x")
+            for i in range(1, len(PROTECTION_CHECKLIST) + 1)]
+    monkeypatch.setattr(scan, "check_protections_window",
+                        lambda text, meter=None: [c for c in full if c.index != 3])
+    try:
+        check_protections(["a" * 200])
+    except ProtectionsIncomplete as incomplete:
+        assert incomplete.absent == [3]
+        assert incomplete.total == len(PROTECTION_CHECKLIST)
+    else:
+        raise AssertionError("a missing checklist verdict was reported as a result")
+
+    monkeypatch.setattr(scan, "check_protections_window", lambda text, meter=None: full)
+    results = check_protections(["a" * 200])
+    assert len(results) == len(PROTECTION_CHECKLIST)
+    # And in checklist order, which the old dict-key sort happened to give and nothing
+    # asserted: the report renders these as a list a reader compares against the law.
+    assert [r["name"] for r in results] == [i["name"] for i in PROTECTION_CHECKLIST]

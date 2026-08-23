@@ -313,7 +313,28 @@ def rerank(question: str, chunks: list[Result], meter=None) -> list[Result]:
     if meter is not None:
         meter.add_completion(response)
     order = RankOrder.model_validate_json(response.choices[0].message.content).order
-    return [chunks[i - 1] for i in order if 1 <= i <= len(chunks)]
+    return apply_rank_order(chunks, order)
+
+
+def apply_rank_order(chunks: list[Result], order: list[int]) -> list[Result]:
+    """Reorder by the model's ranking, keeping every chunk exactly once.
+
+    The prompt asks for "every id you were given" and nothing made that true. The old
+    one line — `[chunks[i-1] for i in order if 1 <= i <= len(chunks)]` — did two
+    things silently when the model did not comply: an omitted id DROPPED that chunk,
+    and a repeated id DUPLICATED one. Both land immediately before `chunks[:final_k]`,
+    so a dropped chunk is lost recall and a duplicate is a wasted context slot, and
+    neither leaves a trace.
+
+    Unranked chunks go to the back in retrieval order rather than being discarded: the
+    reranker declining to mention a chunk is not evidence against it, and dense
+    similarity is a better fallback than nothing. This cannot rank worse than no
+    reranker at all, which the old version could.
+    """
+    seen: set[int] = set()
+    ranked = [chunks[i - 1] for i in order
+              if 1 <= i <= len(chunks) and not (i in seen or seen.add(i))]
+    return ranked + [c for i, c in enumerate(chunks, start=1) if i not in seen]
 
 
 def fetch_context(question: str, config: PipelineConfig, history: list | None = None,

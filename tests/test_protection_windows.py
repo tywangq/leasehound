@@ -113,7 +113,12 @@ def test_windows_run_concurrently_but_merge_in_document_order(monkeypatch):
         started.wait()
         seen.append(text)
         index = windows.index(text) + 1
-        return [status(1, "present", f"window {index}")]
+        # Every checklist item, because check_protections now refuses a partial
+        # answer — the pass claims what a lease OMITS and an unjudged item cannot be
+        # reported as anything. Only item 1 carries the window number, which is what
+        # the first-seen assertion below reads.
+        return [status(1, "present", f"window {index}")] + [
+            status(i, "present", "") for i in range(2, len(scan.PROTECTION_CHECKLIST) + 1)]
 
     monkeypatch.setattr(scan, "check_protections_window", blocking_window)
     results = scan.check_protections(clauses)

@@ -214,6 +214,22 @@ PROTECTION_CHECKLIST = [
 ]
 
 
+class ProtectionsIncomplete(Exception):
+    """A checklist item no window returned a verdict for.
+
+    Carries which ones, because "the model skipped item 4" and "the model returned
+    nothing" are different failures and the message should say which.
+    """
+
+    def __init__(self, absent: list[int], total: int):
+        self.absent = absent
+        self.total = total
+        super().__init__(
+            f"no verdict for checklist item(s) {absent} of {total} — the protections "
+            "pass claims what a lease OMITS, so an unchecked item cannot be reported "
+            "as anything")
+
+
 class ProtectionStatus(BaseModel):
     index: int = Field(description="1-based number of the checklist item")
     status: Literal["present", "missing", "not_applicable"] = Field(
@@ -379,12 +395,24 @@ def check_protections(clauses: list[str], meter: UsageMeter | None = None) -> li
         per_window = list(pool.map(lambda window: check_protections_window(window, meter),
                                    windows))
     checks = merge_protection_checks(per_window)
-    results = []
-    for check in checks:
-        if 1 <= check.index <= len(PROTECTION_CHECKLIST):
-            item = PROTECTION_CHECKLIST[check.index - 1]
-            results.append({**item, "status": check.status, "evidence": check.evidence})
-    return results
+    verdicts = {c.index: c for c in checks if 1 <= c.index <= len(PROTECTION_CHECKLIST)}
+    # Nothing made the model return one verdict per item. Omit one and this loop used
+    # to produce a report with one fewer row — a checklist that silently got shorter,
+    # which is the exact failure this pass exists to prevent: a requirement nobody
+    # looked at is not a requirement the lease satisfies, and every consumer downstream
+    # counts only `missing`, so the absent row would have read as a clean bill.
+    #
+    # Raised rather than reported, and rendered nowhere, for the reason DocumentTooLarge
+    # refuses instead of trimming: this pass makes a claim about the WHOLE document, so
+    # a partial answer here is not smaller, it is wrong. Never observed across the 51
+    # measured documents, which is why it costs nothing to make loud — and why it would
+    # have been very hard to notice the day it started happening.
+    absent = [i for i in range(1, len(PROTECTION_CHECKLIST) + 1) if i not in verdicts]
+    if absent:
+        raise ProtectionsIncomplete(absent, len(PROTECTION_CHECKLIST))
+    return [{**PROTECTION_CHECKLIST[i - 1], "status": verdicts[i].status,
+             "evidence": verdicts[i].evidence}
+            for i in range(1, len(PROTECTION_CHECKLIST) + 1)]
 
 
 # Documents ABOUT leases (this repo's README, a scan report) read as
