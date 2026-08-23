@@ -45,7 +45,6 @@ def index_fingerprint(collection: str = "wa_reference") -> dict | None:
     Returns None when no store is present (CI's free jobs, a fresh clone), because a
     stamp that invents an index is worse than one that admits it has none.
     """
-    from leasehound.ingest import MAX_CHUNK_CHARS
     from leasehound.retrieval import DB_PATH
 
     try:
@@ -54,6 +53,20 @@ def index_fingerprint(collection: str = "wa_reference") -> dict | None:
         documents = PersistentClient(path=DB_PATH).get_collection(collection).get()["documents"]
     except Exception:
         return None
+    return fingerprint_documents(documents, collection)
+
+
+def fingerprint_documents(documents: list[str], collection: str = "wa_reference") -> dict:
+    """The fingerprint itself, over chunk text — separated from fetching it.
+
+    Split out because the version that read Chroma directly could only be tested where
+    a store exists, and CI's free `test` job has none: both tests passed locally and
+    failed on the first push. Skipping them there would have been worse — a test that
+    only ever skips guards nothing, which is the same reason `tests/test_css.py` has a
+    job of its own rather than a skip marker.
+    """
+    from leasehound.ingest import MAX_CHUNK_CHARS
+
     # Content, not ids: two builds of the same corpus produce different ids for the
     # same text, and it is the text the embeddings are of.
     digest = hashlib.sha256(

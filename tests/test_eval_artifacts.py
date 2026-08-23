@@ -278,18 +278,39 @@ def test_the_stamp_names_the_index_a_number_was_measured_against():
     """
     from evaluation.provenance import stamp
 
-    index = stamp()["index"]
-    assert index is not None, "there is a store on disk, so the stamp must name it"
-    assert {"collection", "chunks", "digest", "degraded"} <= index.keys()
+    # The field is always present; whether it is populated depends on a store existing,
+    # and `None` is the honest answer where one does not. This test asserted a store
+    # instead, passed on a laptop and failed on the first push — CI's free `test` job
+    # has no vector_db/.
+    assert "index" in stamp()
 
 
 def test_a_degraded_index_says_so_rather_than_looking_clean():
     """`degraded` counts chunks over MAX_CHUNK_CHARS — sections whose validation never
-    passed and which ingestion accepted anyway. The shipped store has some, which is
-    the point: the question is not "did this build fail" but "which build is this"."""
-    from evaluation.provenance import index_fingerprint
+    passed and which ingestion accepted anyway.
+
+    Driven with documents rather than a store, so it runs everywhere. The thing worth
+    asserting is the arithmetic, and the arithmetic does not need Chroma.
+    """
+    from evaluation.provenance import fingerprint_documents
     from leasehound.ingest import MAX_CHUNK_CHARS
 
-    index = index_fingerprint()
-    assert index["degraded"] >= 0
-    assert MAX_CHUNK_CHARS > 0
+    clean = fingerprint_documents(["a" * 100, "b" * 200])
+    assert clean == {"collection": "wa_reference", "chunks": 2,
+                     "digest": clean["digest"], "degraded": 0}
+
+    # One section the chunker never managed to split, of the kind ingestion accepts
+    # after three failed validations — RCW 59.18.150 came back as 9,959 characters.
+    damaged = fingerprint_documents(["a" * 100, "x" * (MAX_CHUNK_CHARS + 1)])
+    assert damaged["degraded"] == 1, "an unsplit section must not read as a clean store"
+
+
+def test_two_builds_of_the_same_corpus_are_told_apart():
+    """The whole purpose: same commit, same models, same corpus, different index."""
+    from evaluation.provenance import fingerprint_documents
+
+    shipped = fingerprint_documents(["rent is due", "entry needs notice"])
+    rebuilt = fingerprint_documents(["rent is due", "entry needs noticeentry"])
+    assert shipped["digest"] != rebuilt["digest"]
+    # And order must not matter — chunk order is not a property of the index.
+    assert fingerprint_documents(["b", "a"])["digest"] == fingerprint_documents(["a", "b"])["digest"]
