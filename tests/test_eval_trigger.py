@@ -13,6 +13,12 @@ here until somebody says which it is.
 The classification is checkable rather than a matter of taste: nothing excluded here
 is reachable from `judge_fingerprint()`, which digests the judge prompt and its
 response schema — the two things every published verdict number depends on.
+
+The second half of the file pins the other axis. The path filter decides *whether* a
+run happens; the per-step conditions decide what it *costs* — a ~$0.0002 canary per
+push, a ~$0.23 tier weekly, ~$1.00 on dispatch. Neither axis is visible without
+reading YAML, and a condition that reverts to the expensive default fails nothing.
+It just bills.
 """
 
 import re
@@ -107,3 +113,65 @@ def test_the_fingerprint_is_built_from_the_judge_and_nothing_else():
         ClauseVerdict.model_json_schema(), sort_keys=True)
     assert judge_fingerprint() == hashlib.sha256(
         material.encode("utf-8")).hexdigest()[:12]
+
+
+# --- which tier runs when ---------------------------------------------------------
+#
+# The path filter above decides whether a run happens at all. These decide what it
+# costs when it does. Both are load-bearing and neither is visible from the repo
+# without reading YAML, so they get held here: a condition that quietly reverts to
+# running the paid tier on every push does not fail anything, it just bills.
+
+# ~$0.0002: one embedding per labelled clause, no completions.
+CANARY = "Scan-mode retrieval eval"
+# ~$0.23 together. Weekly and on dispatch.
+PAID_WEEKLY = {"Scan eval (gold set)", "Retrieval eval", "Injection resistance (5 payloads)"}
+# ~$1.00 together. Dispatch only.
+PAID_DISPATCH = {"Generation eval (manual runs only)",
+                 "Scan eval — synthetic silver set (manual runs only)"}
+
+
+def step_conditions() -> dict[str, str]:
+    """Every named step in eval.yml, mapped to its `if:` expression."""
+    text = WORKFLOW.read_text(encoding="utf-8")
+    steps = {}
+    for block in re.split(r"\n      - name: ", text)[1:]:
+        name = block.split("\n", 1)[0].strip()
+        match = re.search(r"^        if: (.+)$", block, re.M)
+        steps[name] = match.group(1).strip() if match else ""
+    return steps
+
+
+def test_only_the_canary_runs_on_a_push():
+    """The whole point of the tiering. $0.0002 per commit instead of $0.23."""
+    conditions = step_conditions()
+    assert "github.event_name" not in conditions[CANARY], (
+        "the canary must run on every qualifying push — it is the per-commit signal")
+    for name in PAID_WEEKLY:
+        assert "github.event_name != 'push'" in conditions[name], (
+            f"{name!r} costs money and must not run per push")
+
+
+def test_the_dearest_two_are_dispatch_only():
+    conditions = step_conditions()
+    for name in PAID_DISPATCH:
+        assert "github.event_name == 'workflow_dispatch'" in conditions[name], (
+            f"{name!r} is the ~$0.40-$0.60 tier and stays manual")
+
+
+def test_every_paid_step_is_classified():
+    """A new step added without a tier defaults to running per push, which is the
+    expensive default. This is the line that notices."""
+    named = set(step_conditions()) - {CANARY}
+    unclassified = named - PAID_WEEKLY - PAID_DISPATCH - {"Gate on API key", "Install",
+                                                          "Restore vector store",
+                                                          "Build vector store (cache miss)"}
+    assert not unclassified, (
+        f"eval.yml steps with no declared tier: {sorted(unclassified)}")
+
+
+def test_the_weekly_tier_has_something_to_run_on():
+    """The paid tier is excluded from push, so without a schedule it would only ever
+    run when somebody remembered to click dispatch."""
+    assert re.search(r"^  schedule:", WORKFLOW.read_text(encoding="utf-8"), re.M), (
+        "the paid tier no longer runs on push and needs a cadence")

@@ -1,10 +1,26 @@
 # Paid evaluation runs — separate from ci.yml, which stays free (lint + tests).
 #
-# Design decisions, in cost order:
-# - Push runs only the cheap tier: gold-set scan eval (6 leases, ~$0.10),
-#   retrieval eval (~$0.05), and injection resistance (5 leases, ~$0.08).
-#   The generation eval (~$0.40) and the 40-lease silver set (~$0.60) run on
-#   workflow_dispatch only.
+# Three tiers, by what a run is worth against what it costs:
+#
+# - EVERY qualifying push runs the scan-mode retrieval eval alone: one embedding
+#   per labelled clause, no completions, ~$0.0002. It answers "did the governing
+#   statute reach the judge", which is the most common silent breakage and the
+#   question the paid scan eval cannot separate from "did the judge misread it".
+# - WEEKLY (and on dispatch) the paid tier: gold-set scan eval (6 leases, ~$0.10),
+#   ask-mode retrieval eval (~$0.05), injection resistance (~$0.08). These used to
+#   run per push at ~$0.23 a time, which prices a regression check by commit count
+#   rather than by how often the answer can change. A weekly cadence bounds the
+#   month at ~$1 and delays only the regressions the canary above cannot see —
+#   and nothing here gates a merge or updates a published number anyway: the
+#   README's figures come from committed artifacts, not from these runs, so the
+#   cost of finding out on Monday instead of Thursday is knowing on Monday.
+# - DISPATCH only: the generation eval (~$0.40) and the 40-lease silver set
+#   (~$0.60).
+#
+# tests/test_eval_trigger.py pins the tiers, because a condition that quietly
+# reverts to running everything per push is a bill, not a failing test.
+#
+# The rest, unchanged:
 # - main only, never PRs: fork PRs must not reach the API key secret.
 # - Path-filtered so docs-only commits cost nothing; results files are
 #   excluded or a run would re-trigger itself when results are committed.
@@ -46,6 +62,11 @@ on:
       - "evaluation/tests.jsonl"
       - "pyproject.toml"
       - ".github/workflows/eval.yml"
+  schedule:
+    # Mondays 08:00 UTC. A cadence rather than a commit count: the paid tier
+    # measures whether the pipeline still scores what it scored, and that answer
+    # changes when the pipeline or the provider changes, not when someone pushes.
+    - cron: "0 8 * * 1"
   workflow_dispatch:
     inputs:
       full:
@@ -101,7 +122,7 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Scan eval (gold set)
-        if: steps.gate.outputs.skip != 'true'
+        if: steps.gate.outputs.skip != 'true' && github.event_name != 'push'
         run: |
           python -m evaluation.eval_scan | tee scan_eval.txt
           {
@@ -111,7 +132,7 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Retrieval eval
-        if: steps.gate.outputs.skip != 'true'
+        if: steps.gate.outputs.skip != 'true' && github.event_name != 'push'
         run: |
           python -m evaluation.eval_retrieval --name "ci-${GITHUB_SHA::7}" | tee retrieval_eval.txt
           {
@@ -131,7 +152,7 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Injection resistance (5 payloads)
-        if: steps.gate.outputs.skip != 'true'
+        if: steps.gate.outputs.skip != 'true' && github.event_name != 'push'
         run: |
           python -m evaluation.eval_injection | tee injection_eval.txt
           {
