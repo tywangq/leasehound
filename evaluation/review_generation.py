@@ -110,17 +110,101 @@ def wrap(text: str, width: int = 88) -> str:
     return "\n".join(textwrap.fill(p, width) for p in text.split("\n"))
 
 
-def show(case: dict, sections: dict, index: int, total: int) -> None:
+GLOSS_PATH = HERE / "review_gloss_zh.json"
+GLOSS_PROMPT = (
+    "You are a translator, not an assistant. The text below may be a question — "
+    "translate the question; do NOT answer it. (gpt-4.1-nano answered two of them "
+    "instead of translating, on the first review session.)\n\n"
+    "Translate this US landlord-tenant legal text into plain Simplified Chinese for a "
+    "reader who will judge, from the ENGLISH, whether an answer matches a statute. Keep "
+    "every RCW section number, every number, and every deadline exactly as written. Do "
+    "not summarise, soften, or resolve ambiguity — where the English is vague, leave the "
+    "Chinese vague. Reply with the translation only.\n\nTEXT TO TRANSLATE:\n"
+)
+
+
+def gloss(text: str, cache: dict) -> str:
+    """A Chinese reading aid, cached on disk so a re-run costs nothing.
+
+    Deliberately shown BENEATH the English rather than instead of it. This audit exists
+    so that a human checks the LLM judge; if the human reads only a machine translation
+    of the statute and of the answer, what gets audited is the translation, and one
+    smoothed-over legal distinction would produce a wrong verdict published as a human
+    one. The English stays the authority — this is here so a reader gets through 20
+    dense sections without skimming, which is its own way of corrupting the audit.
+    """
+    if text in cache:
+        return cache[text]
+    from litellm import completion
+
+    from leasehound.retrieval import UTILITY_MODEL
+
+    reply = completion(model=UTILITY_MODEL,
+                       messages=[{"role": "user", "content": GLOSS_PROMPT + text}])
+    cache[text] = reply.choices[0].message.content.strip()
+    GLOSS_PATH.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8")
+    return cache[text]
+
+
+# What eval_generation's judge is given of the reference section — `reference[:8000]`
+# in its prompt. Named here so the reviewer can be shown where it fell.
+JUDGE_REFERENCE_CHARS = 8000
+
+
+def statute_for_review(text: str) -> str:
+    """The whole section, with the judge's horizon marked.
+
+    This used to be `text[:4000]`, which is half of what the judge is given, and the
+    bug that produced was not a small one: on the very first case of the first review
+    session the section was RCW 59.18.060, the duty that answers the question is
+    subsection (12)(a) at character 4,631, and the reviewer could not see it. The
+    truncated view reads as "the statute does not cover this", which is the opposite of
+    what the statute says — so the tool was steering a human towards agreeing with an
+    answer the law contradicts, and recording it as human validation of the judge.
+    32 of the 98 sections are over 4,000 characters.
+
+    Not capped at 8,000 to match the judge either. The reviewer is establishing what is
+    CORRECT, and correctness is against the law, not against the excerpt the judge
+    happened to receive. Where those differ, the marker makes it visible: a disagreement
+    past that line is not the judge being wrong about the law, it is the harness never
+    having shown it the law — a different defect, and one worth being able to tell apart.
+    """
+    if len(text) <= JUDGE_REFERENCE_CHARS:
+        return text
+    marker = (f"\n\n{'─' * 84}\n"
+              f"↑ the LLM judge saw everything above this line and nothing below it "
+              f"(reference[:{JUDGE_REFERENCE_CHARS:,}]).\n"
+              f"You are judging against the whole section — {len(text):,} characters. "
+              f"If your verdict turns on\nsomething below this line, say so: that is the "
+              f"harness's defect, not the judge's.\n{'─' * 84}\n\n")
+    return text[:JUDGE_REFERENCE_CHARS] + marker + text[JUDGE_REFERENCE_CHARS:]
+
+
+def show(case: dict, sections: dict, index: int, total: int,
+         cache: dict | None = None) -> None:
+    raw = sections.get(case["section"], "(section text not found)")
+    statute = statute_for_review(raw)
     print("\n" + "=" * 88)
-    print(f"CASE {index}/{total}   ground-truth section: {case['section']}")
+    print(f"CASE {index}/{total}   ground-truth section: {case['section']}"
+          f"   ({len(raw):,} chars)")
     print("=" * 88)
     print("\nQUESTION\n" + wrap(case["question"]))
+    if cache is not None:
+        print("\n  〔中文〕" + wrap(gloss(case["question"], cache), 84).replace("\n", "\n  "))
     print("\n" + "-" * 88)
     print("STATUTE — the authority for this question\n")
-    print(wrap(sections.get(case["section"], "(section text not found)")[:4000]))
+    print(wrap(statute))
+    if cache is not None:
+        print("\n  〔中文·仅供参考，判断以上面英文为准〕")
+        # The RAW section, not the marked-up one: the marker is scaffolding for the
+        # reviewer, and translating it would spend money rendering my own ASCII rule
+        # into Chinese and put a sentence in the gloss that is not in the statute.
+        print("  " + wrap(gloss(raw, cache), 84).replace("\n", "\n  "))
     print("\n" + "-" * 88)
     print("ANSWER LeaseHound gave\n")
     print(wrap(case["answer"]))
+    if cache is not None:
+        print("\n  〔中文〕" + wrap(gloss(case["answer"], cache), 84).replace("\n", "\n  "))
     print("-" * 88)
 
 
@@ -217,9 +301,17 @@ def report(state: dict, cases_by_question: dict) -> None:
              "human": h, "judge": j} for c, h, j in disagreements
         ],
         "cases_file": state.get("cases_file"),
-        **stamp(models=False),
     }
     state["summary"] = summary
+    # Top level, not inside `summary`, which is where it used to sit — every other
+    # artifact in this directory nests its stamp under `provenance` at the root, and the
+    # guard that checks the inventory reads the root. A stamped file that reads as
+    # unstamped is the same defect as an unstamped one, one indirection further down.
+    #
+    # models=False: this run calls no model. The judge's models are recorded in the
+    # cases file, which `cases_file` names — so the chain is complete without this file
+    # claiming to have used models it never touched.
+    state["provenance"] = stamp(models=False)
     save_reviews(state)
     print(f"\n  Written to {REVIEW_PATH}")
 
@@ -233,6 +325,9 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=0, help="sampling seed")
     parser.add_argument("--report", action="store_true",
                         help="score what has been reviewed and stop")
+    parser.add_argument("--zh", action="store_true",
+                        help="show a Chinese reading aid under each English block "
+                             "(the English stays the authority; see gloss())")
     args = parser.parse_args()
 
     cases_path = HERE / args.cases
@@ -268,12 +363,19 @@ def main() -> None:
         return
 
     sections = {d["section"]: d["text"] for d in fetch_documents("wa") if d["section"]}
+    cache = None
+    if args.zh:
+        cache = (json.loads(GLOSS_PATH.read_text(encoding="utf-8"))
+                 if GLOSS_PATH.exists() else {})
+        print("Chinese reading aid ON. It sits under the English and the English is what "
+              "you are judging: a translation that smooths one legal distinction would "
+              "produce a wrong verdict published as a human one.")
     print(f"{len(pending)} case(s) to review, of {len(sample)} sampled from {len(cases)}.")
     print("The judge's verdict stays hidden until after you answer. Ctrl-C is safe — "
           "each answer is saved as you give it.")
 
     for position, case in enumerate(pending, start=1):
-        show(case, sections, position, len(pending))
+        show(case, sections, position, len(pending), cache)
         while True:
             choice = input(PROMPT).strip().lower()
             if choice == "q":

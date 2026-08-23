@@ -1,0 +1,65 @@
+{
+  "reviews": {
+    "My apartment is missing smoke detectors, what does my landlord have to tell me about fire safety?": "consistent",
+    "My landlord is trying to keep my personal belongings without my permission after I moved out; can they do that?": "consistent",
+    "Can my landlord hold a private hearing if we have a disagreement about repairs?": "consistent",
+    "If I get an eviction notice, will there be a trained person helping the court handle my case?": "consistent",
+    "Can my landlord take me to court to kick me out if I haven't paid rent?": "consistent",
+    "Does being a victim of domestic violence mean I can't be denied housing or face discrimination?": "consistent",
+    "Can my landlord evict me because I can't pay my rent during the COVID-19 crisis?": "consistent",
+    "If I signed a one-year lease that ends next month, how much notice does my landlord have to give me before increasing the rent?": "consistent",
+    "Can my landlord ask me for sexual favors in exchange for a better rental term?": "consistent",
+    "My landlord gave me 60 days' notice to move out because they want to sell the house. Is that allowed?": "declined",
+    "Can my landlord end my lease without a reason after my initial rental period if I signed a one-year lease?": "consistent",
+    "My landlord told me I can't rent the apartment because I get a rent subsidy. Is that allowed?": "consistent",
+    "Can my landlord stop me from installing a portable AC unit in my apartment?": "consistent",
+    "My landlord just installed a smart access system and gave me a privacy policy. Do I need to also get details about how my data is protected and how long it will be kept?": "consistent",
+    "If I pass away and haven't arranged for my stuff to be picked up, what can my landlord do with my belongings?": "consistent",
+    "If I believe I have a legal reason to stay in my apartment, can I tell the court orally instead of in writing during the hearing?": "consistent",
+    "My landlord says they can increase my rent by more than 10% because I live in a duplex; is that OK?": "consistent",
+    "My landlord says I didn't get approved for a place because of a criminal record. Do they need to tell me why I was rejected?": "consistent",
+    "My landlord says I can't pay my deposit in two payments because I only want to pay half now and half later. Is that allowed?": "consistent",
+    "Can my landlord make me fix something in my apartment within 30 days if it's affecting my health?": "consistent"
+  },
+  "cases_file": "generation_cases_full-n82.json",
+  "summary": {
+    "reviewed": 20,
+    "agreement": 0.85,
+    "judge_error_rate_upper_95": 0.3065,
+    "kappa": 0.2208,
+    "kappa_note": null,
+    "judge_labels_seen": [
+      "consistent",
+      "contradicts"
+    ],
+    "human_labels_seen": [
+      "consistent",
+      "declined"
+    ],
+    "disagreements": [
+      {
+        "section": "RCW 59.18.140",
+        "question": "If I signed a one-year lease that ends next month, how much notice does my landlord have to give me before increasing the rent?",
+        "human": "consistent",
+        "judge": "contradicts"
+      },
+      {
+        "section": "RCW 59.18.570",
+        "question": "Can my landlord ask me for sexual favors in exchange for a better rental term?",
+        "human": "consistent",
+        "judge": "contradicts"
+      },
+      {
+        "section": "RCW 59.18.650",
+        "question": "My landlord gave me 60 days' notice to move out because they want to sell the house. Is that allowed?",
+        "human": "declined",
+        "judge": "contradicts"
+      }
+    ],
+    "cases_file": "generation_cases_full-n82.json"
+  },
+  "provenance": {
+    "commit": "5c57e15",
+    "run_at": "2026-08-23"
+  }
+}

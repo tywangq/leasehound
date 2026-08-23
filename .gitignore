@@ -24,3 +24,10 @@ evaluation/leases_real/*.pdf
 # Personal interview prep lives on the Desktop, not here. This line is a guard: if a
 # file by that name ever reappears in the repo, it must not reach a public commit.
 INTERVIEW.md
+
+# The Chinese reading aid's cache (evaluation/review_generation.py --zh). A machine
+# translation of statute text, regenerable and not evidence of anything: the audit is
+# conducted against the English, which is why the gloss is printed beneath it rather
+# than instead of it. Committing 243 KB of it would put a model's paraphrase of the law
+# in a directory whose whole point is that its contents are measurements.
+evaluation/review_gloss_zh.json

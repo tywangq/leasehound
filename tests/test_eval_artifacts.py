@@ -29,11 +29,18 @@ README = EVAL_DIR / "README.md"
 INPUT_SETS = {"tests.jsonl", "tests_adversarial.jsonl", "permissive_pairs.jsonl",
               "jurisdiction_cases.jsonl", "jurisdiction_ask_cases.jsonl",
               "checklist_register.json"}
+# Neither an input nor a result: a cache the review tool writes so a re-read of the same
+# statute costs nothing. Gitignored, and excluded here for the same reason it is
+# gitignored — it holds a model's paraphrase of the law, and this directory's contents
+# are supposed to be measurements. Listed by name rather than by a pattern so a future
+# cache has to be argued for rather than inheriting the exemption.
+CACHES = {"review_gloss_zh.json"}
 
 
 def result_files() -> list[Path]:
     return sorted(p for p in EVAL_DIR.iterdir()
-                  if p.suffix in {".json", ".jsonl"} and p.name not in INPUT_SETS)
+                  if p.suffix in {".json", ".jsonl"}
+                  and p.name not in INPUT_SETS and p.name not in CACHES)
 
 
 # The two fields every `provenance.stamp()` carries, including `stamp(models=False)`

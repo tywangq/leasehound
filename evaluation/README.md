@@ -35,7 +35,7 @@ nothing here identified the fourth.)
 
 <a id="how-to-read-these-numbers"></a>**How to read these numbers.** Every table here is one run, and `temperature=0` is not determinism — one baseline row moved by a clause between two runs, and borderline verdicts can flip. Treat a gap of one or two questions as a tie. The six hand-labeled leases are the acceptance bar; the generated set's labels are verified by construction rather than authoritative; and the LLM judges share a model family with the systems they grade, mitigated by grading against reference statute text instead of taste. Each section adds only the caveats specific to it.
 
-Artifacts live beside this file: 19 `.json` results, of which 14 carry a `provenance`
+Artifacts live beside this file: 20 `.json` results, of which 15 carry a `provenance`
 stamp — generation, utility and embedding model, corpus snapshot, commit, run date, and
 a digest of the judge's prompt and answer schema. That last field was added after three
 judge configurations were measured against these sets in one afternoon and only the
@@ -63,7 +63,7 @@ does not. `generation_results.jsonl` is the interesting one: its most recent row
 the closed-book baseline — carries a full stamp, and the row the 82/82 comes from
 carries none, so the headline and its control are not attributable to the same code
 state. The next paid run fixes that for the shipped configuration, and it is the same
-run that produces the per-case evidence for [the human audit](#who-grades-the-grader--a-human-audit-built-and-not-yet-run).
+run that produces the per-case evidence for [the human audit](#who-grades-the-grader--a-human-audit-now-run).
 
 That the newest row is stamped went unnoticed for a while, because the guard could not
 see it: `provenance.stamp()` is spread flat into the row (`**stamp()`) while
@@ -643,7 +643,7 @@ once. **Reporting the best run of an unrecorded number of runs is the easiest wa
 accurate and misleading at the same time**, and the fix was not honesty — the original
 figure was honest — it was recording enough to notice.
 
-One consequence for [the human audit](#who-grades-the-grader--a-human-audit-built-and-not-yet-run):
+One consequence for [the human audit](#who-grades-the-grader--a-human-audit-now-run):
 `generation_cases_full-n82.json` is overwritten per run, so the cases on disk are run 4's
 — the *worst* of the four. That is the right set to audit a judge against. A grader
 checked only against the run that scored best is a grader checked where it had the least
@@ -651,13 +651,13 @@ to do.
 
 This closes the question the ablation opened: the augmented six-stage pipeline shows **no measurable win at the generation layer either** — every gap in the table is a single question. Specific caveat: both configurations sit at this test set's ceiling (98–100%), so the eval bounds the difference rather than ranking the systems — separating them needs harder, adversarial questions.
 
-### Who grades the grader — a human audit, built and not yet run
+### Who grades the grader — a human audit, now run
 
-Every number in that table is one language model's opinion of another's answer, 82 times. The chain is a model writing the questions, a model filtering them, a model answering, and a model grading — against reference statute text, which limits self-preference but does not remove it. **No human has ever checked any of it**, which makes "82/82 consistent" a claim about a judge nobody validated. The scan side has six hand-labelled leases; the ask side has nothing.
+Every number in that table is one language model's opinion of another's answer, 82 times. The chain is a model writing the questions, a model filtering them, a model answering, and a model grading — against reference statute text, which limits self-preference but does not remove it. **No human had ever checked any of it**, which made "82/82 consistent" a claim about a judge nobody had validated. The scan side has six hand-labelled leases; the ask side had nothing. It does now — see the result [below](#it-has-now-been-run-and-the-reviewer-lost-30).
 
-Two things were in the way, and both are now fixed:
+Two things were in the way, and both had to be fixed first:
 
-**The evidence was being thrown away.** `eval_generation.py` computed each answer, graded it, printed the failures to a terminal, and wrote only the aggregate rates to disk. So the published 82/82 could not be inspected by anyone, including its author, without paying $0.40 to generate 82 *different* answers and grade those instead. `eval_scan.py` had learned this lesson and records the clause behind every false red; the same argument was never carried across. Runs now also write `generation_cases_<name>.json` with the question, the answer, and the judgment — not backfilled, so the currently published figures stay unauditable and the next legitimate run is what makes them checkable.
+**The evidence was being thrown away.** `eval_generation.py` computed each answer, graded it, printed the failures to a terminal, and wrote only the aggregate rates to disk. So the published 82/82 could not be inspected by anyone, including its author, without paying $0.40 to generate 82 *different* answers and grade those instead. `eval_scan.py` had learned this lesson and records the clause behind every false red; the same argument was never carried across. Runs now also write `generation_cases_<name>.json` with the question, the answer, and the judgment — not backfilled, which is why the figures above are from a fresh run rather than the unauditable one they replaced.
 
 **The obvious statistic is the wrong one.** `review_generation.py` presents a stratified sample **blind** — the judge's verdict stays hidden until after you commit to yours, because a verdict shown first is a verdict you would be agreeing with rather than checking. Cohen's kappa was the intended headline and computing it showed why it cannot be: the judge returned `consistent` for all 82 answers, and **a rater that never varies cannot be validated by agreement** — agreeing on 19 of 20 scores kappa exactly 0. So the headline is a binomial bound instead. Disagreeing on 0 of 20 does not prove the judge is never wrong; by the rule of three it bounds the error rate at **under ~15% with 95% confidence**, and 0 of 30 would bound it under 10%. A modest claim, and an honest one, and far more than "a model said so".
 
@@ -668,7 +668,52 @@ python -m evaluation.eval_generation --name full-n82        # $0.40, writes the 
 python -m evaluation.review_generation --cases generation_cases_full-n82.json   # $0, needs a person
 ```
 
-**Status: the tool is tested and the numbers do not exist yet.** It needs one paid run to produce the cases and then an hour of somebody's attention. Nothing is claimed from it until both have happened — which is the same rule the rest of this directory follows, stated here because a review tool that reports its own existence as a result would be the exact failure it was built to catch.
+### It has now been run, and the reviewer lost 3–0
+
+Twenty cases, blind, against run 4 of the shipped configuration — the worst of the four,
+because a grader checked only against its best run is checked where it had the least to
+do. Reviewer: the author, not a lawyer.
+
+**17 of 20 agreed. The three disagreements all went the same way — the judge said
+`contradicts`, the human said the answer was fine — and on going back to the statute
+text, the judge was right all three times.**
+
+| ground truth | the answer said | the statute says | who was right |
+| --- | --- | --- | --- |
+| RCW 59.18.140 | rent-increase notice is **60 days**, citing the transitional clause (3)(c) | (3)(a): **90 days**. (3)(c) applies only to a lease entered before **May 7 2025** with 60–90 days left *as of that date* — and the answer itself notes this lease has under 60 days left, failing the condition it just quoted | judge |
+| RCW 59.18.570 | "the exact statute you mention isn't included in the provided extracts", then reasons from 59.18.650(2)(p) — which is about a **tenant** harassing others | (9): unlawful harassment "**includes any request for sexual favors to a tenant … in return for a change in … any or all terms of a lease**". The statute names this exact scenario | judge |
+| RCW 59.18.650 | "I cannot confirm whether 60 days' notice is sufficient" | (2)(e): selling a single-family residence requires **90 days'** notice. The tenant had been given 60, and the answer left them without a right they hold | judge |
+
+So the confirmed judge-error count is **0 of 20**, and the rule-of-three bound applies
+after all: **under ~15% at 95% confidence.** The tool's own printout says 3/20 and ~31%,
+because it scores a disagreement as a judge error by construction — it cannot adjudicate,
+and this is where a human audit stops being a number and starts needing a person to go
+read the law. The raw output is in `judge_review.json`; the adjudication is the table
+above, and every row of it is one `grep` from being checked.
+
+**The more useful finding is about the audit, not the judge.** All three reviewer errors
+are one type: a nested condition (*a date threshold AND a remaining-term window*) and a
+subsection sitting far down a long section. The judge sees one case at a time with the
+reference in front of it and does not tire; the reviewer did twenty in a row. **On
+exhaustive literal comparison against long reference text, human attention runs out
+before a model's does** — which this audit's design did not account for, and which is a
+reason to keep the sample small and the sessions short rather than a reason to skip it.
+
+Three limits, stated rather than implied. The reviewer is the project's author and not
+disinterested. n=20 with one reviewer, so "the judge got 3 right" is three data points,
+not a rate. And the judge is being measured only where the correct section was handed to
+it — this says it compares an answer against a statute faithfully, not that it knows law.
+
+One defect the session found in the review tool itself, fixed before any verdict was
+recorded: the statute was shown as `text[:4000]` while the judge is given
+`reference[:8000]`, so **the reviewer was being asked to check the judge with half the
+law**. It surfaced on the very first case — RCW 59.18.060, where the duty that answers
+the question is subsection (12)(a) at character 4,631 — and the truncated view reads as
+"the statute does not cover this", the opposite of what it says. 32 of the 98 sections
+are over 4,000 characters. The reviewer now sees the whole section with the judge's
+8,000-character horizon drawn as a line across it, so a disagreement that turns on text
+below that line can be told apart from one that does not: the first is the harness never
+having shown the judge the law, the second is the judge misreading it.
 
 ## The router — every metric above assumes retrieval ran at all
 
