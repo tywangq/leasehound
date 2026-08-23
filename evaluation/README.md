@@ -75,6 +75,36 @@ would have been the third time this section was wrong. Both shapes count now. (`
 `checklist_register.json` holds decisions rather than measurements —
 `tests/test_checklist_register.py` is what keeps that one honest.)
 
+### These numbers reproduce against the artifact, not against the build
+
+The first CI run that had an API key rebuilt the vector store from `corpus/` and scored
+**`section_hit@1` 0.667 where the committed artifact says 0.833** — on the scan-mode
+retrieval eval, which makes *no completions at all*. Same commit, same three models,
+same corpus snapshot: every field the stamp carried was identical.
+
+The difference was the index, which the stamp did not name. Ingestion is LLM semantic
+chunking, and `process_document` validates the result — a long section must not come
+back as one chunk — then, when validation fails three times, prints
+`[warning] ... accepted after 3 failed validations` and **ships it anyway**. That build
+left RCW 59.18.150, the entry statute, as a single 9,959-character block; a blob that
+size embeds poorly against a specific question, and 373 chunks came out where the
+shipped store has 359. The gold set followed retrieval down: precision 0.947 against
+the committed 1.0, one red outside the label set.
+
+The shipped store is not clean either — **7 chunks over the 3,000-character limit, the
+largest 13,701** — which is the actual point. The question was never "did this build
+fail", it is "which build is this", and until now nothing recorded the answer. So
+`provenance.stamp()` now carries an `index` field: collection, chunk count, a digest of
+the chunk text, and how many chunks are over the limit.
+
+**What this does and does not mean.** The published figures are real measurements of
+the store that ships — the demo serves an export of that same store, so what the table
+claims and what a visitor gets are the same system. What is now known is that
+*rebuilding* the index does not reproduce them, and that is a property of ingestion,
+not of the pipeline being measured. Making validation failure a hard error, or falling
+back to a deterministic split instead of accepting an unsplit section, is [Roadmap](../README.md#roadmap)
+— it would move every retrieval number here and wants its own re-run.
+
 The unstamped ones predate the stamping, and re-running a paid eval purely to add a
 header is the kind of spend this project declines: the numbers are unchanged, and a
 stamp would document the re-run rather than the result. So the rule is: an unstamped

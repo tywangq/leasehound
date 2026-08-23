@@ -106,6 +106,35 @@ jobs:
       - name: Build vector store (cache miss)
         if: steps.gate.outputs.skip != 'true' && steps.vector-cache.outputs.cache-hit != 'true'
         run: python -m leasehound.ingest
+      - name: Say which index these scores are against
+        # The first run that had an API key scored section_hit@1 at 0.667 where the
+        # committed artifact says 0.833 — on the retrieval-only eval, which makes no
+        # completions. Same commit, same models, same corpus snapshot. The difference
+        # was the index: this job rebuilds it from corpus/ when the cache misses, and
+        # ingestion is LLM chunking that accepts a section whose validation never
+        # passed (`[warning] ... accepted after 3 failed validations`). That build left
+        # RCW 59.18.150 as one 9,959-character block.
+        #
+        # So the scores below are not comparable with the committed ones unless this
+        # digest matches theirs, and now they say so instead of looking identical. A
+        # cache hit reuses one index across weeks, which is what makes the weekly tier
+        # a regression check rather than a sample of ingestion luck — but GitHub evicts
+        # a cache unused for 7 days, so a rebuild will happen and this is how it shows.
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          python - <<'PY' | tee index_stamp.txt
+          import json
+          from evaluation.provenance import index_fingerprint
+          print(json.dumps(index_fingerprint(), indent=2))
+          PY
+          {
+            echo "## Index these scores were measured against"
+            echo "Cache hit: \`${{ steps.vector-cache.outputs.cache-hit }}\` — a miss means"
+            echo "this index was rebuilt and is not the one the committed artifacts used."
+            echo '```'
+            cat index_stamp.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Scan-mode retrieval eval
         # First because it is the cheapest thing here by two orders of magnitude:
         # one embedding per labelled clause and no completions at all (~$0.0002).

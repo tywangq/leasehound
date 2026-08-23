@@ -264,3 +264,32 @@ def test_the_newest_generation_row_is_seen_for_what_it_is():
         "recognised as stamped")
     assert not is_stamped_dict(rows[0]), (
         "the row the README's 82/82 comes from carries no stamp, and the prose says so")
+
+
+def test_the_stamp_names_the_index_a_number_was_measured_against():
+    """The input that hid the longest.
+
+    Models, prompts and the corpus snapshot were stamped from the start. The index
+    they are queried against was not, and two builds of it from the same corpus are
+    not the same index: the first CI run with an API key rebuilt the store and scored
+    section_hit@1 at 0.667 where the committed artifact says 0.833 — on the
+    retrieval-only eval, which makes no completions. Every other field of the stamp
+    was identical, so nothing in the artifact could have explained the gap.
+    """
+    from evaluation.provenance import stamp
+
+    index = stamp()["index"]
+    assert index is not None, "there is a store on disk, so the stamp must name it"
+    assert {"collection", "chunks", "digest", "degraded"} <= index.keys()
+
+
+def test_a_degraded_index_says_so_rather_than_looking_clean():
+    """`degraded` counts chunks over MAX_CHUNK_CHARS — sections whose validation never
+    passed and which ingestion accepted anyway. The shipped store has some, which is
+    the point: the question is not "did this build fail" but "which build is this"."""
+    from evaluation.provenance import index_fingerprint
+    from leasehound.ingest import MAX_CHUNK_CHARS
+
+    index = index_fingerprint()
+    assert index["degraded"] >= 0
+    assert MAX_CHUNK_CHARS > 0

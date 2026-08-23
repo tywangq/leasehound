@@ -159,13 +159,20 @@ def test_the_dearest_two_are_dispatch_only():
             f"{name!r} is the ~$0.40-$0.60 tier and stays manual")
 
 
+# Steps that call nothing paid: setup, and the one that prints which index the
+# scores are against. "Build vector store" is here because it is not a tier — it runs
+# only on a cache miss, and what it costs is the ~$0.10 of ingestion, not an eval.
+FREE_STEPS = {
+    "Gate on API key", "Install", "Restore vector store",
+    "Build vector store (cache miss)", "Say which index these scores are against",
+}
+
+
 def test_every_paid_step_is_classified():
     """A new step added without a tier defaults to running per push, which is the
     expensive default. This is the line that notices."""
     named = set(step_conditions()) - {CANARY}
-    unclassified = named - PAID_WEEKLY - PAID_DISPATCH - {"Gate on API key", "Install",
-                                                          "Restore vector store",
-                                                          "Build vector store (cache miss)"}
+    unclassified = named - PAID_WEEKLY - PAID_DISPATCH - FREE_STEPS
     assert not unclassified, (
         f"eval.yml steps with no declared tier: {sorted(unclassified)}")
 
