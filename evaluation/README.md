@@ -59,7 +59,18 @@ them would imply they were involved. These 5 do not:
 
 Nor do the three append-style logs, `results.jsonl`, `generation_results.jsonl` and
 `results_v1_append_merge.jsonl`, where the stamp would have to sit on every row and
-none does. (`tests.jsonl`, `tests_adversarial.jsonl`, `permissive_pairs.jsonl` and
+does not. `generation_results.jsonl` is the interesting one: its most recent row —
+the closed-book baseline — carries a full stamp, and the row the 82/82 comes from
+carries none, so the headline and its control are not attributable to the same code
+state. The next paid run fixes that for the shipped configuration, and it is the same
+run that produces the per-case evidence for [the human audit](#who-grades-the-grader--a-human-audit-built-and-not-yet-run).
+
+That the newest row is stamped went unnoticed for a while, because the guard could not
+see it: `provenance.stamp()` is spread flat into the row (`**stamp()`) while
+`is_stamped` looked for a nested `provenance` key. **A guard that cannot fail for the
+reason it exists is worse than a wrong claim, because a wrong claim gets corrected** —
+this one would have gone on reporting "none" after a re-run stamped every row, which
+would have been the third time this section was wrong. Both shapes count now. (`tests.jsonl`, `tests_adversarial.jsonl`, `permissive_pairs.jsonl` and
 `jurisdiction_cases.jsonl` and `jurisdiction_ask_cases.jsonl` are labelled sets the evals read, not results they write, and
 `checklist_register.json` holds decisions rather than measurements —
 `tests/test_checklist_register.py` is what keeps that one honest.)

@@ -36,13 +36,28 @@ def result_files() -> list[Path]:
                   if p.suffix in {".json", ".jsonl"} and p.name not in INPUT_SETS)
 
 
+# The two fields every `provenance.stamp()` carries, including `stamp(models=False)`
+# for runs that call no model. Named here because a stamp arrives in two shapes and
+# this guard used to see only one: the .json artifacts nest it under "provenance",
+# while eval_generation spreads it into the row (`**stamp()`) so the fields land at
+# top level. Looking only for the nested key made the guard blind to the shape that is
+# actually in use — it read a fully stamped row as unstamped, and would have gone on
+# saying so after a paid re-run stamped every row.
+STAMP_KEYS = {"commit", "run_at"}
+
+
+def is_stamped_dict(record: dict) -> bool:
+    """Either shape counts: nested under `provenance`, or spread flat into the row."""
+    return "provenance" in record or STAMP_KEYS <= record.keys()
+
+
 def is_stamped(path: Path) -> bool:
     """A .jsonl is one row per run, so its stamp would have to be on every row."""
     text = path.read_text(encoding="utf-8")
     if path.suffix == ".jsonl":
         rows = [json.loads(line) for line in text.splitlines() if line.strip()]
-        return bool(rows) and all("provenance" in row for row in rows)
-    return "provenance" in json.loads(text)
+        return bool(rows) and all(is_stamped_dict(row) for row in rows)
+    return is_stamped_dict(json.loads(text))
 
 
 def paid_artifact() -> dict:
@@ -218,3 +233,34 @@ def test_no_speedup_claim_exceeds_the_pool_that_produces_it():
                 if claim + "x" in text else ""
             assert not re.search(r"concurren|parallel|wall time|pool|faster", context, re.I), (
                 f"{doc} claims {factor}x on a {MAX_PARALLEL_SCANS}-worker pool: {context[-90:]}")
+
+
+def test_the_stamp_detector_recognises_the_stamp_the_evals_actually_write():
+    """The guard above cannot fail for the reason it exists, which is worse than a
+    wrong claim — a wrong claim gets corrected.
+
+    `provenance.stamp()` returns a flat dict and `eval_generation` spreads it into the
+    row (`**stamp()`), so the fields land at top level: `commit`, `run_at`,
+    `judge_prompt`. `is_stamped` looked for a nested `"provenance"` key that nothing
+    writes. The most recent row of generation_results.jsonl carries a full stamp today
+    and is read as unstamped, and — the part that matters — when the paid re-run
+    finally stamps every row, this guard would stay silent and the prose beside it
+    would go quietly stale. That is the third time this section would have been wrong,
+    and the reason the counting was automated in the first place.
+    """
+    from evaluation.provenance import stamp
+
+    assert is_stamped_dict(stamp()), "a row carrying stamp() must read as stamped"
+    assert is_stamped_dict({"provenance": stamp()}), "the nested shape must still count"
+    assert not is_stamped_dict({"n": 82, "consistent": 1.0}), "a bare result is not stamped"
+
+
+def test_the_newest_generation_row_is_seen_for_what_it_is():
+    """Concrete instance of the above, on the file that actually has the problem."""
+    rows = [json.loads(line) for line
+            in (EVAL_DIR / "generation_results.jsonl").read_text().splitlines() if line.strip()]
+    assert is_stamped_dict(rows[-1]), (
+        "the closed-book row carries commit + judge_prompt + run_at and must be "
+        "recognised as stamped")
+    assert not is_stamped_dict(rows[0]), (
+        "the row the README's 82/82 comes from carries no stamp, and the prose says so")

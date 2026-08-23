@@ -21,6 +21,25 @@ on:
     branches: [main]
     paths:
       - "leasehound/**"
+      # Minus the presentation layer, which cannot move a number. This filter was
+      # `leasehound/**` alone, and over the 51 commits after the report panel was
+      # rewritten that would have bought 38 paid runs at ~$0.23 — 28 of them for
+      # commits touching only CSS, HTML rendering, or the Gradio wiring. $6.44 of the
+      # $8.74 spent proving that a colour change had not altered a lease verdict.
+      #
+      # `judge_fingerprint()` is the reason that is knowable rather than assumed: it
+      # digests the judge prompt and its schema, and no file below is in it.
+      #
+      # An EXCLUDE list rather than an allow list, deliberately. A new module then
+      # defaults to triggering the eval, so the failure mode of forgetting one is an
+      # extra $0.23 — not a regression that ships because nothing re-measured it.
+      # tests/test_eval_trigger.py holds this list to the directory.
+      - "!leasehound/app.py"
+      - "!leasehound/api.py"
+      - "!leasehound/report_html.py"
+      - "!leasehound/metrics.py"
+      - "!leasehound/style.css"
+      - "!leasehound/assets/**"
       - "corpus/**"
       - "evaluation/*.py"
       - "evaluation/leases/**"

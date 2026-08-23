@@ -2,7 +2,7 @@
 
 **Upload your lease. LeaseHound sniffs out the clauses that shouldn't be there.** A two-layer RAG system that answers tenant-law questions and scans rental agreements for prohibited provisions — grounded in Washington State's Residential Landlord-Tenant Act (RCW 59.18).
 
-**🐕 [Live demo](https://leasehound-671004460975.us-west1.run.app)** — one click scans the sample lease, warm and answering in ~100 ms ([how that stays free](#try-it)).
+**🐕 [Live demo](https://leasehound-671004460975.us-west1.run.app)** — one click scans the sample lease, warm and answering in ~100 ms ([how that stays free](#try-it)) · **[live API docs](https://leasehound-671004460975.us-west1.run.app/docs)** — the same pipeline as a typed contract, because [the UI is one client of three](#three-clients-one-pipeline), not the product.
 
 ![LeaseHound in motion: the sample lease is scanned clause by clause, the red-flag report pins to the side panel, and a follow-up question gets a cited answer](docs/demo.gif)
 
@@ -34,7 +34,7 @@
 
 **That table is the claim. Everything below is how each number was produced, what it cost, and what it changed** — including the features that were built, measured and *not* shipped, which is how the architecture earned its shape instead of accumulating it.
 
-[Why retrieval, not a long context](#why-retrieval-and-not-a-long-context) · [Architecture](#architecture) · [Try it](#try-it) · [What a scan costs](#what-a-scan-costs) · [The is-this-a-lease gate](#the-gate--three-answers-that-used-to-be-two) · [Privacy](#privacy) · [Development](#development) · [Evaluation](#evaluation) · [Roadmap](#roadmap)
+[Why retrieval, not a long context](#why-retrieval-and-not-a-long-context) · [Architecture](#architecture) · [Three clients, one pipeline](#three-clients-one-pipeline) · [Try it](#try-it) · [What a scan costs](#what-a-scan-costs) · [The is-this-a-lease gate](#the-gate--three-answers-that-used-to-be-two) · [Privacy](#privacy) · [Development](#development) · [Evaluation](#evaluation) · [Roadmap](#roadmap)
 
 ## Why retrieval and not a long context
 
@@ -73,6 +73,8 @@ graph TD
 
     CLI["python -m leasehound.scan<br>command line"] --> SCAN["scan.py<br>scan_steps: the one orchestration<br>+ clause-by-clause judge"]
     APP["app.py<br>Gradio UI + scan cache"] --> SCAN
+    APP --> HTML["report_html.py<br>report panel markup<br>every value escaped"]
+    HTML --> CSS["style.css<br>one stylesheet, measured<br>in a real browser"]
     API["api.py<br>FastAPI /v1, typed contract"] --> SCAN
     APP -.->|mounts| API
     APP --> ANSWER["answer.py<br>grounded Q&A"]
@@ -88,7 +90,7 @@ graph TD
     RETRIEVAL --> DB
 ```
 
-Top half runs offline (build the statute library); bottom half is runtime. Three clients — command line, browser, HTTP — enter through the same `scan_steps`, and both query modes and the evaluation suite sit on the same `retrieval.py`, so an ablation result measures exactly the code the product runs. `app.py` mounts `api.py` so one process and one command serve both surfaces.
+Top half runs offline (build the statute library); bottom half is runtime. Three clients — command line, browser, HTTP — enter through the same `scan_steps`, and both query modes and the evaluation suite sit on the same `retrieval.py`. **That shared path is why the evaluation numbers mean anything: an ablation result measures exactly the code the product runs, not a parallel copy of it that has drifted.** `app.py` mounts `api.py` so one process and one command serve both surfaces. The panel `app.py` pins is built by `report_html.py`, which escapes every interpolated value — the clause text comes from a stranger's document and the explanation from a model, and the panel is `gr.HTML`, which sanitizes nothing.
 
 ## Setup
 
@@ -136,17 +138,19 @@ The web UI is a single chat with an artifact-style side panel: attach a lease (o
 
 No setup at all: the **[hosted demo](https://leasehound-671004460975.us-west1.run.app)** runs the same code on Cloud Run — the `Dockerfile` bakes the vector store into the image, so the container is stateless and scales to zero between visitors. Cold starts are the cost of that, a bad first impression for the one visitor who matters, so a Cloud Monitoring uptime check probes every five minutes: it keeps an instance warm, alerts me on failure, and stays inside the free tier at 288 requests/day — `min-instances=1` would have solved the same problem for about $15/month.
 
-<a id="what-the-image-ships"></a>**What the image actually ships**, since the cold start is what visitors feel. The container is **738 MB**, of which the vector store is **9.8 MB** — so the store was never the interesting number, and this README used to imply otherwise by listing "a 42 MB vector store" beside Chroma and Gradio as if they were peers. Three things were wrong underneath that, and they came off in three steps:
+<a id="what-the-image-ships"></a>**What the image actually ships**, since the cold start is what visitors feel. The container is **756 MB**, of which the vector store is **9.8 MB** — so the store was never the interesting number, and this README used to imply otherwise by listing "a 42 MB vector store" beside Chroma and Gradio as if they were peers. Three things were wrong underneath that, and they came off in three steps:
 
 | | before | now |
 |---|---|---|
 | vector store in the image | 49 MB · 4 collections · 1655 chunks | **9.8 MB · 1 collection · 359 chunks** |
-| image | 998 MB | **738 MB** (−130 unused deps, −146 Gradio 6, +16 the August dependency refresh) |
+| image | 998 MB | **756 MB** (−130 unused deps, −146 Gradio 6, +16 the August dependency refresh, **+17 a crypto backend, below**) |
 | known advisories in the shipped set | **44** across 4 packages | **0** actionable, 1 unreachable and named |
 
 `COPY vector_db` shipped the whole *development* store — the three ablation collections the [evaluation](evaluation/README.md) needs and the app never queries, including `_230split`, an experiment that was [measured and rejected](evaluation/README.md#scan-mode-retrieval--one-miss-and-three-fixes-that-did-not-ship). `scripts/export_runtime_db.py` now writes a purpose-built store holding only the collection the app serves; it costs nothing, because every chunk's embedding already exists and is copied rather than recomputed.
 
 Separately, chromadb declares `kubernetes` (for running Chroma as a server) and `onnxruntime` (for its built-in local embedder) — 133 MB for two features a `PersistentClient` embedding through the OpenAI API cannot use. Neither is in `sys.modules` after the app boots, which is what makes dropping them safe and what CI now re-checks on every commit.
+
+**And the image got bigger once, on purpose.** The one number here that moved *up* is +17 MB for `cryptography`, and it bought a bug the demo had been failing silently: pypdf needs a crypto backend to open an AES-encrypted PDF, and most locked PDFs carry only an *owner* password — the "no printing, no copying" kind that nearly every application form and document-portal export has. Those open fine with an empty password once the backend is there. Without it pypdf raised before the app saw the file, and every such upload came back as the generic "the hound tripped over an error". Found in Cloud Run's logs rather than reproduced locally, because neither the deployed image nor the dev venv had the library. A PDF locked with a *user* password genuinely cannot be read, and now says so specifically — distinct from the no-text-layer case, since "export an unprotected copy" and "try a text-based PDF" send someone to fix different things. **A curve that only ever goes down is a curve nobody is allowed to spend against.**
 
 The container also **runs as an unprivileged user** now (`hound`, uid 10001), which it did not until the fourth audit went looking. The first code to touch a visitor's upload is `pypdf` parsing an arbitrary PDF, and that was happening as uid 0 — Cloud Run's sandbox is a second line of defence, not a reason to skip the first. Nothing at runtime writes inside `/app`: the vector store is read-only and the report temp files go to `/tmp`.
 
@@ -273,7 +277,7 @@ A lease is sensitive: names, address, rent. LeaseHound keeps handling minimal �
 
 ```bash
 pip install -e ".[dev]"
-pytest          # 239 test functions across 22 files — see below for what they cover
+pytest          # 245 test functions across 23 files — see below for what they cover
 ruff check leasehound evaluation scripts tests
 ```
 
@@ -302,7 +306,7 @@ python -m leasehound.app &                 # a cold cache, so the GIF has a live
 python -m scripts.record_demo              # ≈ $0.018: one scan, one question
 ```
 
-CI (GitHub Actions) runs both on every push, plus a third job that **builds the container and boots it**. That job exists because the deployed artifact was the least-tested thing here: the test job installs `pyproject`'s version ranges and is the canary for upstream drift, while the image installs the pinned `requirements-lock.txt` it actually ships and proves those pins still resolve and import together. It builds against a placeholder store — the real one isn't in git, and re-embedding the corpus per commit would spend money re-proving something no commit changes. That job also **audits `requirements-lock.txt` with `pip-audit`**, because a lockfile with no audit step is a promise to keep shipping a fixed set of versions including their known holes; it found 44 advisories the first time it ran. Tests themselves cover the deterministic core only: no API calls, no vector DB.
+CI (GitHub Actions) runs lint and tests on every push, in **three jobs**: `test`, `css` (a real chromium measuring computed styles, [above](#development)), and `image`, which **builds the container and boots it**. That job exists because the deployed artifact was the least-tested thing here: the test job installs `pyproject`'s version ranges and is the canary for upstream drift, while the image installs the pinned `requirements-lock.txt` it actually ships and proves those pins still resolve and import together. It builds against a placeholder store — the real one isn't in git, and re-embedding the corpus per commit would spend money re-proving something no commit changes. That job also **audits `requirements-lock.txt` with `pip-audit`**, because a lockfile with no audit step is a promise to keep shipping a fixed set of versions including their known holes; it found 44 advisories the first time it ran. Tests themselves cover the deterministic core only: no API calls, no vector DB.
 
 Deploying is three steps, because the image ships a different store than development uses:
 
@@ -316,7 +320,7 @@ gcloud run deploy leasehound --source . --region us-west1
 
 The experiment write-ups live in [`evaluation/README.md`](evaluation/README.md) next to the artifacts they describe; `scripts/` holds the one-off measurement tools (`measure_concurrency.py`, `measure_ask_cost.py`, `measure_cold_start.py`, `probe_router.py`, `build_enumerated_collection.py`, `check_corpus_drift.py`), each of which prints what it costs before it costs it, plus the two asset generators — `record_demo.py`, which regenerates the GIF and screenshot above by driving the real UI, and `render_favicon.py`, which draws the 🐕 tab icon in a real browser because the emoji has to come from a real emoji font — plus the two deployment tools above (`export_runtime_db.py`, `image_smoke_test.py`). Three of these exist because an artifact went stale or silently wrong rather than loudly broken: the GIF drifted from the product it illustrated, the cold-start figure outlived the image it described, and the favicon served a correct `200 image/svg+xml` that no browser drew.
 
-Two more workflows sit alongside it. `corpus.yml` watches the statute snapshot for drift — free, no secret, [described above](#keeping-the-snapshot-honest). `eval.yml` runs the paid evaluations: the gold-set scan eval, the ask-mode retrieval eval, and the scan-mode retrieval eval — that last one first, since at ~$0.0002 it says whether a regression is retrieval or judgment before anything expensive runs — on every push to `main` that touches pipeline code (≈ $0.15/run — path-filtered so docs commits cost nothing), with the pricier generation eval and the 40-lease synthetic set on manual dispatch. Scores land in the job summary as a report, not a gate: temperature-0 API calls still drift a flag's worth between runs, and a hard threshold would flake. Forks never see the API key (main-only triggers), and the workflow skips gracefully when the secret isn't configured.
+Two more workflows sit alongside it. `corpus.yml` watches the statute snapshot for drift — free, no secret, [described above](#keeping-the-snapshot-honest). `eval.yml` runs the paid evaluations: the gold-set scan eval, the ask-mode retrieval eval, and the scan-mode retrieval eval — that last one first, since at ~$0.0002 it says whether a regression is retrieval or judgment before anything expensive runs — on every push to `main` that touches pipeline code (≈ $0.23/run), with the pricier generation eval and the 40-lease synthetic set on manual dispatch. **"Pipeline code" got a lot narrower once it was counted.** The filter was `leasehound/**`, and across the 51 commits that rewrote the report panel that would have bought **38 paid runs — 28 of them for commits touching only CSS, HTML rendering or Gradio wiring**: $6.44 of $8.74 spent proving a colour change had not altered a lease verdict. `judge_fingerprint()` is what makes that knowable rather than merely likely, since none of those files is in the digest. The presentation layer is excluded by name now, as an *exclude* list rather than an allow list — a new module then defaults to costing $0.23 rather than to going unmeasured — and [`tests/test_eval_trigger.py`](tests/test_eval_trigger.py) fails if the workflow's list and the directory ever disagree. Scores land in the job summary as a report, not a gate: temperature-0 API calls still drift a flag's worth between runs, and a hard threshold would flake. Forks never see the API key (main-only triggers), and the workflow skips gracefully when the secret isn't configured.
 
 ## Corpus status
 
