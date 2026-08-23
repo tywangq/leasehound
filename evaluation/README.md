@@ -26,7 +26,7 @@ nothing here identified the fourth.)
 | [Retrieval ablation](#retrieval-ablation--section-level-n82) | Which pipeline stage actually earns its cost? | naive chunking ties the six-stage pipeline |
 | [Adversarial rephrasing](#adversarial-rephrasing--the-same-82-questions-renter-voice) | Does it hold when renters don't speak statute? | full pipeline wins; the earlier tie was vocabulary leakage |
 | [Hybrid BM25](#hybrid-retrieval-bm25--dense--measured-and-not-shipped) | Does a lexical channel help ask mode? | no — the apparent gain was vocabulary leakage |
-| [Generation layer](#generation-layer-evaluation--is-the-final-answer-right-n82--2-configs) | Is the final answer right and grounded? | 82/82 consistent, 81/82 grounded |
+| [Generation layer](#generation-layer-evaluation--is-the-final-answer-right-n82--2-configs) | Is the final answer right and grounded? | 79–82/82 consistent over 4 runs, 81–82/82 grounded |
 | [Router](#the-router--every-metric-above-assumes-retrieval-ran-at-all) | Does the pipeline run at all? | **no — "there are cockroaches everywhere" reached no statute, 5/5**; every other eval calls past the router |
 | [Closed-book ask mode](#closed-book-ask-mode--63-of-82-answers-contradict-the-statute) | What does retrieval add over the same model answering from memory? | **63 of 82 answers contradict the statute**, and one cites a section that does not exist |
 | [Jurisdiction](#jurisdiction--whose-law-is-this-lease-under) | Does the pipeline know it is applying the wrong state's law? | it did not ask until now: **12/14 leases, 11/12 questions, 0 false alarms on 93 real WA inputs** |
@@ -35,7 +35,7 @@ nothing here identified the fourth.)
 
 <a id="how-to-read-these-numbers"></a>**How to read these numbers.** Every table here is one run, and `temperature=0` is not determinism — one baseline row moved by a clause between two runs, and borderline verdicts can flip. Treat a gap of one or two questions as a tie. The six hand-labeled leases are the acceptance bar; the generated set's labels are verified by construction rather than authoritative; and the LLM judges share a model family with the systems they grade, mitigated by grading against reference statute text instead of taste. Each section adds only the caveats specific to it.
 
-Artifacts live beside this file: 18 `.json` results, of which 13 carry a `provenance`
+Artifacts live beside this file: 19 `.json` results, of which 14 carry a `provenance`
 stamp — generation, utility and embedding model, corpus snapshot, commit, run date, and
 a digest of the judge's prompt and answer schema. That last field was added after three
 judge configurations were measured against these sets in one afternoon and only the
@@ -510,10 +510,14 @@ Same 82 questions, same model, same instruction to cite RCW sections inline. No 
 
 | | closed book | full pipeline |
 | --- | --- | --- |
-| consistent with the reference statute | **18/82** | 82/82 |
-| **contradicts the reference statute** | **63/82** | **0/82** |
-| declined to answer | 1/82 | 0/82 |
-| cites the ground-truth section | **18/82** | 75/82 |
+| consistent with the reference statute | **18/82** | 79–82/82 |
+| **contradicts the reference statute** | **63/82** | **0–3/82** |
+| declined to answer | 1/82 | 0–1/82 |
+| cites the ground-truth section | **18/82** | 73–75/82 |
+
+The right-hand column is the range over [four runs](#one-run-is-one-draw-79-82-of-82);
+the left is one. The gap is wide enough that the comparison survives it either way —
+which is the only reason a single closed-book run is still quoted beside a range.
 
 **77% of closed-book answers state the law wrongly**, in fluent, cited, plausible prose. That is a much sharper result than the scan-mode baseline, which got 14 of 18 planted violations flagged and failed mainly on *citations* (3/14). The difference is what each mode asks the model to do: naming a bad clause is pattern recognition, and answering "how much notice does my landlord need" requires the number in the statute — 2 days, 30 days, 60 days, 120 days — and the model produces a confident wrong one.
 
@@ -594,10 +598,56 @@ Every test question was generated from a known statute section, so that section'
 | cites the ground-truth section | 75/82 | 76/82 |
 | declined or contradicted despite good retrieval | 0 | 1 |
 
+**One run each, and that turns out to matter more than the numbers do.** Re-running the
+left-hand column three more times put it anywhere between [79 and 82](#one-run-is-one-draw-79-82-of-82).
+Every gap in this table is one or two answers — smaller than the spread of a single
+column — so the honest reading is not "the full pipeline wins on consistency and loses
+on citations". It is **that this table cannot tell these two configurations apart**,
+which is what the retrieval ablation had already concluded and what the sentence above
+already said. The table is kept because the comparison is still the reason both were
+run; the caveat is added because a reader would otherwise do arithmetic on noise.
+
+What did separate them was [the adversarial rewrite](#adversarial-rephrasing--the-same-82-questions-renter-voice)
+— a difference large enough to survive this much variance.
+
 ```bash
 python -m evaluation.eval_generation --name full-n82
 python -m evaluation.eval_generation --name naive-crag-n82 --collection wa_reference_naive --no-dual --no-rerank
 ```
+
+<a id="one-run-is-one-draw-79-82-of-82"></a>### One run is one draw: 79–82 of 82
+
+The `82/82` in that table was true and it was also **the top of a range nobody had
+measured**, because the column was one run and the artifact recorded nothing about
+which one. Adding the provenance stamp made the question askable, so it got asked:
+the shipped configuration was re-run three more times, same question set, same
+`wa_reference` collection.
+
+| run | consistent | grounded | cites ground truth | commit | index |
+| --- | --- | --- | --- | --- | --- |
+| 1 | **82/82** | 81/82 | 75/82 | *unrecorded* | *unrecorded* |
+| 2 | 80/82 | 81/82 | 73/82 | `0be3028` | `37b316ee` |
+| 3 | **82/82** | **82/82** | 75/82 | `0be3028` | `37b316ee` |
+| 4 | **79/82** | 81/82 | 73/82 | `0be3028` | `37b316ee` |
+
+**Runs 2–4 share a commit and an index digest and still span three answers.** That is
+what pins the cause: with the code, the corpus, the prompt, the judge and the index all
+held identical, the only variable left is the provider, so the spread is sampling noise
+rather than a regression, a rebuilt index, or a model swap. All four of those were live
+hypotheses an hour earlier and three of them are now excluded — by measurement, not by
+argument.
+
+So the headline is a range. `79–82` is a weaker-looking number than `82/82` and a much
+stronger claim: the first says what this pipeline scores, the second said what it scored
+once. **Reporting the best run of an unrecorded number of runs is the easiest way to be
+accurate and misleading at the same time**, and the fix was not honesty — the original
+figure was honest — it was recording enough to notice.
+
+One consequence for [the human audit](#who-grades-the-grader--a-human-audit-built-and-not-yet-run):
+`generation_cases_full-n82.json` is overwritten per run, so the cases on disk are run 4's
+— the *worst* of the four. That is the right set to audit a judge against. A grader
+checked only against the run that scored best is a grader checked where it had the least
+to do.
 
 This closes the question the ablation opened: the augmented six-stage pipeline shows **no measurable win at the generation layer either** — every gap in the table is a single question. Specific caveat: both configurations sit at this test set's ceiling (98–100%), so the eval bounds the difference rather than ranking the systems — separating them needs harder, adversarial questions.
 

@@ -1,0 +1,865 @@
+{
+  "name": "full-n82",
+  "provenance": {
+    "generation_model": "openai/gpt-4.1-mini",
+    "utility_model": "openai/gpt-4.1-nano",
+    "embedding_model": "text-embedding-3-large",
+    "corpus_snapshot": "2026-07-25",
+    "judge_prompt": "8226e1565a7a",
+    "index": {
+      "collection": "wa_reference",
+      "chunks": 359,
+      "digest": "37b316eecb4c",
+      "degraded": 7
+    },
+    "commit": "0be3028",
+    "run_at": "2026-08-23"
+  },
+  "summary": {
+    "collection": "wa_reference",
+    "n": 82,
+    "consistent": 0.9634,
+    "contradicts": 0.0366,
+    "declined": 0.0,
+    "declined_despite_retrieval": 0,
+    "grounded": 0.9878,
+    "cites_gt": 0.8902,
+    "answers_citing_outside_corpus": 0,
+    "sections_cited_outside_corpus": [],
+    "generation_model": "openai/gpt-4.1-mini",
+    "utility_model": "openai/gpt-4.1-nano",
+    "embedding_model": "text-embedding-3-large",
+    "corpus_snapshot": "2026-07-25",
+    "judge_prompt": "8226e1565a7a",
+    "index": {
+      "collection": "wa_reference",
+      "chunks": 359,
+      "digest": "37b316eecb4c",
+      "degraded": 7
+    },
+    "commit": "0be3028",
+    "run_at": "2026-08-23"
+  },
+  "cases": [
+    {
+      "question": "My landlord is living in a house that I rent, but they work there. Is that allowed?",
+      "section": "RCW 59.18.040",
+      "answer": "Yes, the landlord living in the same house where you rent a unit can be allowed under Washington law if your occupancy is by an employee of the landlord and your right to occupy depends on your employment at the premises. Specifically, RCW 59.18.040(9) says that landlord-tenant law does not govern situations where occupancy is by an employee of the landlord whose occupancy right is conditioned on employment \"in or about the premises.\"\n\nSo, if your tenancy is because you work for the landlord on that property, this exemption may apply, meaning some landlord-tenant laws might not cover this arrangement. However, if you are just a regular tenant who is not employed by the landlord, then normal tenant protections under the Residential Landlord-Tenant Act would apply.\n\nIf you want more clarity about your rights or situation, you might want to look at your rental agreement or consult a tenants' rights organization or attorney. I can only provide information based on the statute excerpts here.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord kick me out if I live in a hotel or motel?",
+      "section": "RCW 59.18.040",
+      "answer": "If you're living in a hotel, motel, or similar transient lodging, those living arrangements are generally not covered by the Washington Residential Landlord-Tenant Act (RCW 59.18), meaning the usual tenant protections do not apply (RCW 59.18.040(4)). This means your landlord would not have to follow the typical tenant eviction procedures under this law because the law intentionally excludes hotels and motels from its scope.\n\nSo yes, landlords for hotels or motels can typically ask you to leave under their own rules, which may be different from tenant protections under the landlord-tenant law. However, that also means the state tenant laws about eviction do not control these situations.\n\nNote: If you want to know what specific rights you have in your exact situation, that may depend on other laws or hotel policies, as the excerpts you provided do not cover that.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord serve me a court summons if I am not home, and what steps do they need to take?",
+      "section": "RCW 59.18.055",
+      "answer": "Yes, your landlord can serve you a court summons even if you are not home, but they must follow specific steps laid out in the law to do so properly.\n\nFirst, the landlord must make a genuine effort to personally serve you. This means they have to try to hand-deliver the summons to you at least three times on at least two different days, trying at different times of day to catch you (this is called \"due diligence\") (RCW 59.18.055(4)).\n\nIf after these attempts they still cannot find you to serve the summons in person, the landlord may then use an alternative method of service. This alternative service involves two parts, which must be done at least nine days before the court date stated in the summons:\n\n1. They must post (put up) a copy of the summons and complaint in a clearly visible place on the rental property (\"the premises unlawfully held\").\n\n2. They must mail copies of the summons and complaint to your last known address by both regular mail and certified mail with postage prepaid (RCW 59.18.055(1)(a) and (b)).\n\nBefore the court will proceed to decide on eviction if you don\u2019t respond, the landlord must provide the court with a sworn statement describing their efforts to serve you personally and stating their belief that you cannot be found (RCW 59.18.055(3)).\n\nAlso, when these alternative methods are used, the court can only handle getting the landlord possession of the property and cannot order money damages against you until it has proper jurisdiction through personal service or your appearance (RCW 59.18.055(2)).\n\nIn summary, your landlord must try personal service multiple times first, and if unsuccessful, they can post the papers on the property and mail them to your last known address, following the detailed requirements above.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My landlord tried to serve me personally but couldn't find me. What can they do next to notify me about the court case?",
+      "section": "RCW 59.18.055",
+      "answer": "If your landlord tries to serve you personally but cannot find you despite making a good effort, they can use an alternative way to serve you legal papers about the court case. According to RCW 59.18.055:\n\n- The landlord must try personal service at least three times over at least two different days and at different times of day (to count as \"due diligence\").\n- If they still can't serve you personally, they can:\n  (a) Post the summons and complaint in a visible place on the rental property at least nine days before the court date.\n  (b) Mail copies of the summons and complaint to your last known address by regular and certified mail, again at least nine days before the court date.\n  \nThis alternative method ensures you have official notice of the case even if the landlord can't find you in person (RCW 59.18.055(1)(a\u2013b), (4)).\n\nThe landlord must also provide the court with a declaration explaining what they did to try to serve you personally, and stating they believe they cannot find you (RCW 59.18.055(3)).\n\nSo, after personal service attempts fail, the landlord\u2019s next step is posting and mailing the papers as described. The court will then have jurisdiction limited to recovering possession of the property (not money damages) until it properly obtains jurisdiction over you (RCW 59.18.055(2)).",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord give me a 14-day notice to pay rent or vacate if I'm late?",
+      "section": "RCW 59.18.057",
+      "answer": "Yes. Under Washington law, if you are behind on rent or other recurring charges, your landlord can serve you a 14-day notice to pay rent or vacate the premises. This notice must include details such as the amount owed, what months it's for, where to pay, and the deadline to pay within fourteen days of service. The notice must be in a specific form as described in RCW 59.18.057, which explains the required content and format of such a 14-day notice. Failure to comply within those 14 days could lead to the landlord starting eviction proceedings.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My landlord says I need to pay a specific amount within 14 days, but I haven't received a proper notice. Is that enough or do they need to follow a specific form?",
+      "section": "RCW 59.18.057",
+      "answer": "In Washington State, if your landlord wants you to pay rent or other charges within 14 days or vacate the premises, they must provide you with a specific written notice in a particular form. According to RCW 59.18.057, this \"14-day rent or vacate notice\" must include details such as:\n\n- The amount of rent due for specific months,\n- Any utilities or other recurring charges past due,\n- The total amount owed,\n- Where and how to pay (payment methods like cashier's check or money order, for example),\n- A clear statement that you must pay that amount within 14 days of receiving the notice or else move out,\n- Information about your legal rights, including resources for legal help and rental assistance.\n\nIf your landlord's notice doesn't provide these required elements or is not in substantially the same form as described in RCW 59.18.057, then it is not a proper 14-day notice.\n\nSo, simply telling you an amount and expecting payment within 14 days is not enough. They need to follow this statutory form to legally proceed under the 14-day pay or vacate rule. Without a proper notice, they may not have valid grounds to initiate an eviction based on nonpayment.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My apartment is missing smoke detectors, what does my landlord have to tell me about fire safety?",
+      "section": "RCW 59.18.060",
+      "answer": "The excerpts you provided don't specifically say what a landlord must tell you about missing smoke detectors or fire safety in general. However, RCW 59.18.130 requires tenants to maintain smoke detectors according to the manufacturer's instructions, including replacing batteries when needed, but it does not specify the landlord's notice obligations about missing detectors.\n\nIf a smoke detector is missing, that could be considered a defective or hazardous condition, which you should notify your landlord about in writing with details (property, owner if known, problem) under RCW 59.18.070. Then, the landlord must start fixing the issue promptly (within 10 days for ordinary repairs, or sooner if the problem is imminently hazardous) after receiving your notice.\n\nSo while the law does not appear to mandate specific fire safety communications from the landlord about missing smoke detectors, your landlord is obligated to address such a hazardous condition quickly once informed.\n\nIf you want further details on your landlord's duties or notifications about fire safety beyond smoke detectors, that isn't covered by the provided statue extracts.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": false,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": false
+    },
+    {
+      "question": "Can my landlord turn off my water or electricity when it's hot outside?",
+      "section": "RCW 59.18.060",
+      "answer": "No, your landlord cannot turn off your water or electricity on hot days when there is a heat-related alert issued by the National Weather Service. According to RCW 59.18.060(11)(a), the landlord may not involuntarily terminate electric or water service on any day with a heat-related warning like an excessive heat advisory for your area.\n\nAdditionally, if your service has already been disconnected for nonpayment, you have the right to request your landlord to reconnect it on those hot days. The landlord must then make a reasonable effort to reconnect service promptly when you ask (RCW 59.18.060(11)(b)).\n\nIn short, during official heat warnings, landlords are prohibited from shutting off these essential utilities to protect tenant health and safety.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My apartment building just got a notice that it\u2019s condemned, and I haven\u2019t paid my last month\u2019s rent yet. Will I get my deposit back if I move out because of this?",
+      "section": "RCW 59.18.085",
+      "answer": "Yes. Under RCW 59.18.085, if a governmental agency has notified the landlord that the dwelling is condemned or unlawful to occupy, tenants have protections if they move out due to this. Specifically, if you choose to terminate your tenancy because of the condemnation, you must be refunded both your entire security deposit and any prepaid rent, which includes your last month\u2019s rent.\n\nSo, if you move out because of the condemnation, your landlord has to return your deposit and any prepaid rent you paid for that last month, per RCW 59.18.085(2)(a)-(b).",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can I fix a broken window myself and deduct the cost from my rent?",
+      "section": "RCW 59.18.100",
+      "answer": "Under RCW 59.18.100(3), you may be able to fix a broken window yourself and deduct the cost from your rent if these conditions are met:\n\n1. You must have first given written notice to your landlord about the broken window, specifying the problem as required by RCW 59.18.070.\n\n2. The repair cost must not exceed one month's rent, including materials and labor at prevailing community rates.\n\n3. The repair should be within your leased premises and not require licensed or registered professionals by law (window repairs typically can be done by non-licensed persons, but check if your particular window requires a licensed glazier).\n\n4. After repairing the window in a workmanlike manner, you must give your landlord an opportunity to inspect it.\n\n5. The total repair costs you deduct under this tenant repair option cannot exceed one month's rent in any 12-month period.\n\nIf all these apply, you can do the repair yourself and deduct the costs from your rent, but be sure to keep receipts and documentation and follow the notice rule carefully.\n\nNote this is general legal information. For advice about your specific situation, you may want to consult a tenant-rights adviser or attorney.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My toilet is leaking, and my landlord hasn't fixed it in over two weeks. Can I hire someone to fix it and then subtract the repair cost from my rent?",
+      "section": "RCW 59.18.100",
+      "answer": "Based on Washington's Residential Landlord-Tenant Act, yes, you may be able to hire someone to fix your leaking toilet and deduct the repair cost from your rent\u2014but certain conditions apply.\n\n1. You must first notify your landlord in writing about the defect as required by RCW 59.18.070, specifying the problem and property details.\n\n2. According to RCW 59.18.070, a major plumbing fixture like a toilet should be repaired by the landlord within 3 days after notice. Since more than two weeks have passed without repair, it's likely the landlord has failed to act within the required time.\n\n3. Per RCW 59.18.100(1) and (2), you may then submit a good faith written estimate for the repair cost to the landlord. If the landlord still does not start remedial action within the timeframe required, you may contract with a licensed or responsible person to make the repair.\n\n4. After completion and the landlord has had a chance to inspect, you may deduct the repair cost from rent \u2014 but the cost deducted cannot exceed an amount equal to two months' rent per repair. Also, the total amount deductible for tenant-made repairs cannot exceed two months' rent in any 12-month period.\n\n5. Repairs must be done in a code-compliant, workmanlike manner (RCW 59.18.100(5)). If repairs damage the property due to negligence, the landlord can seek damages.\n\nSo in your situation, because the landlord has not fixed a major plumbing fixture within the 3-day repair window after your proper written notice, you may hire someone to repair it and deduct a reasonable cost from your rent, following the steps above.\n\nRemember, this is legal information about your rights under RCW 59.18; for advice on your specific situation, consider consulting a tenant rights professional or attorney.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My landlord hasn't fixed the broken heater, and I think it's affecting my safety. Can I pay my rent into an escrow account instead of directly to my landlord?",
+      "section": "RCW 59.18.115",
+      "answer": "Yes, you may be able to pay your rent into an escrow account instead of directly to your landlord if the broken heater poses a substantial risk to your health or safety. Here's how it works under Washington law:\n\n1. First, you must notify your landlord in writing, specifying the heater is broken and how it affects your safety or health. The landlord must then begin repairing it promptly\u2014usually within 24 hours for issues depriving you of heat or if it is imminently hazardous (RCW 59.18.070(1)).\n\n2. If the landlord fails to fix the heater within a reasonable time after your notice, you can request a local government inspection to certify the hazardous condition (RCW 59.18.115(2)(a) and (b)).\n\n3. If the inspection confirms the condition exists and poses a substantial risk to your health or safety, you will receive a certification document.\n\n4. After you get this certification, you may either continue paying your rent normally or choose to deposit your rent into an escrow account instead of paying the landlord directly. You must notify your landlord in writing about your decision and the escrow deposit (RCW 59.18.115(2)(d) and (f)).\n\n5. Paying into escrow is your exclusive remedy for that hazardous condition, although you may also seek court or arbitration action to determine any rent reduction due to the defect (RCW 59.18.115(2)(g)).\n\nSo, the broken heater could qualify for this remedy if confirmed hazardous, allowing you to escrow rent until your landlord fixes it. But be sure to follow the required steps: written notice, inspection request, obtain certification, and notify landlord of escrow deposit in writing. This protects your rights under RCW 59.18.115.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord change the rent amount without giving me enough notice?",
+      "section": "RCW 59.18.140",
+      "answer": "In Washington State, your landlord **must provide written notice before increasing the rent**, with specific minimum timeframes depending on your rental situation.\n\nGenerally, a landlord is required to give you **at least 90 days' written notice** before any rent increase takes effect (RCW 59.18.140(3)(a)). This means you must be told in writing at least three months ahead.\n\nExceptions include:\n\n- If your tenancy is subsidized and your rent is based partly or fully on your income or household circumstances, then only **30 days' written notice** is required (RCW 59.18.140(3)(b)).\n\n- If your lease was signed or renewed before May 7, 2025, and it is for a specified time with between 60 and 90 days left at that date, your landlord must provide at least **60 days' written notice** (RCW 59.18.140(3)(c)).\n\nAlso, the rent increase **cannot take effect before the end of your current lease term** unless you agree otherwise (RCW 59.18.140(3)(a)).\n\nTherefore, if your landlord tries to increase your rent without giving the required written notice within the proper timeframe, such a rent increase would not comply with the law.\n\nNote that this answer is based on your provided statute sections. If your situation involves unique factors not covered here, please consult directly with a tenant rights organization or legal professional for advice.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My landlord wants to show my apartment to a potential new tenant next week, and I want to know if they need to give me proper notice first.",
+      "section": "RCW 59.18.150",
+      "answer": "Yes, your landlord must give you proper written notice before entering your apartment to show it to prospective tenants. Under RCW 59.18.150(6), except in an emergency, the landlord is required to give you at least two days' written notice specifying the exact time and date or a time range when they intend to enter. The notice must also include a phone number for you to communicate any objections or requests to reschedule. \n\nYou should not unreasonably withhold consent if they provide at least one day's notice for showing the unit to a prospective tenant (RCW 59.18.150(6)). \n\nSo your landlord must provide written notice at least 2 days before entry and arrange the showing at a reasonable time.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord come into my apartment whenever they want without asking me?",
+      "section": "RCW 59.18.150",
+      "answer": "No, your landlord cannot just come into your apartment whenever they want without asking or giving you proper notice.\n\nUnder Washington's Residential Landlord-Tenant Act (RCW 59.18.150), your landlord can only enter your rental unit without your consent in very limited situations, such as:\n\n- In case of an emergency (e.g., fire or flood)\n- If the property is abandoned\n\nOutside of emergencies or abandonment, the landlord must give you at least two days' written notice stating the specific date and time (or a timeframe) when they intend to enter. They must enter only at reasonable hours and cannot abuse the right of access to harass you (RCW 59.18.150(5) and (6)).\n\nAlso, you are expected not to unreasonably withhold consent if the landlord needs to enter for purposes like inspections, repairs, or showing to prospective tenants or buyers, but they still need to give you at least one day's notice for these showings (RCW 59.18.150(1) and (6)).\n\nIf a landlord comes in without following these rules, they may be liable for penalties (RCW 59.18.150(8)).\n\nSo, except for emergencies or abandonment, your landlord must ask and provide proper written notice before entering your unit.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord make me fix something in my apartment within 30 days if it's affecting my health?",
+      "section": "RCW 59.18.180",
+      "answer": "Under Washington's Residential Landlord-Tenant Act, if you as a tenant are responsible for a defect or condition that affects health or safety (such as damage or uncleanliness you caused), your landlord must give you written notice specifying what you need to fix. You then have 30 days to remedy the problem\u2014or less if the situation is an emergency requiring quicker action (RCW 59.18.180(1)).\n\nSo yes, your landlord can demand you fix the issue within 30 days after proper written notice, as long as that noncompliance affects health or safety and can be remedied by repair or cleaning. If you don\u2019t fix it in time, the landlord may enter the unit to do the work and charge you for the costs.\n\nThis applies when the tenant is the party failing to maintain the unit properly, not when the landlord is responsible for repairs. The law's main focus is on tenants' duties under RCW 59.18.130 or 59.18.140, but the 30-day timeframe comes from RCW 59.18.180(1).",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My landlord says they will demolish the building next month. How much notice do they have to give me before I have to leave?",
+      "section": "RCW 59.18.200",
+      "answer": "Under the Residential Landlord-Tenant Act in Washington State, if your landlord plans to demolish the building, they must provide you with at least 120 days' written notice before the tenancy ends. This notice requirement is there to give you enough time to find new housing (RCW 59.18.200(2)(c)(i)).\n\nSo if your landlord says demolition will happen next month, they are required by law to give you a written notice at least 120 days before you must move out. If they haven't given you that much notice yet, they are not meeting the legal requirement.\n\nNote: Some cities have local relocation assistance programs that may also affect notice and assistance; but generally, 120 days is the minimum required by state law when demolition or substantial rehab is planned.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "How much notice do I need to give my landlord if I want to end my month-to-month lease?",
+      "section": "RCW 59.18.200",
+      "answer": "If you have a month-to-month lease (a tenancy that continues for an indefinite time with rent due monthly or on another periodic basis), you must give your landlord at least 20 days' written notice before the end of any rental month or payment period to end the lease (RCW 59.18.200(1)(a)). \n\nThis means your written notice should arrive at least 20 days before the last day of the period you want to move out, so the lease will end on that date.\n\nIf you are in the armed forces and receive deployment or permanent change of station orders that make 20 days' notice not feasible, you can give less than 20 days' notice (RCW 59.18.200(1)(b)). \n\nOtherwise, 20 days' written notice is required.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My spouse is in the military and gets deployed unexpectedly. Can we end our rental agreement early because of this?",
+      "section": "RCW 59.18.220",
+      "answer": "Yes, if your spouse is a member of the armed forces and receives permanent change of station or deployment orders, you can end your tenancy for a specified time early. You need to provide your landlord with at least 20 days' written notice that includes a copy of the official military orders or a signed letter from the commanding officer confirming the orders.\n\nSpecifically, RCW 59.18.220(2) allows a tenant who is a service member (or their spouse or dependent) to terminate the lease if deployment orders meet certain criteria, such as moving 35 miles or more away or receiving orders for active duty of at least 90 days. Your written notice to the landlord must be at least 20 days before ending the lease and must include proof of the orders.\n\nSo, you can lawfully end your lease early under these conditions by following this notice procedure. Be sure to provide the appropriate written notice with your spouse's official military documents to your landlord.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can I end my lease earlier if I get new military orders that require me to move 35 miles or more away?",
+      "section": "RCW 59.18.220",
+      "answer": "Yes. If you are a tenant who is a member of the armed forces (including national guard or reserves), or your spouse or dependent, and you receive military orders that require a permanent change of station (PCS) to move 35 miles or more from your rental, you may end your lease early.\n\nTo do this, you must provide your landlord with written notice at least 20 days in advance, including a copy of the official military orders or a signed letter from your commanding officer verifying the change of station requiring the move (RCW 59.18.220(2)(a)). This allows you to terminate your tenancy for a specified time lease early without penalty.\n\nSo, yes, new military orders requiring a move 35 miles or more can qualify you to end your lease early with proper notice and documentation.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My landlord is trying to keep my personal belongings without my permission after I moved out; can they do that?",
+      "section": "RCW 59.18.230",
+      "answer": "Under Washington's Residential Landlord-Tenant Act, a landlord cannot simply keep your personal belongings without following specific legal procedures if you move out.\n\nIf the landlord believes you abandoned the property and owe rent, they may enter, take possession of your belongings, and store them in a reasonably secure place. However, they must make reasonable efforts to notify you in writing about where your belongings are stored, the landlord's contact info, and the date when the belongings might be sold or otherwise disposed of. This notice must be sent by first-class mail to your last known or given address (RCW 59.18.310(2)).\n\nIf the landlord has obtained a court-ordered writ of restitution (judicial eviction), they must follow rules about storing your property and may only sell or dispose of it after informing you, allowing for requests to store the property, etc. (RCW 59.18.312).\n\nIn general, your belongings should be returned to you if you ask and pay any reasonable storage or moving costs. The landlord can only sell or dispose of your property after giving you proper notice and waiting the required time (typically 7 days or longer depending on value) (RCW 59.18.312).\n\nIf your landlord is keeping your belongings without following these procedures or refusing to return them without notice or your consent, that is not allowed under the law.\n\nThis is legal information, not legal advice. If you want to recover your belongings or have disputes about your landlord holding them, consider contacting tenant support organizations or an attorney for advice specific to your situation.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": false,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": false
+    },
+    {
+      "question": "Can my landlord make me sign a bunch of agreements where I give up my rights or agree to pay their legal fees?",
+      "section": "RCW 59.18.230",
+      "answer": "No, your landlord cannot legally require you to sign agreements that make you give up your rights or agree to pay their attorneys' fees outside of what the law allows.\n\nUnder Washington's Residential Landlord-Tenant Act, specifically RCW 59.18.230(2), rental agreements cannot include provisions where the tenant:\n\n- Waives or gives up rights or remedies under the law (RCW 59.18.230(2)(a))\n- Gives up the right to join or bring actions against the landlord, including class actions (RCW 59.18.230(2)(b))\n- Agrees to pay the landlord\u2019s attorneys\u2019 fees except as authorized by law and awarded by a court (RCW 59.18.230(2)(e))\n\nAny clause in a rental agreement that violates these rules is unenforceable (RCW 59.18.230(3)). If a landlord knowingly uses such prohibited provisions, the tenant can recover damages and legal costs.\n\nSo, a landlord cannot force you to give up your legal rights or agree to pay their legal fees through lease agreements. If such provisions appear in your lease, they do not have legal effect, and you have remedies against the landlord.\n\nIf you want to know what you personally should do, I recommend consulting a qualified attorney or tenant rights organization.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "If my landlord tries to evict me soon after I report a repair issue, can that be considered retaliation?",
+      "section": "RCW 59.18.250",
+      "answer": "Yes, under Washington's Residential Landlord-Tenant Act, if your landlord tries to evict you within 90 days after you made a good faith complaint about a repair issue, it is presumed to be retaliatory. This means the law assumes the eviction is a form of punishment for exercising your rights (RCW 59.18.240 and RCW 59.18.250).\n\nSpecifically, RCW 59.18.240 prohibits landlords from taking retaliatory actions like eviction primarily because a tenant made a good faith and lawful complaint about housing conditions that affect health or safety. Then, RCW 59.18.250 states that if a landlord initiates eviction within 90 days after such a complaint, the eviction is presumed retaliatory unless the landlord can prove otherwise\u2014such as if you are behind on rent or in breach of your lease.\n\nThis presumption means you do not initially have to prove the landlord is retaliating\u2014it\u2019s assumed\u2014but the landlord can present evidence to rebut this presumption.\n\nNote, this does not mean the eviction is automatically illegal, but it gives you a strong defense against eviction if it follows shortly after reporting repairs. You may want to seek legal advice about your specific situation.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My landlord charged me a deposit to hold a unit, but I didn't move in. Can they keep that money?",
+      "section": "RCW 59.18.253",
+      "answer": "Under Washington law, a landlord may charge a prospective tenant a fee or deposit to hold a unit only after it is offered to you, and this holding deposit cannot be more than 25% of the first month's rent (RCW 59.18.253(2),(3); RCW 59.18.610(4)(b)). The landlord must provide you with a receipt and a written statement about any conditions under which the fee may be kept immediately when you pay it (RCW 59.18.253(2)).\n\nIf you did not move in, whether the landlord can keep the deposit depends on the written agreement terms about conditions under which the fee may be retained. If there was no clear written statement or receipt outlining those conditions at the time you paid, they may not lawfully keep the money.\n\nIn short:  \n- The landlord can require a holding deposit but only under certain conditions and with proper written notice (receipt and statements).  \n- If you didn't move in and these conditions to keep the money were not met or stated in writing, the landlord likely cannot keep that deposit.\n\nKeep in mind that I provide legal information based on RCW 59.18 and this is not legal advice. For your specific situation, consult a lawyer or tenant advocacy group.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord charge me a fee to be put on a waiting list for a rental?",
+      "section": "RCW 59.18.253",
+      "answer": "No, under Washington law, it is unlawful for a landlord to charge you any fee or deposit just for the privilege of being placed on a waiting list to be considered as a tenant for a dwelling unit. This is clearly stated in RCW 59.18.253(1), which says landlords cannot require a fee or deposit from a prospective tenant simply to be put on a waiting list.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord refuse to rent to me just because I receive housing assistance or social security?",
+      "section": "RCW 59.18.255",
+      "answer": "No, your landlord cannot refuse to rent to you solely because you receive housing assistance, social security, or other similar sources of income. Under RCW 59.18.255(1), landlords are prohibited from refusing to lease or rent to a tenant based on their source of income, which includes benefits like housing assistance and social security (RCW 59.18.255(5)). There are very limited exceptions, such as if the rental requires certain costly improvements related to an income-conditioned inspection, but these are narrowly defined.\n\nSo, as long as you are otherwise eligible, your source of income alone cannot be a reason for denial.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My landlord told me I can't rent the apartment because I get a rent subsidy. Is that allowed?",
+      "section": "RCW 59.18.255",
+      "answer": "No, your landlord is not allowed to refuse to rent to you solely because you receive a rent subsidy. Under Washington's Residential Landlord-Tenant Act (RCW 59.18.255), landlords cannot refuse to lease or rent to a prospective tenant based on their source of income, which includes benefits, subsidies, or vouchers (RCW 59.18.255(1)(a)). There are very limited exceptions related to inspection and cost of improvements, which typically do not apply just because you have a subsidy.\n\nIn addition, landlords may not make any distinction, discrimination, or restriction in rental terms or conditions based on the tenant's source of income (RCW 59.18.255(1)(c)).\n\nTherefore, refusing to rent to you solely due to your rent subsidy is prohibited by law.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord charge me just for checking my background if they tell me what info they'll look at first?",
+      "section": "RCW 59.18.257",
+      "answer": "Yes. Under RCW 59.18.257(1)(b)(i), a landlord may charge a prospective tenant for costs incurred in obtaining a tenant screening report only if the landlord first gives proper written notice about what information will be accessed and the reasons for denial (as described in subsection (1)(a)). So, if your landlord informs you in writing ahead of time about the types of information they will check and the criteria for denial, they can charge you for the screening cost.\n\nIf the landlord does their own screening, they can charge their actual costs up to the usual regional rates, including phone calls and time spent verifying information, but cannot overcharge (RCW 59.18.257(1)(b)(ii)).\n\nThis ensures tenants are aware of what data is checked and protects from unfair or surprise fees.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My landlord says I didn't get approved for a place because of a criminal record. Do they need to tell me why I was rejected?",
+      "section": "RCW 59.18.257",
+      "answer": "Yes. Under Washington law, if a landlord takes an adverse action like rejecting your rental application based on a criminal record, they must provide you with a written notice explaining the reasons for the rejection. That notice must follow a specific format, including details like your name, address, the adverse action taken (rejected or approved with conditions), and the reason, such as information received in a criminal record. The landlord must sign and date the notice (RCW 59.18.257(1)(c)).\n\nSo, your landlord is required to tell you in writing that your application was rejected because of the criminal record and provide you with this \"Adverse Action Notice.\" This helps you understand why your application was denied.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord withhold part of my deposit for damages I caused, and do they need to tell me in writing what those damages are?",
+      "section": "RCW 59.18.260",
+      "answer": "Yes, your landlord can withhold part of your deposit for damages you caused, but only for damage that goes beyond normal wear and tear from ordinary use. They cannot keep deposit money for normal wear and tear or minor aging of the unit (under RCW 59.18.280(c)(i) and RCW 59.18.260(4)).\n\nThe lease or rental agreement must be in writing and must clearly state the conditions under which the landlord may keep some or all of your deposit for damages you caused (RCW 59.18.260(1)).\n\nAfter your tenancy ends and you move out, the landlord must provide you with a full and specific written statement explaining the reasons for withholding any part of your deposit. This statement must include documentation such as receipts or invoices supporting the costs for repairs or cleaning deducted from your deposit. If the landlord performed repairs themselves, they must provide details about the materials used and the time spent on repairs at a reasonable hourly rate (RCW 59.18.280(1)(a) and (b)).\n\nThey must give you this written statement and any refund due within 30 days after your lease ends or they learn you have abandoned the premises. If they fail to do so, they may owe you the full deposit and could even owe you double that amount if they intentionally refuse (RCW 59.18.280(1)(a) and (2)).\n\nSo yes, your landlord must inform you in writing what damages they claim you caused and provide proof before withholding any of your deposit for those damages.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My landlord collected a deposit but didn't give me a written checklist of the property's condition when I moved in. Can they keep my deposit because of that?",
+      "section": "RCW 59.18.260",
+      "answer": "No, your landlord cannot keep your deposit if they collected it without giving you a written move-in checklist. Under RCW 59.18.260(5), if a landlord takes a deposit but does not provide a written checklist describing the condition of the property at the start of your tenancy, the landlord is liable to you for the entire deposit amount. This means they must return it. Additionally, if you take legal action, the court may allow you to recover your court costs and reasonable attorney fees.\n\nSo, the lack of a written move-in checklist gives you strong protection to get your deposit back.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord keep my security deposit in a separate trust account and give me a receipt for it?",
+      "section": "RCW 59.18.270",
+      "answer": "Yes. Under RCW 59.18.270, your landlord is required to promptly put your security deposit into a separate trust account maintained specifically for tenant deposits at a Washington financial institution or licensed escrow agent. They must also provide you with a written receipt for the deposit and notify you in writing of the name and address of the depository where your deposit is held. This protects your deposit and provides transparency about where your money is kept.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "If my landlord's property is foreclosed and they haven't transferred my deposit to the new owner, do I get my full deposit back automatically?",
+      "section": "RCW 59.18.270",
+      "answer": "Yes. Under RCW 59.18.270, if the property you are renting is foreclosed and the former landlord (the foreclosed-upon owner) does not transfer your deposit to the new owner (the successor), the old landlord must immediately refund your full deposit to you right after the foreclosure sale or property transfer. If the old landlord doesn\u2019t do this, they can be liable to you for damages up to twice the amount of your deposit. So yes, you are entitled to get your full deposit back automatically from the old landlord if it\u2019s not transferred (RCW 59.18.270).",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My landlord is trying to keep part of my deposit to cover damages. Can they do that without showing me receipts or invoices?",
+      "section": "RCW 59.18.280",
+      "answer": "Under Washington's Residential Landlord-Tenant Act, the landlord cannot keep part of your deposit for damages without providing proper documentation. Specifically, when a landlord withholds any portion of the security deposit for damages, they must provide you with a full and specific written statement explaining the reasons. Along with that statement, they must include receipts, estimates, or invoices that reasonably substantiate the damage charges (RCW 59.18.280(1)(a)-(b)).\n\nIf the landlord or their employee performed repairs, they must also include documentation on the cost of materials or supplies (such as bills or vendor price lists) and provide a statement of the time spent doing repairs with a reasonable hourly rate (RCW 59.18.280(1)(b)). \n\nWithout these receipts or proper documentation, the landlord is not authorized to retain deposit money for damages. They also cannot withhold any portion of your deposit for normal wear and tear, or for repairs or cleaning not properly documented (RCW 59.18.280(1)(c)).\n\nSo, if your landlord is withholding part of your deposit without showing receipts or invoices, they are not complying with the law.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "I moved out last month, and my landlord hasn't given me my deposit back or explained why they might be keeping it. Can they do that, and how long do they have to respond?",
+      "section": "RCW 59.18.280",
+      "answer": "Under Washington's Residential Landlord-Tenant Act, your landlord must provide you with a full and specific statement explaining any deductions from your deposit\u2014and return any refund due\u2014within 30 days after you move out (or after they learn you abandoned the property). This statement must include documentation like receipts or invoices that support any charges for damages beyond normal wear and tear (RCW 59.18.280(1)(a) and (b)).\n\nIf the landlord fails to provide the statement and refund within 30 days, they owe you the full deposit amount\u2014and they may owe you up to twice that if they intentionally refuse to comply (RCW 59.18.280(2)).\n\nSo, your landlord cannot just keep your deposit without explanation and without returning what is owed within 30 days of your move-out. If your landlord has not responded within this time frame, they are violating these requirements.\n\nThis is legal information, not legal advice. If you need to pursue returning your deposit, you might consider contacting a tenant rights organization or an attorney for help.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord force me to leave without going to court?",
+      "section": "RCW 59.18.290",
+      "answer": "No, your landlord cannot force you to leave without going through the court process. According to RCW 59.18.290(1), it is unlawful for a landlord to remove or exclude a tenant from the rental property except under a court order that authorizes it. If a landlord removes or excludes you without such a court order, you may recover possession, end your rental agreement, and seek damages and attorney fees. So, landlords must follow legal eviction procedures through the court before you can be lawfully forced to leave.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "If I ignore a court notice to leave, can my landlord kick me out without a court order?",
+      "section": "RCW 59.18.290",
+      "answer": "No, your landlord cannot legally kick you out without a court order, even if you ignore a court notice to leave. Under Washington law (RCW 59.18.290(1)), it is unlawful for a landlord to remove or exclude a tenant from the rental property unless the landlord has a court order authorizing it. \n\nIf a landlord does remove or exclude a tenant without such a court order, the tenant may recover possession of the property or terminate the rental agreement and could also recover damages and lawyer fees (RCW 59.18.290(1)).\n\nThe court notice, such as an order to show cause or eviction summons, informs you of the eviction process and the consequences of not responding (RCW 59.18.370). If you ignore the notice and fail to appear, the court may order the sheriff to remove you and grant the eviction relief to the landlord, but only through that formal court process (RCW 59.18.370).\n\nSo, the landlord must follow the judicial eviction process, and they cannot legally \"self-help\" by physically removing you or locking you out without a court order.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "If I abandon my apartment and my landlord finds my personal belongings, can they sell or dispose of them after a certain time?",
+      "section": "RCW 59.18.310",
+      "answer": "Yes. If you abandon your apartment and the landlord finds your belongings there, the landlord can take possession and store your property. They must first give you notice with information about the landlord and where the property is stored, and inform you that the property may be sold or disposed of later. This notice should be mailed to your last known address or any other address the landlord knows you might receive mail at (RCW 59.18.310(2)).\n\nAfter the notice:\n\n- If your belongings' total value is more than $250, the landlord must wait at least 45 days from mailing the notice before they can sell or dispose of the property. This includes personal items like papers, family pictures, and keepsakes (RCW 59.18.310; RCW 59.18.312(3)).\n\n- If your belongings are worth $250 or less (excluding personal papers, family pictures, and keepsakes), the landlord can sell or dispose of them after 7 days from mailing the notice (RCW 59.18.310; RCW 59.18.312).\n\nThe landlord can apply any money gained from selling your belongings to unpaid rent or storage costs, but must hold any leftover funds for you to claim for one year (RCW 59.18.312).\n\nSo, yes, after following these notice requirements and waiting periods depending on the value of the property, the landlord can sell or dispose of your belongings if you don't reclaim them.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My landlord took my stuff after I got evicted, but I asked them to store it. Can they just sell it instead?",
+      "section": "RCW 59.18.312",
+      "answer": "Under Washington RCW 59.18.312(5), if you were served with a writ of restitution (eviction order), the sheriff has to notify you in writing that the landlord is required to store your property only if you send a written request to the landlord within 3 days after the writ was served. You must deliver this request by mail, personal delivery, or fax to the landlord at their stated address or fax number.\n\nIf you made that written request on time, the landlord must store your belongings. They cannot just sell them. The stored property must be returned to you if you pay the reasonable or actual drayage and storage costs within 30 days.\n\nIf you did not serve a timely written request, the landlord may either store your property or place it on the nearest public property unless you object. If it is placed on public property (like a curb or storage locker not controlled by them), that is different from the landlord storing it. After giving you proper written notice and waiting the required time (generally 45 days), the landlord may sell or dispose of the property following certain procedures.\n\nSo, if you did properly ask for storage within 3 days after eviction, your landlord must store your property and cannot just sell it. If you did not, then they may sell it after notice and waiting periods per RCW 59.18.310 and 59.18.312.\n\nPlease note this is general information about the statute and not advice on your personal situation.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord hold a private hearing if we have a disagreement about repairs?",
+      "section": "RCW 59.18.330",
+      "answer": "Washington State law under the Residential Landlord-Tenant Act does not provide for landlords holding private hearings on disputes such as repairs.\n\nInstead, if a landlord and tenant disagree about repairs or other rental issues, they may agree **in writing** to use alternative dispute resolution methods like:\n\n- **Mediation**, where a neutral third party helps both sides talk and find a solution (RCW 59.18.315).\n- **Arbitration**, where a neutral third party hears both sides and makes a binding decision (RCW 59.18.320).\n\nHowever, arbitration cannot be used for certain disputes, like disagreements about defects before the tenant has tried a remedy or if a court case is already started related to the dispute (RCW 59.18.320(1)(a)-(b)). Also, mediation and arbitration require written agreement from both landlord and tenant; the landlord can\u2019t just hold a private hearing on their own.\n\nSo, a landlord can\u2019t unilaterally hold a private hearing for repairs disagreements, but both parties may agree to mediation or arbitration in writing to resolve disputes without going to court. Otherwise, disputes are resolved through legal processes as specified in the act.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": false,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": false
+    },
+    {
+      "question": "If I refuse to testify or produce documents during a dispute, can the arbitrator make me obey a subpoena or be held in contempt?",
+      "section": "RCW 59.18.330",
+      "answer": "Yes. Under RCW 59.18.330(3), the arbitrator has the authority to administer oaths and issue subpoenas to require your attendance and the production of documents relevant to the dispute. If you refuse to obey such a subpoena or refuse to be sworn in to testify, or if anyone is guilty of contempt during the hearing, the arbitrator can ask a superior court to intervene. That court has the power to issue an order compelling your compliance, and if you fail to obey the court's order, you may be held in contempt by the court. This means there can be legal consequences for refusing to comply with the arbitrator's subpoena during the arbitration process.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "If I tell my landlord that I or someone else in my place has been threatened with a gun, can I end my lease without any penalty?",
+      "section": "RCW 59.18.352",
+      "answer": "Yes, under Washington's Residential Landlord-Tenant Act, if you notify your landlord that you or someone sharing your unit has been threatened with a firearm or other deadly weapon, and the person who made the threat has been arrested, you may have the right to end your lease early without penalty.\n\nSpecifically, RCW 59.18.352 says:\n\n- If you notify your landlord that you or another tenant in your unit was threatened with a gun or deadly weapon;\n- The person who made the threat is arrested;\n- And if the landlord does **not** file an eviction action against the threatening tenant within 7 days of being notified of the arrest;\n\nThen you can terminate the rental agreement by giving written notice to your landlord and leave the premises without any further financial obligation under the lease. You are discharged from paying rent after the day you leave, and you should receive a pro-rated refund of any prepaid rent, plus a detailed explanation of any withheld deposit (RCW 59.18.352).\n\nNote that the landlord is **not required** to evict the threatening tenant, but if they do not act within the 7-day window, you get the option to end your lease without penalty.\n\nIn short, if your landlord doesn't act promptly after a serious threat and arrest, you have the legal right to terminate your lease early to protect your safety without financial penalty. \n\nKeep in mind this is legal information, not legal advice. You may want to consult a lawyer or tenant support organizations for help with your specific situation.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My landlord hasn't filed the paperwork to evict a tenant who threatened another tenant with a weapon after being arrested. Can I leave my apartment because of this threat without losing my deposit?",
+      "section": "RCW 59.18.352",
+      "answer": "Yes. Under RCW 59.18.352, if you were threatened by another tenant with a firearm or deadly weapon and that tenant was arrested, but your landlord does not file an unlawful detainer (eviction) action against that threatening tenant within seven calendar days after being notified of the arrest, you have the right to terminate your rental agreement and move out without further financial obligation. This includes not being liable for rent after you leave and the right to receive a pro rata refund of any prepaid rent. You are also entitled to a full and specific statement explaining any portion of your deposit the landlord keeps (RCW 59.18.352).\n\nSo, if the landlord fails to act within the 7-day window, you can leave and expect to get your deposit back unless there are valid deductions, which must be fully explained.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord serve me a court summons to start eviction, and what info has to be in it?",
+      "section": "RCW 59.18.365",
+      "answer": "Yes, your landlord can serve you a court summons to start an eviction (unlawful detainer) action. According to RCW 59.18.365, the summons must include:\n\n- The names of the parties involved (landlord and tenant)\n- The attorney's name(s), if any\n- The court where the case is filed\n- The nature of the action in concise terms (for example, eviction)\n- The relief sought (such as regaining possession)\n- The \"return day,\" meaning the deadline for you to respond\n- A notice telling you to appear and answer within the designated time, or the landlord may get the relief sought against you\n- A street address where you can send your answer or notice of appearance\n- If available, a fax number for the landlord or their attorney\n\nThe summons must be served and returned following standard legal procedures (RCW 59.18.365(1)). This ensures you have proper notice and understand how to respond.\n\nSo, the landlord must provide clear information about the case, when and where you must respond, and how to contact or respond to the landlord or their attorney. Without this, the summons may not be valid.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "If I want to respond to an eviction court case, how do I send my answer to the landlord or their lawyer?",
+      "section": "RCW 59.18.365",
+      "answer": "If you want to respond to an eviction case, you must serve a copy of your answer or notice of appearance to the landlord or their attorney using one of the following methods:\n\n1. Deliver a copy directly to the person who signed the summons at the street address listed on the summons.\n2. Mail a copy addressed to the person who signed the summons at the street address listed on the summons.\n3. Send by fax to the fax number listed on the summons, if available. Service by fax is considered complete once successfully sent.\n4. Or use any other method authorized by the superior court civil rules.\n\nThis ensures your formal response is properly served according to RCW 59.18.365(2). It\u2019s important to do this timely to avoid losing your right to contest the eviction, as the court can order removal if you fail to appear and respond.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can the court appoint someone to help decide eviction cases in my area without getting approval from the local government?",
+      "section": "RCW 59.18.368",
+      "answer": "No, the court cannot appoint someone to help decide eviction cases without prior consent from the local government. Specifically, under RCW 59.18.368(2), the position of a housing court commissioner\u2014who would assist in handling unlawful detainer (eviction) actions\u2014\"may not be created without prior consent of the county legislative authority.\" This means the local governing body (such as the county council) must approve before such appointments are made.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "If I get an eviction notice, will there be a trained person helping the court handle my case?",
+      "section": "RCW 59.18.368",
+      "answer": "Yes. According to RCW 59.18.369, housing court commissioners who are specially trained can be authorized by superior court judges to handle eviction (unlawful detainer) cases. These commissioners can receive filings, conduct investigations, hold hearings, and make written reports on your eviction case to help resolve the dispute efficiently. So, a trained person like a housing court commissioner will assist the court in managing your eviction case.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": false,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": false
+    },
+    {
+      "question": "Can my landlord take me to court to kick me out if I haven't paid rent?",
+      "section": "RCW 59.18.380",
+      "answer": "Yes, your landlord can take you to court to evict you if you have not paid rent, but there are specific rules and procedures they must follow under Washington\u2019s Residential Landlord-Tenant Act.\n\nIf you miss rent payments, the landlord can file an eviction action (unlawful detainer) only after giving you proper written notice about the missed rent (RCW 59.18.650(2)(a)). This notice informs you that you must pay rent or vacate the premises within the time period allowed.\n\nIf the landlord wins in court and there is a judgment for eviction due to nonpayment of rent, the court does not immediately order you out. Under RCW 59.18.410(2), after a judgment, the court gives you five court days to pay the rent due, court costs, and other allowed fees before the eviction can be enforced. If you pay within that time, the eviction is stopped.\n\nAlso, the court may set up a payment plan and stay (pause) the eviction for up to 90 days if you show good cause. The court looks at factors like whether you intentionally didn\u2019t pay rent, if the nonpayment was due to circumstances beyond your control, your ability to pay the judgment, and if eviction would cause hardship (RCW 59.18.410(3)(a)). \n\nSo, yes, an eviction court case can start if you haven\u2019t paid rent, but the law provides some protections that might allow you time to pay or a repayment plan before you must leave.\n\nRemember, this is legal information about Washington law, not personal legal advice. You may wish to consult a qualified attorney or tenant advocate about your specific situation.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": false,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": false
+    },
+    {
+      "question": "If I believe I have a legal reason to stay in my apartment, can I tell the court orally instead of in writing during the hearing?",
+      "section": "RCW 59.18.380",
+      "answer": "Yes, you can tell the court your legal reasons to stay in your apartment either orally or in writing during the eviction hearing. According to RCW 59.18.380, at the hearing for the landlord\u2019s motion to evict, the tenant (defendant) may answer the court \"orally or in writing\" and assert any legal or equitable defense. If you speak orally, the court will make a note of what you say on the complaint record.\n\nSo you do not have to submit a written answer in advance\u2014you can explain your reasons directly to the judge at the hearing itself (RCW 59.18.380). This allows you to present your case and any defenses before the court decides whether the landlord has the right to repossess the property.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord accept part of the rent after I've been served with an eviction notice without stopping my eviction process?",
+      "section": "RCW 59.18.390",
+      "answer": "Yes. After you have been served with a writ of restitution (which is the eviction notice/order), your landlord's acceptance of a partial payment of rent does **not** automatically stop or postpone your eviction. According to RCW 59.18.390(2), the sheriff must provide a notice stating clearly that \"YOUR LANDLORD'S ACCEPTANCE OF A PARTIAL PAYMENT FROM YOU AFTER SERVICE OF THIS WRIT OF RESTITUTION WILL NOT AUTOMATICALLY POSTPONE OR STOP YOUR EVICTION.\" \n\nFor the eviction to be postponed or stopped, there must be a written agreement between you and your landlord, and **you have to provide a copy of that agreement to the sheriff**. The sheriff will only stop the eviction if they receive this agreement as directed by the court.\n\nSo simply paying part of the rent after the eviction notice will not stop eviction unless you have a court-approved written agreement and give that to the sheriff (RCW 59.18.390).",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "If my landlord and I have a written agreement to stop the eviction, do I need to give a copy of that agreement to the sheriff to stop the eviction?",
+      "section": "RCW 59.18.390",
+      "answer": "Yes, you do need to provide a copy of the written agreement to the sheriff for the eviction to be postponed or stopped. According to RCW 59.18.390(1), acceptance of a partial payment or agreement by the landlord after issuance of a writ of restitution does not automatically stop the eviction. The eviction will not be postponed unless a copy of the written agreement, signed by both parties, is given to the sheriff. The sheriff will then cease eviction action unless ordered otherwise by the court. It is explicitly the tenant's responsibility to ensure the sheriff receives this agreement.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My landlord gave me a notice to pay rent or move out, but I want to stay, what options do I have under this law?",
+      "section": "RCW 59.18.410",
+      "answer": "If your landlord gave you a notice to pay rent or move out, that usually means they allege you didn\u2019t pay rent or other charges on time (under RCW 59.18.057). Here are your options under Washington\u2019s Residential Landlord-Tenant Act:\n\n1. **Pay the Amount Owed Within 14 Days**:  \n   The notice you received gives you 14 days to pay the total amount of rent and/or charges owed or to move out. Paying in full within this period means you do not have to leave right now (RCW 59.18.057). Be sure to pay the exact amount listed as due and use the payment method specified.\n\n2. **Request Rental Assistance**:  \n   If you cannot pay rent, you might seek help from emergency rental assistance programs. If you later provide proof that you are applying or have applied for such assistance, the court may pause an eviction temporarily to give you a fair chance to comply (RCW 59.18.410(3)(c)(iv)).\n\n3. **Negotiate a Payment Plan or Settlement**:  \n   Sometimes tenants and landlords agree to a payment plan after a notice to pay or vacate. If a payment plan is put into a court order and you comply, the eviction process can be paused (RCW 59.18.410(3)(c)(ii,iii)).\n\n4. **Request a Court Stay of Eviction After Judgment**:  \n   If eviction proceedings start and a court awards possession to the landlord, you can still ask the court to stay (pause) the eviction if you show \u201cgood cause\u201d such as inability to pay due to hardship beyond your control, or if you can pay the judgment soon (RCW 59.18.410(3)(a)). The court will consider factors like whether the nonpayment was intentional, your payment history, and hardship.\n\n5. **Respond to the Notice and Attend Court**:  \n   If you receive a 14-day pay or vacate notice and do not pay or move out, the landlord can file a forcible detainer action (eviction lawsuit). You have the right to respond in court, explain your situation, and request relief like a stay or payment plan.\n\n**Important:**  \n- If you do nothing and do not pay or move out, the landlord may proceed with eviction through the court process.  \n- If you have been served three or more such pay-or-vacate notices within the past year, your ability to request court relief may be limited, unless some notices were invalid (RCW 59.18.410(3)(d)).  \n- Partial payments after eviction proceedings typically do not automatically stop eviction unless the landlord agrees and the agreement is provided to the sheriff (RCW 59.18.390).\n\nYou should carefully read the notice you received, consider paying the amount due or requesting rental assistance, and attend any court hearings if eviction proceedings begin. If possible, seek legal help or advice to understand the process as it applies to your specific situation.\n\nThis is legal information, not legal advice. For personal advice tailored to your case, consulting a qualified attorney or tenant's rights organization is recommended.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord require me to pay for my moving costs if they are demolishing or renovating the building?",
+      "section": "RCW 59.18.440",
+      "answer": "Under Washington's Residential Landlord-Tenant Act:\n\n- The landlord themselves is generally **not required to pay your moving expenses** simply because they are demolishing or renovating the building, unless a local city or county government has adopted a relocation assistance requirement under RCW 59.18.440. In that case, the local government can require property owners to provide reasonable relocation assistance (which may include moving costs) to low-income tenants displaced by demolition, substantial rehabilitation, or change of use of the property.\n\n- The law says such relocation assistance programs must be enacted by local jurisdictions after public notice and hearing, and they often cover reasonable expenses like moving costs, deposits for a new place, utility connection fees, and extra rent or utilities for a year after relocating (RCW 59.18.440(3)).\n\n- If your city or county has not adopted such a program, the landlord is not automatically required by state law to pay your moving expenses.\n\n- Additionally, if the landlord is required to give you at least 120 days' notice before ending your tenancy for demolition or substantial rehab (RCW 59.18.200(2)(c)(i)).\n\n- There are other scenarios where landlord must pay relocation assistance, such as if the property is condemned due to code violations and the landlord knew about it (RCW 59.18.085), but that concerns safety violations, not demolition or renovation as such.\n\n**Bottom line:** Unless your local government requires relocation assistance (which your landlord must follow), the landlord generally cannot require you to pay your own moving costs. Rather, any payment obligations would be spelled out by law or local code.\n\nIf you want to know whether your city or county has such a relocation assistance program, you might check local housing or tenant resources. This is legal information, not advice, so consulting a local tenant-rights group or attorney for your specific situation might help.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord kick me out because they think I\u2019m involved in a gang-related activity without proof?",
+      "section": "RCW 59.18.510",
+      "answer": "No, your landlord cannot evict you solely based on their belief or suspicion of gang-related activity without proof. Under Washington's Residential Landlord-Tenant Act, specifically RCW 59.18.510(4), the court must find that allegations of gang-related activity are corroborated by a source other than the person who filed the case before ordering a termination of tenancy and eviction.\n\nThis means the landlord or another party must provide evidence beyond just their own opinion or claims. The court looks for multiple factors, such as complaints, police reports, or other documentation, under a \"totality of the circumstances\" test (RCW 59.18.130(9) and RCW 59.18.500).\n\nIn summary, eviction requires more than just the landlord\u2019s belief; there must be corroborated proof of gang-related activity that renders other tenants or neighbors unsafe or insecure (RCW 59.18.510(4)). Without such proof and a court order, your landlord cannot lawfully evict you for this reason.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "If I believe someone is doing gang activity in my apartment building, how do I inform my landlord and what happens after I do that?",
+      "section": "RCW 59.18.510",
+      "answer": "If you believe someone in your apartment building is involved in gang-related activity that threatens your safety, health, or use of property, you can take the following steps under RCW 59.18.510:\n\n1. **Serve a Notice and Demand to the Landlord:**  \nYou must serve the landlord with a written notice describing in reasonable detail the facts and circumstances that lead you to believe gang-related activity is occurring. This notice is called a \"notice and demand\" and must demand that the landlord commence an unlawful detainer (eviction) action against the tenant engaging in the gang-related activity.  \nYou can deliver this notice to the landlord or the landlord\u2019s agent personally. If you can't deliver it personally after trying hard (due diligence), you may mail it postage prepaid to the landlord\u2019s last known address. This notice must also be served to the tenant you believe is engaging in gang activity, either personally or, if personal service is prevented by threats or violence, by mail or leaving it in a visible place at their residence (RCW 59.18.510(1)(a), (2)(b)).\n\n2. **Landlord\u2019s Investigation and Response:**  \nWithin 10 days after you serve the notice and demand, the landlord must take reasonable steps to investigate whether the tenant is indeed engaged in gang-related activity as prohibited by RCW 59.18.130(9). The landlord must notify you that the investigation is underway and has 10 days from that notification to complete it.  \nDepending on the results, the landlord must inform you what action they are taking:  \n- If the tenant is not complying with the law, the landlord may start an eviction action or take reasonable steps to stop the activity.  \n- If the tenant is complying with the law, the landlord must tell you that they found no violation.  \n- If the landlord took steps for the tenant to comply but the tenant did not comply within a reasonable time, you can proceed to court (RCW 59.18.510(2)(a)-(c)).\n\n3. **Your Option to Petition the Court:**  \nIf the tenant continues gang-related activity, and either the landlord fails to investigate, finds no activity, or the tenant doesn't comply after reasonable steps by the landlord, you may petition the court to terminate the tenant\u2019s lease and have them removed from the property (RCW 59.18.510(3)).\n\nIn summary, you notify the landlord in writing with details of the gang activity, also notify the tenant, and then the landlord has a set time to investigate and respond. You are kept informed throughout, and if the landlord does not act adequately, you can seek court intervention.\n\nNote: This information is based on Washington's Residential Landlord-Tenant Act. It is legal information, not legal advice for your specific situation.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "If I take a urine test and it shows I used drugs, can my landlord terminate my lease even if I haven't been living there for long?",
+      "section": "RCW 59.18.550",
+      "answer": "Yes. Under Washington law for drug and alcohol free housing, if you have been living in the housing for less than two years and a urine test or other evidence shows you used illegal drugs or alcohol without a medical prescription, the landlord may deliver a written notice terminating your tenancy. This notice must give you at least three days before the tenancy ends but also gives you one day to \"cure\" the violation\u2014meaning you can avoid termination by changing your conduct within that one day after notice delivery (RCW 59.18.550(3)). \n\nIf you do not correct it within one day, your lease terminates as stated in the notice. Also, if a similar drug or alcohol violation happens again within six months, the landlord may terminate your tenancy with at least three days' written notice and you do not get a chance to cure this subsequent violation (RCW 59.18.550(3)).\n\nSo the landlord can act based on a positive urine test, especially because the rental agreement in drug and alcohol free housing can require tenants to undergo urine tests at the landlord's expense (RCW 59.18.550(1)(c)(v)).\n\nThis only applies if your housing is designated as drug and alcohol free housing under the law (RCW 59.18.550(1)). If your housing is not in this category, this specific rule does not apply.\n\nNote: This is legal information about landlord rights under this statute, not personal legal advice. If facing eviction, consider consulting a lawyer or tenant rights group.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord kick me out if I drink alcohol in my apartment while I'm recovering from addiction?",
+      "section": "RCW 59.18.550",
+      "answer": "If you live in **drug and alcohol free housing**, which is a special type of housing designed for tenants in recovery, your landlord can issue you a notice to end your tenancy if you use alcohol without a medical reason. This is because by law, tenants in such housing agree not to use alcohol or illegal drugs as part of the program to support sobriety.\n\nSpecifically, under **RCW 59.18.550(3)**:\n- If you have lived there less than two years and use alcohol without a medical prescription, the landlord can deliver a written notice terminating the tenancy.\n- The notice must give you at least three days to leave but also gives you a chance to fix (\"cure\") the issue within one day by stopping the alcohol use.\n- If you stop using in that one-day window, the landlord cannot evict you.\n- However, if the same violation happens again within six months, the landlord can evict you with at least three days' written notice, and you won't have another chance to cure it.\n\nThis rule applies only if your lease specifically says you cannot use alcohol, and you live in such \"drug and alcohol free housing\" as defined in **RCW 59.18.550(1)**\u2014which includes participation in a recovery program and other terms.\n\nIf you are not in this type of housing, or your lease doesn\u2019t have such a provision, then this particular eviction process does not apply.\n\nSo, if you are recovering in such designated housing and your lease includes these terms, yes, the landlord can start a process to evict you after a notice if you drink alcohol without a medical reason. But they must give you a chance to stop using within one day to avoid eviction the first time.\n\nNote: This explanation is based on general landlord-tenant law; if facing eviction, you should consult a legal professional for advice tailored to your specific situation.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Does being a victim of domestic violence mean I can't be denied housing or face discrimination?",
+      "section": "RCW 59.18.570",
+      "answer": "Yes. Under Washington's Residential Landlord-Tenant Act, landlords cannot refuse to rent to you, terminate your tenancy, or refuse to renew your lease just because you or a household member are a victim of domestic violence, sexual assault, or stalking. Specifically, RCW 59.18.580(2) prohibits landlords from adverse rental decisions based on your status as a victim. This law aims to protect you from discrimination related to victim status, ensuring you have fair access to housing despite past experiences of violence.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": false,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can I break my rental lease early without owing more rent if I\u2019m a victim of domestic violence?",
+      "section": "RCW 59.18.575",
+      "answer": "Yes. Under RCW 59.18.575, if you are a victim of domestic violence, sexual assault, unlawful harassment, or stalking, you have the right to terminate your rental agreement early without owing additional rent, provided certain steps are followed.\n\nSpecifically:\n- You must notify your landlord in writing that you or a household member was a victim and provide either a valid protection order or a written record of a report signed by a qualified third party (such as a law enforcement officer or advocate). This notification must occur within 90 days of the incident (RCW 59.18.575(1)(a) and (2)(b)).\n- Once you provide the landlord with this documentation and give written notice that you are vacating, you are discharged from paying rent for any period after you move out or after the landlord receives the notice (RCW 59.18.575(3)(a)).\n- You are entitled to a refund of any prepaid rent on a prorated basis and a full accounting of your security deposit, unless there are damages exceeding the deposit (RCW 59.18.575(3)(a) and (2)(b)).\n\nIn summary, if you meet these conditions and properly notify your landlord, you can end your lease early without owing further rent after you move out.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My landlord found out I passed away. Do they have to tell my family or anyone else?",
+      "section": "RCW 59.18.595",
+      "answer": "Yes. When a tenant who is the sole occupant of a unit dies, the landlord must promptly notify certain people connected to the tenant. Specifically, the landlord must send written notice (by mail or personal delivery, and email if an electronic address is known) to:\n\n- Any known personal representative of the tenant,\n- Any known designated person the tenant named to handle affairs after death,\n- Any emergency contact the tenant listed on their rental application,\n- Any known person reasonably believed to be a successor (heir) of the tenant,\n- And to the deceased tenant at the rental unit address.\n\nThis notice must include details such as the tenant's name and address, approximate date of death, rent information, when the tenancy will end, and instructions about the tenant's property (RCW 59.18.595(1)(a)).\n\nSo yes, your landlord is legally required to inform your family or someone you designated, if they know who those people are.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "If I pass away and haven't arranged for my stuff to be picked up, what can my landlord do with my belongings?",
+      "section": "RCW 59.18.595",
+      "answer": "If you were the sole occupant of your rental unit and passed away without arranging for someone to handle your belongings, the landlord must follow the procedures under RCW 59.18.595.\n\n1. **Notice Requirements:**  \nThe landlord must promptly send written notice to any known personal representative, designated person you might have named, emergency contacts, or anyone believed to be your successor. This notice will include details such as your name, unit address, approximate date of death, rent status, and a statement that the tenancy will end 15 days after notice or when rent is paid through, whichever is later. It also explains that your belongings may be taken and stored if not removed in time (RCW 59.18.595(1)(a)).\n\n2. **Storage of Property:**  \nIf no arrangements or claims are made to pay rent or remove your belongings within the specified time, the landlord can enter the unit, take possession of your property, and store it securely, charging reasonable storage and moving costs (RCW 59.18.595(1)(a)(v)).\n\n3. **Second Notice Before Sale or Disposal:**  \nBefore selling or disposing of the stored belongings, the landlord must send a second written notice to the same parties, informing them of when the sale or disposal may occur\u2014at least 45 days after this second notice or after rent paid expires. If the property is worth $1,000 or less, it can be disposed of reasonably; if over $1,000, the landlord must sell it in a commercially reasonable way and may dispose of unsold items afterward (RCW 59.18.595(2), (3)(a)(i-ii)).\n\n4. **Disposition of Personal Papers and Photographs:**  \nPersonal papers and photos not claimed within 90 days after sale or disposal of other property may be destroyed or held for any legal successor (RCW 59.18.595(3)(b)).\n\n5. **Proceeds from Sale:**  \nAny money made from selling your property is first applied toward the landlord\u2019s costs of moving and storage, with the remainder held for you or your estate for one year. If unclaimed by then, it is treated as abandoned property and turned over to the state (RCW 59.18.595(3)(a)(iii)).\n\n6. **Immediate Actions on Perishable or Hazardous Items:**  \nThe landlord may immediately dispose of perishable food, hazardous materials, or garbage and arrange care for any animals found (RCW 59.18.595(4)).\n\nIn short, if you pass away without designated arrangements, your landlord must notify responsible parties, allow time for property removal or rent payment, store your belongings reasonably, send a second notice before sale or disposal, and handle your property in accordance with these rules to protect your estate and rights (all per RCW 59.18.595).",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My landlord says I can't pay my deposit in two payments because I only want to pay half now and half later. Is that allowed?",
+      "section": "RCW 59.18.610",
+      "answer": "Under Washington's Residential Landlord-Tenant Act, if your lease is shorter than three months, you have the right to pay your security deposit, any nonrefundable fees, and last month's rent in **two** equal monthly installments starting at the beginning of the tenancy. If your lease is three months or longer, you can pay these in **three** equal monthly installments (RCW 59.18.610(2)).\n\nAlso, a landlord must allow a tenant to pay these amounts in installments if you put the request in writing\u2014unless the total deposits and fees are less than or equal to 25% of the first full month's rent and last month's rent is not required upfront (RCW 59.18.610(1)(a)-(b)).\n\nIf your landlord refuses your written request to pay the deposit in installments when allowed, they may be subject to a penalty equal to one month's rent plus your legal fees (RCW 59.18.610(5)).\n\nSo, your landlord cannot just refuse your request if you follow these rules. You should make the request in writing explaining your choice to pay in installments. If they say no without a proper reason under the law, that refusal is not allowed.\n\nNote: This is legal information, not legal advice. You might want to consult a tenant's rights organization or legal professional for help with your specific situation.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord charge me extra fees if I choose to pay my deposit and last month's rent in installments?",
+      "section": "RCW 59.18.610",
+      "answer": "No, your landlord cannot charge you extra fees or interest if you choose to pay your deposit and last month's rent in installments. According to RCW 59.18.610(3), the landlord may not impose any fee, charge interest, or other costs just because you elect to pay in installments. The payment schedule must be in writing and signed by both you and the landlord, and installment payments are due at the same time as regular rent.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord evict me because I can't pay my rent during the COVID-19 crisis?",
+      "section": "RCW 59.18.620",
+      "answer": "Your landlord cannot evict you solely for not paying rent if the unpaid rent accrued between March 1, 2020, and six months after the eviction moratorium ended, without following specific rules.\n\nHere's what the law says:\n\n1. **Nonpayment during COVID-19 period:**  \n   Rent that became due between March 1, 2020, and six months after the eviction moratorium ended cannot be the sole reason for an eviction unless other procedures are followed. Landlords also cannot impose late fees or penalties on such unpaid rent during this time (RCW 59.18.625(1)).\n\n2. **Repayment plan requirement:**  \n   If you owe rent from this COVID-19 period, your landlord must offer you a reasonable repayment plan. This plan should not require monthly payments greater than one-third of your usual monthly rent amount accrued during the debt period. You have 14 days to accept the plan. If you reject it or default on payments, then the landlord can start eviction proceedings \u2014 but the court will consider your COVID-related financial situation before deciding (RCW 59.18.630(2)).\n\n3. **Eviction defenses:**  \n   If the landlord did not offer a proper repayment plan as required, you can use this as a defense in eviction proceedings (RCW 59.18.630(4)).\n\n4. **Eviction moratorium protections:**  \n   During the eviction moratorium period and six months afterward, landlords also could not report unpaid rent or eviction actions related to this nonpayment to future landlords, preventing negative rental history (RCW 59.18.625(2)).\n\nSo, your landlord cannot simply evict you for missing rent during the COVID-19 period without offering a repayment plan and following due process. The courts will also consider your COVID-19 related hardships before eviction can occur.\n\nIf you find yourself facing an eviction, it may help to seek legal advice or tenant assistance programs since this is legal information, not personal legal advice.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": false,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": false
+    },
+    {
+      "question": "Can my landlord charge me a late fee if I didn't pay rent during the COVID-19 eviction moratorium?",
+      "section": "RCW 59.18.625",
+      "answer": "No, your landlord cannot charge you a late fee for unpaid rent that was due during the COVID-19 eviction moratorium period. Specifically, under RCW 59.18.625(1), landlords are prohibited from charging any late fees or other penalties for rent that was due between March 1, 2020, and six months after the eviction moratorium ended. This rule protects tenants from being financially penalized if they missed rent during that emergency period.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord report my nonpayment of rent from during the COVID-19 period to a future landlord?",
+      "section": "RCW 59.18.625",
+      "answer": "No, your landlord cannot report your nonpayment of rent that accrued between March 1, 2020, and six months after the eviction moratorium ended to a prospective landlord. Under RCW 59.18.625(2)(a)(i), landlords are prohibited from reporting rent nonpayment during this COVID-19 period. Additionally, prospective landlords cannot use that information about your nonpayment during that time to take adverse action against you (RCW 59.18.625(2)(b)).\n\nThis law protects tenants from having COVID-related rent nonpayment affect future housing opportunities.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My landlord offered me a repayment plan for rent I couldn't pay last year, and I haven't paid any rent for 45 days. Can they start an eviction process now?",
+      "section": "RCW 59.18.630",
+      "answer": "Based on Washington's Residential Landlord-Tenant Act:\n\nIf your unpaid rent accrued during the COVID-19 emergency period (starting March 1, 2020), your landlord must offer you a repayment plan that limits monthly payments to no more than one-third of your monthly rent for the period of the debt (RCW 59.18.630(2)).\n\nOnce the landlord offers you a reasonable repayment plan, you have 14 days to accept it. If you don\u2019t accept the plan within those 14 days, the landlord may start eviction proceedings (unlawful detainer action) (RCW 59.18.630(2)).\n\nIf you accepted the repayment plan but have defaulted (missed payments) under that plan, the landlord may seek eviction after giving you a notice of default and a 3-day period to cure or vacate (RCW 59.18.410(3)(c)(iii)(A)).\n\nSo:\n\n- If you have not accepted any repayment plan your landlord offered, but it was a reasonable plan and more than 14 days have passed, they can begin eviction.\n\n- If you accepted the plan but missed payments (like being 45 days late), the landlord can serve a notice of default and proceed with eviction after three calendar days if you don\u2019t catch up.\n\nIn any eviction proceeding, the court will consider your COVID-related circumstances and the payment plan terms (RCW 59.18.630(2)).\n\nThis is legal information, not advice. You may want to consult a lawyer or tenant assistance service to discuss your personal situation.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord end my lease without a reason after my initial rental period if I signed a one-year lease?",
+      "section": "RCW 59.18.650",
+      "answer": "If you have a one-year lease, the landlord generally cannot end your lease without a reason after the initial period unless specific conditions are met.\n\nAccording to RCW 59.18.650(1)(b), a landlord may only end a tenancy at the end of the initial lease period without cause if:\n\n1. The original lease was entered into for a term between six and 12 months; and\n2. The landlord gave you at least 60 days' advance written notice ending the tenancy before the initial lease expires, served properly under the law.\n\nIf these conditions are not met, and your lease ends, the tenancy usually either continues on a month-to-month or another periodic basis, or the landlord must have a legal cause (\"cause\" is detailed in RCW 59.18.650(2)) to end it.\n\nSo, after the initial one-year lease, without proper 60-day written notice or other cause, your landlord cannot simply end your tenancy without reason.\n\nIf your lease sets a specific period (\"fixed term\"), and the landlord meets the notice requirement at the end of that period, then they may end it without cause (as in RCW 59.18.650(1)(c)), but the lease must meet other detailed conditions.\n\nIn summary, for a one-year lease, your landlord must provide at least 60 days' written notice before the end of that year to end the lease without cause. Absent that, the lease doesn't just end automatically without reason. This is a general explanation based on the law; for advice about your specific situation, you should consult a lawyer or tenant-rights organization.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My landlord wants to start charging a monthly fee instead of a security deposit. Are they allowed to do that?",
+      "section": "RCW 59.18.670",
+      "answer": "Yes, under Washington law, a landlord may offer tenants the option to pay a monthly fee instead of a traditional security deposit, but the tenant's payment of this fee must be strictly optional. The landlord cannot force you to pay the fee; you have the right to choose either a full security deposit or the fee instead (RCW 59.18.670(1)(a)).\n\nMoreover, if the landlord offers this fee option, they must provide it fairly and equally to all approved applicants without discrimination based on income, credit score, race, gender, or other protected characteristics (RCW 59.18.670(1)(c)). The landlord must also disclose in writing specific information about the fee, including that it is not refundable and does not count as rent, along with details about any insurance coverage the landlord obtains to cover losses related to unpaid rent or damages beyond ordinary wear and tear (RCW 59.18.670(1)(f)).\n\nSo, in summary, your landlord can offer a monthly fee instead of a security deposit, but you must be allowed to choose to pay a traditional deposit if you prefer, and the landlord must provide proper disclosures and treat all tenants fairly according to RCW 59.18.670.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My landlord tried to raise my rent by 12% during my first year, is that allowed?",
+      "section": "RCW 59.18.700",
+      "answer": "No, your landlord cannot raise your rent by 12% during your first year of tenancy. Under RCW 59.18.700(1)(a)(i), landlords may not increase the rent during the first 12 months after the tenancy begins. This means no rent increase is allowed in that time frame regardless of the percentage.\n\nIf the rent increase is applied and it is not authorized by an exemption under RCW 59.18.710, you have remedies. You can provide your landlord written notice demanding the increase be reduced to comply with the law, and you may terminate the rental agreement by giving at least 20 days' written notice before the increase takes effect, without penalty, paying rent for the full month you move out (RCW 59.18.700(3)).\n\nIf you want to proceed, you should be sure to put your concerns in writing to the landlord. This information is legal information, not legal advice, and you may want to consult a lawyer or tenant rights group for personal guidance.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord increase my rent more than 7% plus the consumer price index in a year?",
+      "section": "RCW 59.18.700",
+      "answer": "Generally, your landlord **cannot increase your rent more than 7% plus the consumer price index (CPI), or 10%, whichever is less, in any 12-month period** after the first year of your tenancy. Also, rent cannot be increased at all during the first 12 months of your tenancy (RCW 59.18.700(1)(a)(i) and (ii)).\n\nHowever, there are some **exemptions** (RCW 59.18.710). For example, if your rental unit is:\n\n- A newer building issued a certificate of occupancy 12 years ago or less,\n- Owned by a public housing authority or nonprofit organization regulated by affordable housing laws,\n- An owner-occupied single-family home with no more than two rental units,\n- Or certain other housing types described in RCW 59.18.710,\n\nthen your landlord may legally raise rent above this limit. If so, the landlord must clearly indicate this exemption and provide supporting facts in the written rent increase notice (RCW 59.18.720).\n\nIf your landlord raises your rent above the allowed limit **without a proper exemption** and notice, you can demand in writing that the landlord reduce the increase to the legal limit. You may also choose to terminate your rental agreement by giving notice at least 20 days before ending the tenancy, paying rent through your last month (RCW 59.18.700(3)).\n\nSo, unless your landlord qualifies for an exemption and properly notifies you, they cannot increase your rent more than 7% plus CPI or 10% annually after your first year of tenancy.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord raise the rent more than usual if I just moved in within the last year?",
+      "section": "RCW 59.18.710",
+      "answer": "No, your landlord generally cannot raise your rent more than the usual limit during the first 12 months after your tenancy begins. Specifically, under RCW 59.18.700(1)(a)(i), a landlord may not increase rent during the first 12 months after the tenancy starts, except for certain exemptions described in RCW 59.18.710.\n\nSo if you just moved in within the past year, your landlord can't raise your rent until that 12-month period completes, unless your situation falls within one of the exemptions like:\n\n- Your unit's first certificate of occupancy was issued 12 or fewer years ago (a newer building),\n- Or your landlord meets other specific exempt criteria under RCW 59.18.710.\n\nIf your landlord tries to raise the rent more than allowed before the 12 months are up and without a proper exemption, such an increase would not be lawful.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "If I rent a single-family home owned by the owner, can my landlord increase the rent more than what the law normally allows?",
+      "section": "RCW 59.18.710",
+      "answer": "Yes. According to RCW 59.18.710(1)(f), rent increase limits do not apply to tenancies in single-family owner-occupied residences. This means the landlord of a single-family home who lives there (owner-occupied) can increase rent more than the usual limits in RCW 59.18.700.\n\nHowever, the exemption only applies if the owner is a natural person and not a corporation, real estate investment trust, or certain LLCs as described in RCW 59.18.710(2).\n\nSo, if you rent a single-family home where the owner lives there as their main residence and the owner is not a corporation or similar entity, your landlord is exempt from the normal rent increase limits and can raise your rent more than normally allowed under state law. The landlord would still need to give you proper written notice of any increase. \n\nThis is not legal advice, just information based on the statute.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord raise my rent more than 7% plus inflation in a year?",
+      "section": "RCW 59.18.720",
+      "answer": "Under Washington state law, your landlord generally cannot raise your rent more than 7% plus the consumer price index (inflation) in any 12-month period, or 10%, whichever is less, during your tenancy (RCW 59.18.700(1)(a)(ii)). Also, rent increases are not allowed during the first 12 months of your tenancy unless there's an exemption (RCW 59.18.700(1)(a)(i)).\n\nHowever, there are some exemptions where landlords can raise rent more than this limit. Examples include:\n\n- The dwelling unit is relatively new (certificate of occupancy issued 12 or fewer years ago).\n- The property is owned by certain public or nonprofit housing authorities or has specific affordable housing regulations.\n- The tenant shares facilities with an owner who lives on the property.\n- The rental unit is part of a single-family owner-occupied home or certain small multi-unit residences (duplex, triplex, or fourplex) where the owner lives on site (RCW 59.18.710).\n\nIf your landlord claims an exemption to raise rent beyond the usual limit, they must provide written notice to you, including facts to support the exemption (RCW 59.18.720(2), (3)).\n\nSo, unless your landlord qualifies for and properly notifies you of an exemption, they cannot legally raise your rent more than 7% plus inflation or 10%, whichever is less, within a 12-month period.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My landlord says they can increase my rent by more than 10% because I live in a duplex; is that OK?",
+      "section": "RCW 59.18.720",
+      "answer": "Whether your landlord can raise your rent by more than 10% because you live in a duplex depends on specific conditions.\n\nUnder RCW 59.18.710(1)(g), landlords may raise rent above the usual limit for tenancies in a duplex, triplex, or fourplex **only if** the owner occupied one of the units as their principal residence at the beginning of the tenancy and continues to occupy that unit. Additionally, per RCW 59.18.710(2), this exemption only applies if the owner is **not** a corporation, real estate investment trust, or LLC with a corporate member.\n\nSo, if your duplex landlord:\n\n- Lives in one of the units as their main home since your tenancy began and still does, and\n- Is an individual owner, not a corporate entity,\n\nthen the landlord may lawfully increase rent by more than the usual limits.\n\nIf these conditions are not met, the normal rent increase limits still apply (up to 7% plus inflation or 10%, whichever is less, once every 12 months under RCW 59.18.700), and any larger increase might be unlawful.\n\nYou can ask your landlord for proof that they qualify for this exemption, which they must provide if they claim it in a rent increase notice form under RCW 59.18.720.\n\nIf your landlord raises rent beyond allowed limits without a valid exemption, you have the right to demand a reduction or choose to end your lease early without penalty (RCW 59.18.700(3)).\n\nThis is legal information, not advice. If you want to pursue this, consider consulting a tenant rights professional or legal aid.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My window is a necessary exit, can I put a portable air conditioner in that window without any problems?",
+      "section": "RCW 59.18.740",
+      "answer": "If your window is a necessary exit (egress), the landlord can prohibit or restrict you from installing a window-mounted portable cooling device there if the device would interfere with using the window as a way to exit the dwelling (RCW 59.18.740(4)(a)(i)). \n\nThis means if the air conditioner blocks or makes it harder to use that window to exit in an emergency, the landlord can say no to installing it in that window.\n\nSo, to answer your question: You generally cannot install a window-mounted portable air conditioner in a window that is a necessary exit if the device would interfere with the window\u2019s use as an exit. You might be able to install it elsewhere, or use a type of portable cooling device that does not block the egress. \n\nRemember also that you must provide your landlord with at least two days' notice before installation (RCW 59.18.740(6)).\n\nThis is legal information, not advice. If you want to know what you specifically should do, consider consulting a lawyer or tenant support organizations.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord stop me from installing a portable AC unit in my apartment?",
+      "section": "RCW 59.18.740",
+      "answer": "Under Washington's tenant law (RCW 59.18.740), your landlord generally cannot stop you from installing a portable cooling device like a portable AC unit of your choice.\n\nHowever, there are some exceptions where your landlord can restrict or prohibit installation:\n\n- If your dwelling already has a permanently installed and fully operational heat pump.\n- If the installation would violate building codes, laws, or the device\u2019s safety guidelines.\n- If installation would cause unreasonable damage or make the apartment uninhabitable.\n- If your electrical system cannot safely support the device.\n\nIf the AC is window-mounted, your landlord can also restrict it if:\n\n- It blocks a necessary escape window.\n- It interferes with locking windows accessible from outside.\n- It causes damage to the window or building.\n- It cannot be secured safely.\n- The landlord's insurance prohibits window-mounted ACs (and the landlord must show you proof of this).\n\nSo, unless one of those specific exceptions applies, your landlord cannot stop you from putting in a portable AC unit. Also, your landlord cannot charge a fee just for you installing or using the unit, though they can charge for any damages caused (RCW 59.18.740(1), (3), (4), (2)).\n\nRemember, you must give the landlord at least two days' notice before installing a window-mounted AC (RCW 59.18.740(6)).\n\nThis is general legal information based on the statute; for advice about your personal situation, you might want to contact a tenant rights organization or attorney.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "What kind of privacy information does my landlord have to give me about the smart access system?",
+      "section": "RCW 59.18.755",
+      "answer": "Your landlord must provide you a clear, written privacy policy about the smart access system either when you sign your lease or within five days after the system is installed. This policy must be in plain language and include at least the following information:\n\n1. What data the system collects, including any data about your guests (RCW 59.18.755(2)(a)).\n\n2. How your landlord will protect that data with security measures (RCW 59.18.755(2)(b)).\n\n3. How long the data will be kept before being destroyed or anonymized (RCW 59.18.755(2)(c)).\n\n4. What the landlord will do if there is an unauthorized access or breach of your data, including how and when you will be notified (RCW 59.18.755(2)(d)).\n\n5. Guidelines on permanently destroying or anonymizing data or removing it from the system (RCW 59.18.755(2)(e)).\n\n6. The process for adding a tenant temporarily to the system if they give written consent (RCW 59.18.755(2)(f)).\n\nIf the landlord uses a smart access system developer's privacy policy and does not keep or sell any data themselves, they may simply give you that developer's written policy or a link to it instead (RCW 59.18.755(3)).\n\nThis law starts applying from January 1, 2027 (RCW 59.18.755).\n\nSo basically, you should receive clear explained details about what info is gathered, how it\u2019s safeguarded, how long it\u2019s held, what happens if a data breach occurs, and how temporary user additions work. This ensures transparency and protects your privacy rights.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "My landlord just installed a smart access system and gave me a privacy policy. Do I need to also get details about how my data is protected and how long it will be kept?",
+      "section": "RCW 59.18.755",
+      "answer": "Yes, under Washington's Residential Landlord-Tenant Act (RCW 59.18.755), when your landlord installs a smart access system, they must provide you with a clear written privacy policy. This policy must include details such as:\n\n- What data the system collects (including any information about your guests),\n- How your data will be protected,\n- How long your data will be retained,\n- What will happen if there is a security breach (including how tenants will be notified), and\n- How data will be permanently destroyed or anonymized.\n\nYour landlord must give you this written policy either when you initially sign your lease or within five days of installing the smart access system (RCW 59.18.755(1) and (2)). So yes, you should receive information not only about the data collected but also about data protection and retention.\n\nIf you did not get this information, you may want to ask your landlord specifically for these details, since the law requires it.",
+      "verdict": "consistent",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "If I signed a one-year lease that ends next month, how much notice does my landlord have to give me before increasing the rent?",
+      "section": "RCW 59.18.140",
+      "answer": "If your one-year lease ends next month, your landlord must give you written notice of any rent increase at least **60 days** before the increase's effective date, according to RCW 59.18.140(3)(c). This applies when a lease or rental agreement was entered into or renewed before May 7, 2025, and has between 60 and 90 days left before the lease term ends as of that date.\n\nSo, since your lease has just about a month left (which is fewer than 60 days), your landlord should still provide 60 days' written notice before increasing rent for any new lease term or renewal starting after your current lease ends.\n\nIn summary, your landlord must give you at least 60 days' written notice before charging a higher rent once your current lease expires.",
+      "verdict": "contradicts",
+      "unsupported_claim": false,
+      "cites_gt": true,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": true
+    },
+    {
+      "question": "Can my landlord ask me for sexual favors in exchange for a better rental term?",
+      "section": "RCW 59.18.570",
+      "answer": "No, your landlord cannot lawfully ask you for sexual favors in exchange for better rental terms. Such behavior is considered a form of sexual harassment, which violates tenant protections.\n\nWhile the exact statute you mention isn't included in the provided extracts, under RCW 59.18.650(2)(p), a landlord may terminate a tenancy with proper notice if a tenant has made unwanted sexual advances or harassment toward others, implying that sexual harassment in the landlord-tenant relationship is recognized as improper conduct.\n\nMoreover, any lease provisions trying to waive your rights or require something illegal (like sexual favors) would be unenforceable under RCW 59.18.230, which forbids clauses that waive tenant rights or include illegal terms.\n\nIf you face such conduct, it is important to seek legal advice or support organizations as well, since this situation involves serious misconduct beyond typical landlord-tenant disputes.",
+      "verdict": "contradicts",
+      "unsupported_claim": true,
+      "cites_gt": false,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": false
+    },
+    {
+      "question": "My landlord gave me 60 days' notice to move out because they want to sell the house. Is that allowed?",
+      "section": "RCW 59.18.650",
+      "answer": "Washington State law requires landlords to give proper notice depending on the reason for ending a tenancy.\n\nBased on the information you gave:\n- Your landlord gave you 60 days' notice to move out because they want to sell the house.\n\nThe provided statute extracts do not specifically say how much notice a landlord must give when the reason for ending tenancy is selling the property. The excerpts explain notice timeframes for demolition, rehab, converting to condo, excluding children, rent increases, and nonpayment, but do **not** cover selling the property.\n\nTherefore, from the extracts provided, I cannot confirm whether 60 days' notice is sufficient or if a longer notice would be required for selling the rental unit.\n\nYou might want to check the full Residential Landlord-Tenant Act or local rules for details about notice requirements related to sale of rental housing, but based on the statutes given here, I don\u2019t have enough information to answer your question fully. \n\nRemember, I provide legal information only, not personal legal advice. If you need advice about your specific situation, consider consulting a tenants' rights organization or attorney.",
+      "verdict": "contradicts",
+      "unsupported_claim": false,
+      "cites_gt": false,
+      "cites_outside_corpus": [],
+      "retrieval_had_gt": false
+    }
+  ]
+}
