@@ -362,7 +362,7 @@ kept on purpose, because they are how the architecture earned its shape.
 | [Retrieval ablation](evaluation/README.md#retrieval-ablation--section-level-n82) | Which pipeline stage actually earns its cost? | naive chunking ties the six-stage pipeline |
 | [Adversarial rephrasing](evaluation/README.md#adversarial-rephrasing--the-same-82-questions-renter-voice) | Does it hold when renters don't speak statute? | full pipeline wins; the earlier tie was vocabulary leakage |
 | [Hybrid BM25](evaluation/README.md#hybrid-retrieval-bm25--dense--measured-and-not-shipped) | Does a lexical channel help ask mode? | no — the apparent gain was vocabulary leakage |
-| [Generation layer](evaluation/README.md#generation-layer-evaluation--is-the-final-answer-right-n82--2-configs) | Is the final answer right and grounded? | 82/82 consistent, 81/82 grounded |
+| [Generation layer](evaluation/README.md#generation-layer-evaluation--is-the-final-answer-right-n82--2-configs) | Is the final answer right and grounded? | 79–82/82 consistent over 4 runs, 81–82/82 grounded — [one run is one draw](evaluation/README.md#one-run-is-one-draw-79-82-of-82) |
 
 **Three worth the click:**
 
