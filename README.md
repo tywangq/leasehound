@@ -4,6 +4,12 @@
 
 **🐕 [Live demo](https://leasehound-671004460975.us-west1.run.app)** — one click scans the sample lease, warm and answering in ~100 ms ([how that stays free](#try-it)) · **[live API docs](https://leasehound-671004460975.us-west1.run.app/docs)** — the same pipeline as a typed contract, because [the UI is one client of three](#three-clients-one-pipeline), not the product.
 
+> **LeaseHound 🐕** — you hand it a document; it examines what is in front of it.
+>
+> **[RentScout](https://github.com/tywangq/rentscout) 🐕‍🦺** — you send it out; it decides where to look and comes back with a report.
+>
+> One is a workflow. The other is an agent. Building both is the point.
+
 ![LeaseHound in motion: the sample lease is scanned clause by clause, the red-flag report pins to the side panel, and a follow-up question gets a cited answer](docs/demo.gif)
 
 > ⚖️ LeaseHound is an educational tool, not legal advice. Verdicts are judged against a snapshot of RCW 59.18 fetched 2026-07-25 — the law may have changed since.
