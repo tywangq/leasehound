@@ -951,7 +951,9 @@ UI_STYLE = {
 # part that tells someone what the bookmark was for. A tab strip truncates the tail,
 # so "LeaseHound" survives crowding either way and the gloss is a free win when there
 # is room.
-SOCIAL_TITLE = "LeaseHound — lease red-flag scanner"
+# "RAG" up front: the resume, LinkedIn and the portfolio name the technique where a
+# recruiter scans, and a shared link's title is one of those places.
+SOCIAL_TITLE = "LeaseHound — RAG lease red-flag scanner"
 
 with gr.Blocks(title=SOCIAL_TITLE) as demo:
     gr.HTML(HERO)
